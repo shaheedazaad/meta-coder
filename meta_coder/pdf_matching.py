@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from .manual_drafting import ManualDraftError, pdf_text
+from .coding_sheet import coding_sheet_reader
 from .projects import Project
 
 
@@ -267,7 +268,7 @@ def unmatched_paper_ids(
     unlike `parse_coding_sheet_csv`, malformed rows are simply skipped rather
     than reported, since this only feeds match suggestions, not validation."""
 
-    reader = csv.DictReader(io.StringIO(coding_sheet_text))
+    reader = coding_sheet_reader(coding_sheet_text)
     groups: dict[str, UnmatchedPaper] = {}
     for record in reader:
         source_pdf = (record.get("source_pdf") or "").strip()
@@ -299,7 +300,7 @@ def matched_paper_ids(coding_sheet_text: str, *, uploaded_filenames: set[str]) -
     """
 
     groups: dict[str, MatchedPaper] = {}
-    for record in csv.DictReader(io.StringIO(coding_sheet_text)):
+    for record in coding_sheet_reader(coding_sheet_text):
         source_pdf = (record.get("source_pdf") or "").strip()
         if source_pdf not in uploaded_filenames:
             continue
@@ -554,7 +555,7 @@ def apply_source_pdf_matches(path: Path, mapping: dict[str, str]) -> None:
     untouched."""
 
     text = path.read_text(encoding="utf-8")
-    reader = csv.DictReader(io.StringIO(text))
+    reader = coding_sheet_reader(text)
     fieldnames = reader.fieldnames or []
     rows = list(reader)
     for row in rows:
