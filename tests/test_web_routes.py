@@ -404,3 +404,24 @@ def test_model_warning_preserves_saved_settings(site, monkeypatch):
     response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'})
     assert response.status_code == 303 and 'warning=' in response.headers['location']
     assert load_run_settings(project).model == 'model'
+
+
+@pytest.mark.parametrize(('raw', 'limit', 'status'), [(b'\xff', 1024, 400), (b'x' * 25, 24, 413)])
+def test_manual_import_rejects_encoding_and_limit_without_data_loss(site, monkeypatch, raw, limit, status):
+    client, project, _ = site
+    monkeypatch.setattr(web, 'load_app_settings', lambda: Mock(upload_size_cap_bytes=limit))
+    before = project.manual_path.read_bytes()
+    result = project.raw_dir / 'result.json'
+    result.write_text('valuable')
+    response = client.post(url(project, '/manual/import'), files={'file': ('manual.yml', raw)})
+    assert response.status_code == status
+    assert project.manual_path.read_bytes() == before
+    assert result.read_text() == 'valuable'
+
+
+def test_manual_import_accepts_utf8_bom(site):
+    client, project, _ = site
+    raw = '\ufeffeffect_definition: comparison\neffects:\n  label: {description: Müller}\n'.encode()
+    response = client.post(url(project, '/manual/import'), files={'file': ('manual.yml', raw)})
+    assert response.status_code == 303
+    assert 'Müller' in project.manual_path.read_text()

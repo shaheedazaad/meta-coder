@@ -905,9 +905,16 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         # structured editor. Still never hand-edited as text after this: any
         # further change goes through save_manual like everything else.
         project = runtime.project(project_id)
-        raw = await file.read()
+        limit = load_app_settings().upload_size_cap_bytes
+        raw = await file.read(limit + 1)
+        if len(raw) > limit:
+            raise HTTPException(status_code=413, detail="The manual exceeds the upload limit.")
         try:
-            manual = parse_coding_manual(raw.decode("utf-8", errors="replace"))
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Save the manual as UTF-8 and try again.") from exc
+        try:
+            manual = parse_coding_manual(text)
         except ManualError as exc:
             return RedirectResponse(
                 f"/{token}/projects/{project_id}?error={quote(str(exc))}", status_code=303
