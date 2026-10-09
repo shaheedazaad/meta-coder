@@ -13,10 +13,7 @@ import yaml
 
 from .coding_sheet import CodingSheet, CodingSheetRow
 from .extraction import ExtractionResult
-from .manual import CodingManual
-
-
-BASE_COLUMNS = ("row_id", "source_pdf", "locator", "authors", "year", "status")
+from .manual import BASE_COLUMNS, CodingManual
 
 
 def collate_results(

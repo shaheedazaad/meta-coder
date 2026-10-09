@@ -203,6 +203,21 @@ def test_prompt_marks_document_and_requires_reviewable_scope():
     assert "Do not add a notes field" in prompt
 
 
+def test_prompt_and_draft_validation_reject_reserved_field_names():
+    from meta_coder.manual import BASE_COLUMNS
+
+    prompt = build_manual_draft_prompt("")
+    assert all(name in prompt for name in BASE_COLUMNS)
+    assert "publication_status" in prompt
+    draft = {
+        "name": "m", "description": "", "effect_definition": "comparison",
+        "effects": [{"name": "Status", "type": "string", "description": "",
+                     "evidence_required": True, "levels": []}],
+    }
+    with pytest.raises(ManualDraftError, match="`Status` is reserved.*publication_status"):
+        parse_manual_draft_response(json.dumps(draft))
+
+
 def test_empty_upload_and_invalid_pdf_signature():
     import io
     from meta_coder import manual_drafting as drafting
