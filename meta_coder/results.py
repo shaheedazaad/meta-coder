@@ -19,6 +19,12 @@ from .manual import CodingManual
 BASE_COLUMNS = ("row_id", "source_pdf", "locator", "authors", "year", "status")
 
 
+def _field_mapping(coded: dict, field_name: str) -> dict:
+    """Malformed model cells stay in raw JSON, but cannot break exports."""
+    value = coded.get(field_name)
+    return value if isinstance(value, dict) else {}
+
+
 def collate_results(
     *,
     manual: CodingManual,
@@ -46,7 +52,7 @@ def collate_results(
         coded_row = dict(base)
         evidence_row = dict(base)
         for field_name in effect_columns:
-            field_value = coded.get(field_name) or {}
+            field_value = _field_mapping(coded, field_name)
             value = field_value.get("value", "")
             coded_row[field_name] = "Not Reported" if value is None else str(value)
             evidence_row[field_name] = str(field_value.get("evidence", ""))
@@ -88,8 +94,8 @@ def render_pdf_audit_yaml(
         else:
             entry["fields"] = {
                 field_name: {
-                    "value": (coded.get(field_name) or {}).get("value"),
-                    "evidence": (coded.get(field_name) or {}).get("evidence"),
+                    "value": _field_mapping(coded, field_name).get("value"),
+                    "evidence": _field_mapping(coded, field_name).get("evidence"),
                 }
                 for field_name in manual.effects
             }
