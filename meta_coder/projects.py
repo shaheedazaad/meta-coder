@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .manual import CodingManual, manual_to_yaml_text, parse_coding_manual
+from .manual import CodingManual, ManualError, manual_to_yaml_text, parse_coding_manual
 from .paths import DEFAULT_MANUAL_PATH, projects_dir
 
 
@@ -158,7 +158,14 @@ def _reset_output(project: Project) -> None:
 
 
 def write_manual(project: Project, manual: CodingManual) -> None:
-    project.manual_path.write_text(manual_to_yaml_text(manual), encoding="utf-8")
+    text = manual_to_yaml_text(manual)
+    try:
+        previous = parse_coding_manual(read_manual_text(project), require_effect_definition=False)
+    except (ManualError, OSError):
+        previous = None
+    if previous is not None and manual_to_yaml_text(previous) == text:
+        return
+    project.manual_path.write_text(text, encoding="utf-8")
     _reset_output(project)
 
 

@@ -126,3 +126,36 @@ def test_manual_validation_preserves_outputs_and_reset_recovers(tmp_path):
     projects.reset_manual_to_default(project)
     assert projects.read_manual_text(project) == original
     assert project.raw_dir.is_dir() and project.audit_dir.is_dir()
+
+
+def test_equivalent_manual_save_preserves_every_output(tmp_path):
+    from meta_coder.manual import parse_coding_manual
+    project = create_project('Equivalent', root=tmp_path)
+    original = 'effect_definition: comparison\neffects:\n  estimate: {type: number}\n'
+    projects.write_manual_text(project, original)
+    result = project.raw_dir / 'result.json'
+    result.write_text('valuable results')
+    manual_bytes = project.manual_path.read_bytes()
+    manual = parse_coding_manual('# different formatting\n' + original)
+    projects.write_manual(project, manual)
+    assert result.read_text() == 'valuable results'
+    assert project.manual_path.read_bytes() == manual_bytes
+    manual.effects['estimate'].description = 'Changed coding instruction'
+    projects.write_manual(project, manual)
+    assert not result.exists()
+
+
+def test_equivalent_incomplete_manual_and_unreadable_recovery(tmp_path):
+    from meta_coder.manual import parse_coding_manual
+    project = create_project('Starter', root=tmp_path)
+    manual = parse_coding_manual(project.manual_path.read_text(), require_effect_definition=False)
+    result = project.raw_dir / 'result.json'
+    result.write_text('keep')
+    projects.write_manual(project, manual)
+    assert result.exists()
+    project.manual_path.unlink()
+    projects.write_manual(project, manual)
+    assert project.manual_path.exists() and not result.exists()
+    project.manual_path.write_text('invalid')
+    projects.write_manual(project, manual)
+    assert project.manual_path.read_text().startswith('name:')
