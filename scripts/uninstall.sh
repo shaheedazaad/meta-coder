@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Uninstall a release installed by install.sh. User data and Pixi are kept.
-# Usage: bash scripts/uninstall.sh
+# Usage:
+#   curl -fsSL https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.sh | bash
+# or, from a source checkout: bash scripts/uninstall.sh
 set -euo pipefail
 
 if [ "$#" -ne 0 ]; then
@@ -17,8 +19,22 @@ fi
 app_root="$data_root/app"
 launcher="$HOME/.local/bin/meta-coder"
 
-# Leave a launcher from another installation (e.g. pip) alone.
-if [ -f "$launcher" ] && grep -Fq "exec pixi run --manifest-path \"$app_root/" "$launcher"; then
+# A launcher is ours if it runs a manifest under $app_root, either behind
+# install.sh's marker line or as the `exec <pixi> run ...` line written before
+# the marker existed. Anything else (e.g. a pip install) is left alone.
+launcher_is_ours() {
+  local line marked=false runs_app=false
+  while IFS= read -r line || [ -n "$line" ]; do
+    [ "$line" = "# meta-coder launcher" ] && marked=true
+    if [[ "$line" == *"--manifest-path \"$app_root/"* ]]; then
+      [[ "$line" == "exec "*" run "* ]] && return 0
+      runs_app=true
+    fi
+  done < "$launcher"
+  [ "$marked" = true ] && [ "$runs_app" = true ]
+}
+
+if [ -f "$launcher" ] && launcher_is_ours; then
   rm -f -- "$launcher"
 elif [ -e "$launcher" ] || [ -L "$launcher" ]; then
   echo "Keeping launcher not recognized as this release installation: $launcher"

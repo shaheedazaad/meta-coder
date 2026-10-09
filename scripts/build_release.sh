@@ -40,12 +40,15 @@ git archive "$ref" | tar -x -C "$build_dir/$bundle_name"
 tar -czf "$out_path" -C "$build_dir" "$bundle_name"
 cp "$build_dir/$bundle_name/scripts/install.sh" dist/install.sh
 cp "$build_dir/$bundle_name/scripts/install.ps1" dist/install.ps1
+cp "$build_dir/$bundle_name/scripts/uninstall.sh" dist/uninstall.sh
+cp "$build_dir/$bundle_name/scripts/uninstall.ps1" dist/uninstall.ps1
 printf '%s\n' "$version" > dist/latest.txt
 "${PYTHON:-python3}" - "$out_path" <<'CHECKSUM'
 import hashlib
 from pathlib import Path
 import sys
-files = [Path(sys.argv[1]), Path("dist/install.sh"), Path("dist/install.ps1"), Path("dist/latest.txt")]
+files = [Path(sys.argv[1])] + [Path("dist", name) for name in (
+    "install.sh", "install.ps1", "uninstall.sh", "uninstall.ps1", "latest.txt")]
 Path("dist/SHA256SUMS").write_text("".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in files))
 CHECKSUM
 

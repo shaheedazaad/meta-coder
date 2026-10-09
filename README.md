@@ -134,15 +134,25 @@ For a specific version, set `META_CODER_VERSION` (for example, `0.1.0`) before r
 
 ### Uninstalling
 
-Stop MetaCoder, then run the uninstaller for your platform from this checkout:
+Stop MetaCoder, then run the uninstaller for your platform.
 
-```sh
-bash scripts/uninstall.sh
+**macOS / Linux** — run in a terminal:
+
+```bash
+curl -fsSL https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.sh | bash
 ```
 
-On Windows, run `./scripts/uninstall.ps1` in PowerShell. These scripts remove
-all release versions and the installer's launcher; the Windows script also
-removes its user PATH entry. They can safely be run again after uninstalling.
+**Windows** — run in PowerShell:
+
+```powershell
+irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.ps1 | iex
+```
+
+From a source checkout, `bash scripts/uninstall.sh` and `./scripts/uninstall.ps1`
+do the same. These scripts remove all release versions and the installer's
+`meta-coder` launcher; a `meta-coder` command from another installation is kept.
+The Windows script also removes its user PATH entry. They can safely be run again
+after uninstalling.
 Projects, settings, saved API keys in your computer's OS credential store, and Pixi are kept.
 `META_CODER_HOME` overrides are left untouched. On Linux, use the same
 `XDG_DATA_HOME` value you used when installing.
@@ -304,6 +314,6 @@ To publish a stable release:
 2. Commit the complete app, docs sources/assets, scripts, lockfiles, tests, and workflows, and push to `main`. Wait for Checks to pass.
 3. Tag that commit with `git tag vX.Y.Z` and push it with `git push origin vX.Y.Z`.
 
-The Release workflow reruns checks, validates the tag against both package versions, builds offline docs from the tagged commit, and publishes the source bundle, both installers, `latest.txt`, and `SHA256SUMS`. All assets are uploaded to a draft before publication. If publishing fails after creating the draft, inspect or delete that draft before retrying the workflow.
+The Release workflow reruns checks, validates the tag against both package versions, builds offline docs from the tagged commit, and publishes the source bundle, both installers and uninstallers, `latest.txt`, and `SHA256SUMS`. All assets are uploaded to a draft before publication. If publishing fails after creating the draft, inspect or delete that draft before retrying the workflow.
 
 For a local bundle from a committed ref, install `.[docs]` and run `bash scripts/build_release.sh <ref>` with that Python on PATH (or set `PYTHON`). Uncommitted files are deliberately excluded. No PyPI publishing token or personal GitHub token is needed by the workflows.
