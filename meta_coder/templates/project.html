@@ -945,7 +945,16 @@
         <a href="/{{ token }}/projects/{{ project.project_id }}/download/evidence" class="btn" data-variant="outline" data-size="sm">
           Download evidence.csv
         </a>
+        <a href="/{{ token }}/projects/{{ project.project_id }}/download/provenance" class="btn" data-variant="outline" data-size="sm">
+          Download provenance.csv
+        </a>
       </div>
+      <p class="u-xs u-muted">
+        Opening the CSVs in Excel or LibreOffice? Use the spreadsheet copies of
+        <a href="/{{ token }}/projects/{{ project.project_id }}/download/spreadsheet/coded">coded_data</a> and
+        <a href="/{{ token }}/projects/{{ project.project_id }}/download/spreadsheet/evidence">evidence</a>:
+        same data, but text that could run as a formula starts with <code>'</code>.
+      </p>
     </div>
     {% endif %}
     {% if run_row_count %}
