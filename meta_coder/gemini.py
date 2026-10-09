@@ -24,7 +24,9 @@ from .extraction import (
     ExtractionResult,
     ProviderError,
     cancellable_urlopen,
+    normalize_finish_reason,
     parse_json_response,
+    review_issues,
 )
 import threading
 from .manual import CodingManual
@@ -105,7 +107,7 @@ def _call_gemini_parts(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     url = f"{API_BASE}/models/{model}:generateContent?key={api_key}"
     payload = {
         "contents": [
@@ -172,9 +174,9 @@ def _call_gemini_parts(
                     raise ProviderError("Gemini returned invalid text content.", raw_response=raw_response)
                 parts.append(part["text"])
     text = "".join(parts)
+    raw_finish_reason = candidates[0].get("finishReason") if candidates else None
     if not text.strip():
-        finish_reason = (candidates[0].get("finishReason") if candidates else None) or "unknown"
-        raise ProviderError(f"Gemini returned no text (finishReason: {finish_reason}).")
+        raise ProviderError(f"Gemini returned no text (finishReason: {raw_finish_reason or 'unknown'}).")
 
     usage = body.get("usageMetadata") or {}
     if not isinstance(usage, dict):
@@ -186,6 +188,7 @@ def _call_gemini_parts(
     tokens = {
         "input_tokens": usage.get("promptTokenCount"),
         "output_tokens": usage.get("candidatesTokenCount"),
+        "finish_reason": normalize_finish_reason(raw_finish_reason),
     }
     return text, tokens
 
@@ -200,7 +203,7 @@ def _call_gemini(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     """Structured generation with a native PDF, kept as the extraction seam."""
 
     return _call_gemini_parts(
@@ -293,15 +296,18 @@ def extract_pdf_effects(
         )
 
     result: ValidationResult = validate_response(parsed, requested_ids, manual.effects)
+    issues = review_issues(
+        repaired_response=repaired_response, finish_reason=tokens.get("finish_reason")
+    )
     duration = time.monotonic() - started
-    if not result.ok:
+    if not result.ok or issues:
         return ExtractionResult(
             source_pdf=source_pdf,
             status="needs_review",
             coded_by_row_id=result.coded_by_row_id,
             missing_ids=result.missing_ids,
             extra_ids=result.extra_ids,
-            error=result.error,
+            error=" ".join(filter(None, [*issues, result.error])),
             raw_response=raw_text,
             repaired_response=repaired_response,
             duration_sec=duration,
