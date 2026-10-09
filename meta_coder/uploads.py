@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import BinaryIO
 
 from .projects import ProjectError
 
 
-SAFE_NAME_RE = re.compile(r"[^A-Za-z0-9._ -]+")
+SAFE_NAME_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]+')
+WINDOWS_DEVICE_RE = re.compile(r"^(CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])$", re.IGNORECASE)
 MAX_UPLOAD_BYTES = 128 * 1024 * 1024
 
 
@@ -17,11 +19,16 @@ class UploadTooLarge(ProjectError):
 
 def safe_pdf_name(filename: str) -> str:
     basename = Path(filename.replace("\\", "/")).name
-    cleaned = SAFE_NAME_RE.sub("_", basename).strip(" .")
+    cleaned = SAFE_NAME_RE.sub("_", unicodedata.normalize("NFC", basename)).strip(" .")
     if not cleaned or cleaned in {".", ".."}:
         raise ProjectError("A PDF filename is required.")
-    if len(cleaned) > 180:
-        cleaned = Path(cleaned).stem[:160] + Path(cleaned).suffix
+    if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
+        cleaned = "_" + cleaned
+    if len(cleaned.encode("utf-8")) > 180:
+        stem = Path(cleaned).stem
+        while len(stem.encode("utf-8")) > 160:
+            stem = stem[:-1]
+        cleaned = stem + Path(cleaned).suffix
     if Path(cleaned).suffix.lower() != ".pdf":
         raise ProjectError(f"{basename or 'File'} is not a PDF.")
     return cleaned
