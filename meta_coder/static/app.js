@@ -605,9 +605,13 @@ function initTabGroup(root, opts) {
   function poll() {
     fetch(statusUrl, { headers: { Accept: "application/json" } })
       .then(function (res) {
+        if (res.ok === false) throw new Error("Status request failed.");
         return res.json();
       })
       .then(function (data) {
+        if (!data || !["running", "cancelling", "complete", "failed", "cancelled", "idle"].includes(data.status)) {
+          throw new Error("Invalid run status.");
+        }
         applySnapshot(data);
         if (data.status === "running" || data.status === "cancelling") {
           setTimeout(poll, 1500);
@@ -620,6 +624,7 @@ function initTabGroup(root, opts) {
         }
       })
       .catch(function () {
+        if (summary) summary.textContent = "Connection lost. Retrying…";
         setTimeout(poll, 3000); // transient fetch failure — keep trying
       });
   }
@@ -656,9 +661,13 @@ function initTabGroup(root, opts) {
   function poll() {
     fetch(statusUrl, { headers: { Accept: "application/json" } })
       .then(function (res) {
+        if (res.ok === false) throw new Error("Status request failed.");
         return res.json();
       })
       .then(function (data) {
+        if (!data || !["running", "complete", "idle"].includes(data.status)) {
+          throw new Error("Invalid scan status.");
+        }
         if (data.status === "running") {
           applySnapshot(data);
           setTimeout(poll, 1500);
@@ -667,6 +676,7 @@ function initTabGroup(root, opts) {
         }
       })
       .catch(function () {
+        if (summary) summary.textContent = "Connection lost. Retrying…";
         setTimeout(poll, 3000); // transient fetch failure — keep trying
       });
   }

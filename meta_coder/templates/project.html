@@ -588,7 +588,7 @@
              data-status-url="/{{ token }}/projects/{{ project.project_id }}/pdf-scan/status"
              data-running="true">
           <div class="cluster-between u-sm" style="margin-bottom:var(--sp-1)">
-            <span data-progress-summary>
+            <span data-progress-summary aria-live="polite" aria-atomic="true">
               Scanning uploaded PDFs for matches — {{ pdf_scan_state.processed if pdf_scan_state else 0 }} / {{ pdf_scan_state.total if pdf_scan_state else 0 }}
             </span>
           </div>
@@ -898,7 +898,7 @@
                data-status-url="/{{ token }}/projects/{{ project.project_id }}/status"
                data-running="{{ 'true' if is_running else 'false' }}">
             <div class="cluster-between u-sm" style="margin-bottom:var(--sp-1)">
-              <span data-progress-summary>{{ run_state.processed }} / {{ run_state.total }} PDFs processed — {{ run_state.status }}</span>
+              <span data-progress-summary aria-live="polite" aria-atomic="true">{{ run_state.processed }} / {{ run_state.total }} PDFs processed — {{ run_state.status }}</span>
             </div>
             <div class="run-progress" data-progress-bar role="progressbar" aria-label="Processing progress" aria-valuemin="0"
                  aria-valuemax="{{ run_state.total or 1 }}" aria-valuenow="{{ run_state.processed }}">
