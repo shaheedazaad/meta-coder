@@ -272,7 +272,7 @@
       {% endif %}
 
       {% if manual_editor_json %}
-      <form id="manual-form" method="post" action="/{{ token }}/projects/{{ project.project_id }}/manual">
+      <form id="manual-form" data-unsaved="{{ 'true' if manual_error else 'false' }}" method="post" action="/{{ token }}/projects/{{ project.project_id }}/manual">
         <input type="hidden" name="manual_json" id="manual-json-input">
 
           <div>

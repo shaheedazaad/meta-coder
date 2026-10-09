@@ -340,7 +340,7 @@ var projectEdits = (function () {
   var form = document.getElementById("manual-form");
   var hiddenInput = document.getElementById("manual-json-input");
   var savedManual = JSON.stringify(state);
-  var unsavedDraft = false;
+  var unsavedDraft = !!(form && form.dataset.unsaved === "true");
   if (form) {
     projectEdits.register(form, function () {
       return unsavedDraft || JSON.stringify(state) !== savedManual;
@@ -404,6 +404,11 @@ var projectEdits = (function () {
           });
         })
         .then(function (payload) {
+          if ((unsavedDraft || JSON.stringify(state) !== savedManual) &&
+              !window.confirm("Replace your unsaved manual edits with the AI draft?")) {
+            showDraftStatus("info", "Your edits were preserved. The AI draft was discarded.");
+            return;
+          }
           replaceManualState(payload.manual);
           unsavedDraft = true;
           projectEdits.update();
@@ -908,6 +913,10 @@ function initTabGroup(root, opts) {
 
   var sheetDraftUnsaved = false;
   projectEdits.register(saveForm, function () { return sheetDraftUnsaved; });
+  csvInput.addEventListener("input", function () {
+    sheetDraftUnsaved = true;
+    projectEdits.update();
+  });
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
@@ -915,6 +924,10 @@ function initTabGroup(root, opts) {
     setBusy(true);
     showStatus("Converting the CSV using your saved manual and notes…", "info");
     post(form).then(validateSheetDraft).then(function (payload) {
+      if (sheetDraftUnsaved && !window.confirm("Replace your unsaved coding-sheet edits with the AI draft?")) {
+        showStatus("Your edits were preserved. The AI draft was discarded.", "info");
+        return;
+      }
       csvInput.value = payload.csv;
       sheetDraftUnsaved = true;
       projectEdits.update();
