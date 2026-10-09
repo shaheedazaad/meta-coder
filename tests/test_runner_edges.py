@@ -152,3 +152,35 @@ def test_legacy_result_remains_readable(inputs):
     legacy.write_text(json.dumps({'source_pdf': 'paper.pdf', 'status': 'ok', 'raw_response': 'legacy'}))
     assert module.load_persisted_results(project)['paper.pdf'].raw_response == 'legacy'
     assert module.raw_json_path_for_read(project, 'paper.pdf') == legacy
+
+
+def test_yaml_failure_preserves_extracted_result(inputs, monkeypatch):
+    result = ExtractionResult('paper.pdf', 'ok', coded_by_row_id={'r1': {'estimate': {'value': 7, 'evidence': 'p1'}}})
+    monkeypatch.setattr(module, 'extract_pdf_effects', Mock(return_value=result))
+    monkeypatch.setattr(module, 'render_pdf_audit_yaml', Mock(side_effect=OSError('audit disk full')))
+    state = run_sync(inputs, monkeypatch)
+    loaded = module.load_persisted_results(inputs[0])['paper.pdf']
+    assert loaded.status == 'ok' and loaded.coded_by_row_id == result.coded_by_row_id
+    assert state.pdfs[0].status == 'error' and 'audit disk full' in state.pdfs[0].error
+    assert ',7,' in (inputs[0].output_dir / 'coded_data.csv').read_text()
+
+
+def test_atomic_raw_failure_keeps_previous_result(inputs, monkeypatch):
+    from meta_coder import provenance
+    project = inputs[0]
+    module.write_raw_result(project, ExtractionResult('paper.pdf', 'ok', raw_response='original'), provider='gemini', model='model')
+    previous = module.raw_json_path(project, 'paper.pdf').read_bytes()
+    monkeypatch.setattr(provenance.os, 'replace', Mock(side_effect=OSError('disk full')))
+    with pytest.raises(OSError):
+        module.write_raw_result(project, ExtractionResult('paper.pdf', 'ok', raw_response='new'), provider='gemini', model='model')
+    assert module.raw_json_path(project, 'paper.pdf').read_bytes() == previous
+    assert not list(project.raw_dir.glob('*.tmp'))
+
+
+def test_provider_and_error_record_persistence_failure_remain_visible(inputs, monkeypatch):
+    monkeypatch.setattr(module, 'extract_pdf_effects', Mock(side_effect=ValueError('provider failure')))
+    monkeypatch.setattr(module, 'write_raw_result', Mock(side_effect=OSError('disk full')))
+    state = run_sync(inputs, monkeypatch)
+    assert state.pdfs[0].status == 'error'
+    assert 'provider failure' in state.pdfs[0].error
+    assert state.processed == 1 and state.status == 'complete'

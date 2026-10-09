@@ -22,7 +22,7 @@ from .coding_sheet import CodingSheet
 from .extraction import ExtractionResult
 from .manual import CodingManual
 from .projects import Project
-from .provenance import AuditOperation, audited_call, json_bytes
+from .provenance import AuditOperation, atomic_write, audited_call, json_bytes
 from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
 from .results import collate_results, render_pdf_audit_yaml, rows_to_csv
 
@@ -56,7 +56,7 @@ def raw_json_path_for_read(project: Project, source_pdf: str) -> Path:
 def write_raw_result(project: Project, result: ExtractionResult, *, provider: str, model: str) -> None:
     """Persist every completed attempt, including provider failures, for retries and review."""
 
-    raw_json_path(project, result.source_pdf).write_text(
+    atomic_write(raw_json_path(project, result.source_pdf),
         json.dumps(
             {
                 "source_pdf": result.source_pdf,
@@ -75,8 +75,7 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
                 "output_tokens": result.output_tokens,
             },
             indent=2,
-        ),
-        encoding="utf-8",
+        ).encode("utf-8"),
     )
 
 
@@ -347,6 +346,8 @@ class Runner:
             progress.status = "running"
             pdf_path = project.sources_dir / progress.source_pdf
             rows = coding_sheet.rows_for_pdf(progress.source_pdf)
+            result = None
+            storage_error = None
             try:
                 if not pacer.wait(state.cancel_event):
                     with results_lock:
@@ -369,29 +370,31 @@ class Runner:
                     cancel_event=state.cancel_event,
                 )
                 write_raw_result(project, result, provider=provider, model=model)
-                audit_yaml_path(project, progress.source_pdf).write_text(
+                atomic_write(audit_yaml_path(project, progress.source_pdf),
                     render_pdf_audit_yaml(
                         manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result
-                    ),
-                    encoding="utf-8",
+                    ).encode("utf-8"),
                 )
             except Exception as exc:  # noqa: BLE001 - one PDF's failure (e.g. a
                 # disk write error) must not abort the whole run and lose every
                 # other already-completed PDF's results — see collate below.
-                result = ExtractionResult(
-                    source_pdf=progress.source_pdf, status="error", error=f"Unexpected error: {exc}"
-                )
-                try:
-                    write_raw_result(project, result, provider=provider, model=model)
-                except OSError:
-                    # The original failure still appears in this run's state;
-                    # a storage failure simply cannot survive a restart.
-                    pass
+                if result is None:
+                    result = ExtractionResult(
+                        source_pdf=progress.source_pdf, status="error", error=f"Unexpected error: {exc}"
+                    )
+                    try:
+                        write_raw_result(project, result, provider=provider, model=model)
+                    except OSError:
+                        pass
+                else:
+                    # Keep the extracted data even if publishing its raw/YAML
+                    # files fails. Report that failure separately in progress.
+                    storage_error = f"Could not save extraction output: {exc}"
 
             with results_lock:
                 results_by_pdf[progress.source_pdf] = result
-                progress.status = result.status
-                progress.error = result.error
+                progress.status = "error" if storage_error else result.status
+                progress.error = storage_error or result.error
                 progress.missing_ids = sorted(result.missing_ids)
                 progress.extra_ids = sorted(result.extra_ids)
                 progress.input_tokens = result.input_tokens
@@ -411,12 +414,8 @@ class Runner:
             coded_rows, evidence_rows = collate_results(
                 manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf
             )
-            (project.output_dir / "coded_data.csv").write_text(
-                rows_to_csv(coded_rows, manual), encoding="utf-8"
-            )
-            (project.output_dir / "evidence.csv").write_text(
-                rows_to_csv(evidence_rows, manual), encoding="utf-8"
-            )
+            atomic_write(project.output_dir / "coded_data.csv", rows_to_csv(coded_rows, manual).encode("utf-8"))
+            atomic_write(project.output_dir / "evidence.csv", rows_to_csv(evidence_rows, manual).encode("utf-8"))
             if state.audit_run:
                 for name in ("coded_data.csv", "evidence.csv"):
                     state.audit_run.input(name, (project.output_dir / name).read_bytes())
