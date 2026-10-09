@@ -2,6 +2,7 @@
 import io
 import json
 import zipfile
+from dataclasses import replace
 from unittest.mock import Mock
 
 import pytest
@@ -404,3 +405,149 @@ def test_model_warning_preserves_saved_settings(site, monkeypatch):
     response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'})
     assert response.status_code == 303 and 'warning=' in response.headers['location']
     assert load_run_settings(project).model == 'model'
+
+
+def project_files(project):
+    return {path: path.read_bytes() for path in sorted(project.path.rglob('*')) if path.is_file()}
+
+
+VALID_MANUAL = 'effect_definition: new comparison\neffects:\n  age: {type: number}\n'
+NEW_SHEET = 'row_id,source_pdf,locator,authors,year\nr2,other.pdf,exp2,Jones,2025\n'
+GUARDED_EDITS = {
+    'save manual': ('/manual', {'data': {'manual_json': json.dumps(manual_to_editor_payload(parse_coding_manual(VALID_MANUAL)))}}),
+    'reset manual': ('/manual/reset', {}),
+    'import manual': ('/manual/import', {'files': {'file': ('manual.yml', VALID_MANUAL.encode())}}),
+    'upload sheet': ('/coding-sheet', {'files': {'file': ('sheet.csv', NEW_SHEET.encode())}}),
+    'save converted sheet': ('/coding-sheet/draft/save', {'data': {'csv_text': NEW_SHEET}}),
+    'match PDF': ('/coding-sheet/match-pdfs', {'data': {'paper_key': 'paper.pdf', 'filename': 'other.pdf', 'save_key': 'paper.pdf'}}),
+    'unmatch PDF': ('/coding-sheet/unmatch-pdf', {'data': {'source_pdf': 'paper.pdf'}}),
+    'delete PDF': ('/uploads/delete', {'data': {'filename': 'paper.pdf'}}),
+    'clear output': ('/clear-output', {}),
+    'delete project': ('/delete', {}),
+}
+
+
+@pytest.mark.parametrize('status', ['running', 'cancelling'])
+@pytest.mark.parametrize('edit', GUARDED_EDITS)
+def test_input_edits_are_rejected_while_a_run_is_active(site, status, edit):
+    from meta_coder.runner import RunState
+    client, project, runtime = site
+    ready_project(project, runtime)
+    (project.sources_dir / 'other.pdf').write_bytes(b'%PDF')
+    (project.output_dir / 'coded_data.csv').write_text('results')
+    runtime.runner._states[project.project_id] = RunState(status=status)
+    before = project_files(project)
+    suffix, request = GUARDED_EDITS[edit]
+    assert client.post(url(project, suffix), **request).status_code == 409
+    assert project_files(project) == before
+
+
+def test_project_deletion_waits_for_an_active_pdf_scan(site, monkeypatch):
+    client, project, runtime = site
+    monkeypatch.setattr(runtime.pdf_scanner, 'is_running', lambda _: True)
+    response = client.post(url(project, '/delete'))
+    assert response.status_code == 409 and 'PDF scan' in response.json()['detail']
+    assert project.path.exists()
+
+
+def test_second_run_click_during_key_loading_gets_409(site, monkeypatch):
+    from meta_coder.runner import RunState
+    client, project, runtime = site
+    ready_project(project, runtime)
+    started = []
+
+    def start(**kwargs):
+        started.append(kwargs)
+        runtime.runner._states[project.project_id] = RunState(status='running')
+
+    second_click = []
+
+    def prepare(*args):
+        # Runs in a worker thread, so the event loop handles the whole second
+        # click while the first one is paused here waiting for its key.
+        if not second_click:
+            second_click.append(None)
+            second_click[0] = client.post(url(project, '/run'))
+
+    monkeypatch.setattr(runtime.runner, 'start', start)
+    monkeypatch.setattr(runtime, 'prepare_provider', prepare)
+    first_click = client.post(url(project, '/run'))
+    assert second_click[0].status_code == 303
+    assert first_click.status_code == 409
+    assert first_click.json()['detail'] == 'A run is already in progress.'
+    assert len(started) == 1
+
+
+def test_input_edit_during_key_loading_is_used_by_the_run(site, monkeypatch):
+    client, project, runtime = site
+    ready_project(project, runtime)
+    (project.sources_dir / 'other.pdf').write_bytes(b'%PDF')
+    start = Mock()
+    edits = []
+
+    def prepare(*args):
+        edits.append(client.post(url(project, '/coding-sheet'), files={'file': ('sheet.csv', NEW_SHEET.encode())}))
+        edits.append(client.post(url(project, '/manual/import'), files={'file': ('manual.yml', VALID_MANUAL.encode())}))
+
+    monkeypatch.setattr(runtime.runner, 'start', start)
+    monkeypatch.setattr(runtime, 'prepare_provider', prepare)
+    assert client.post(url(project, '/run')).status_code == 303
+    assert [edit.status_code for edit in edits] == [303, 303]
+    assert [row.row_id for row in start.call_args.kwargs['coding_sheet'].rows] == ['r2']
+    assert start.call_args.kwargs['manual'].effect_definition == 'new comparison'
+
+
+def test_edit_during_key_loading_that_blocks_the_run_rejects_it(site, monkeypatch):
+    client, project, runtime = site
+    ready_project(project, runtime)
+    start = Mock()
+    monkeypatch.setattr(runtime.runner, 'start', start)
+    monkeypatch.setattr(runtime, 'prepare_provider', lambda *a: client.post(url(project, '/manual/reset')) and None)
+    response = client.post(url(project, '/run'))
+    assert response.status_code == 400 and 'Cannot run' in response.json()['detail']
+    start.assert_not_called()
+
+
+def test_run_settings_change_during_key_loading_rejects_the_start(site, monkeypatch):
+    from meta_coder.settings import load_run_settings, save_run_settings
+    client, project, runtime = site
+    ready_project(project, runtime)
+    start = Mock()
+    monkeypatch.setattr(runtime.runner, 'start', start)
+    changed = replace(load_run_settings(project), parallel_requests=4)
+    monkeypatch.setattr(runtime, 'prepare_provider', lambda *a: save_run_settings(project, changed) and None)
+    response = client.post(url(project, '/run'))
+    assert response.status_code == 409 and 'settings changed' in response.json()['detail']
+    start.assert_not_called()
+
+
+def test_runner_refusal_is_a_409_not_a_server_error(site, monkeypatch):
+    client, project, runtime = site
+    ready_project(project, runtime)
+    # The real runner refuses a retry that targets no PDF in the sheet.
+    response = client.post(url(project, '/run/retry'), data={'source_pdf': 'absent.pdf'})
+    assert response.status_code == 409
+    assert response.json()['detail'] == 'No matched PDFs still need coding.'
+    monkeypatch.setattr(runtime.runner, 'start', Mock(side_effect=RuntimeError('This project is already running.')))
+    response = client.post(url(project, '/run'))
+    assert response.status_code == 409 and response.json()['detail'] == 'This project is already running.'
+
+
+def test_retry_all_uses_durable_failures_after_restart_and_subset_retry(site, monkeypatch):
+    from meta_coder.runner import PdfProgress, RunState, write_raw_result
+    from meta_coder.extraction import ExtractionResult
+    client, project, runtime = site
+    ready_project(project, runtime)
+    for name in ['older.pdf', 'removed.pdf']:
+        (project.sources_dir / name).write_bytes(b'%PDF')
+    project.coding_sheet_path.write_text(project.coding_sheet_path.read_text() + 'r2,older.pdf,,Smith,2020\n')
+    for name in ['paper.pdf', 'older.pdf', 'removed.pdf']:
+        write_raw_result(project, ExtractionResult(name, 'error'), provider='gemini', model='model')
+    start = Mock()
+    monkeypatch.setattr(runtime.runner, 'start', start)
+    assert web._project_view(runtime, project)['can_retry'] is True
+    assert client.post(url(project, '/run/retry')).status_code == 303
+    assert set(start.call_args.kwargs['only_pdfs']) == {'paper.pdf', 'older.pdf'}
+    runtime.runner._states[project.project_id] = RunState(status='complete', pdfs=[PdfProgress('paper.pdf', status='ok')])
+    assert client.post(url(project, '/run/retry')).status_code == 303
+    assert start.call_args.kwargs['only_pdfs'] == ['older.pdf']

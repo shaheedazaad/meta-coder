@@ -21,7 +21,7 @@ Extraction settings are saved per project. They are separate from the global mod
 
 ## Cancel and retry
 
-Progress updates while the run is active. Cancellation stops queued work; requests already in flight may finish. Successful PDFs are retained. Retry failed or needs-review PDFs individually from the results table, or use the bulk retry control.
+Progress updates while the run is active. While a run is active or cancelling, MetaCoder refuses changes to the coding manual, coding sheet, PDF matches, source PDFs, and generated data, so results always match the inputs they were coded from; wait for the run to finish or cancel it first. Cancellation stops queued work; requests already in flight may finish. Successful PDFs are retained. Retry failed or needs-review PDFs individually from the results table, or use the bulk retry control.
 
 Starting another run processes matched PDFs still needing coding; it does not automatically reprocess successful studies. To intentionally rerun everything, export what you need and clear generated data in [Project settings](projects.md).
 
