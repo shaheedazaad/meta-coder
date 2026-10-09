@@ -672,7 +672,8 @@
                         <select name="filename" class="select" aria-label="Match for {{ suggestion.paper.source_pdf or suggestion.paper.title }}">
                           <option value="">{% if suggestion.filename %}Leave unmatched{% else %}No match yet{% endif %}</option>
                           {% for candidate in suggestion.candidates %}
-                          <option value="{{ candidate }}" {% if candidate == suggestion.filename %}selected{% endif %}>{{ candidate }}</option>
+                          {# Only high-confidence suggestions are preselected, so "Apply this page" never saves a medium/low guess; the others are still labelled. #}
+                          <option value="{{ candidate }}" {% if candidate == suggestion.filename and suggestion.confidence == "high" %}selected{% endif %}>{{ candidate }}{% if candidate == suggestion.filename and suggestion.confidence != "high" %} (suggested){% endif %}</option>
                           {% endfor %}
                         </select>
                         {% else %}

@@ -12,7 +12,10 @@ from meta_coder import pdf_matching as matching
 from meta_coder.projects import create_project
 
 
-@pytest.mark.parametrize('text', ['{broken', '[]', '{"version": 0}', '{"version": 1, "scores": []}'])
+@pytest.mark.parametrize('text', [
+    '{broken', '[]', '{"version": 0}', '{"version": 1, "scores": {"k": 0.5}}',
+    json.dumps({'version': matching._SCORE_CACHE_VERSION, 'scores': []}),
+])
 def test_corrupt_caches_are_discarded(tmp_path, text):
     project = create_project('Cache', root=tmp_path)
     matching._signal_cache_path(project).write_text(text)

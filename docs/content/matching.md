@@ -13,7 +13,7 @@ PDF matching connects coding-sheet rows to uploaded studies. Review suggested ma
 | Matches | The saved connections between sheet entries and PDFs |
 | Orphans | Uploaded PDFs with no coding-sheet rows |
 
-Background scanning gathers matching information after uploads. Let it finish, review the suggested source for each paper, and save the appropriate matches. Confirm that each locator actually points to the intended effect in that PDF.
+Background scanning gathers matching information after uploads. Let it finish, review the suggested source for each paper, and save the appropriate matches. Only high-confidence suggestions are preselected. Medium and low suggestions are marked “(suggested)” in the list but stay unselected until you choose them, so **Apply this page** saves only the matches you can see selected. A suggestion is shown as low when the PDF's publication year differs from the sheet's, or when another PDF or paper fits almost as well. Confirm that each locator actually points to the intended effect in that PDF.
 
 ## Fix a wrong match
 

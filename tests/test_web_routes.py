@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import pytest
 from fastapi.testclient import TestClient
 
-from meta_coder import web
+from meta_coder import pdf_matching, web
 from meta_coder.manual import manual_to_editor_payload, parse_coding_manual
 from meta_coder.projects import create_project
 
@@ -404,3 +404,22 @@ def test_model_warning_preserves_saved_settings(site, monkeypatch):
     response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'})
     assert response.status_code == 303 and 'warning=' in response.headers['location']
     assert load_run_settings(project).model == 'model'
+
+
+def test_only_high_confidence_suggestions_are_preselected(site, monkeypatch):
+    client, project, _ = site
+    for name in ('high.pdf', 'medium.pdf'):
+        (project.sources_dir / name).write_bytes(b'%PDF')
+    project.coding_sheet_path.write_text('row_id,source_pdf,locator,authors,year\nr1,a.pdf,exp,Li,2020\nr2,b.pdf,exp,Wu,2021\n')
+    papers = pdf_matching.unmatched_paper_ids(project.coding_sheet_path.read_text(), uploaded_filenames={'high.pdf', 'medium.pdf'})
+    candidates = ['high.pdf', 'medium.pdf']
+    suggestions = [
+        pdf_matching.MatchSuggestion(papers[0], 'high.pdf', 'high', candidates),
+        pdf_matching.MatchSuggestion(papers[1], 'medium.pdf', 'medium', candidates),
+    ]
+    monkeypatch.setattr(web, 'cached_signal', lambda *a, **k: pdf_matching.PdfSignal('', None))
+    monkeypatch.setattr(web, 'suggest_matches_from_score_cache', lambda *a, **k: (suggestions, False))
+    body = client.get(url(project, '?tab=identify')).text
+    assert '<option value="high.pdf" selected>high.pdf</option>' in body
+    assert '<option value="medium.pdf" >medium.pdf (suggested)</option>' in body
+    assert 'value="medium.pdf" selected' not in body

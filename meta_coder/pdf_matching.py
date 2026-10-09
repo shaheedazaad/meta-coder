@@ -30,9 +30,11 @@ from .manual_drafting import ManualDraftError, pdf_text
 from .projects import Project
 
 
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
-_YEAR_RE = re.compile(r"(19|20)\d{2}")
-_LETTER_DIGIT_BOUNDARY_RE = re.compile(r"(?<=[a-zA-Z])(?=[0-9])|(?<=[0-9])(?=[a-zA-Z])")
+# Letters and digits in any script, so "Müller" and "王" survive as tokens.
+_TOKEN_RE = re.compile(r"[^\W_]+")
+# ASCII digits only: `\d` would also accept other scripts' digits after "19"/"20".
+_YEAR_RE = re.compile(r"(?<![0-9])(?:19|20)[0-9]{2}(?![0-9])")
+_LETTER_DIGIT_BOUNDARY_RE = re.compile(r"(?<=[^\W\d_])(?=\d)|(?<=\d)(?=[^\W\d_])")
 
 # Words too generic to count as evidence of a match on their own (every filename
 # has "pdf" in it; "et al" is boilerplate, not a name; "effect"/"task"/"study" show
@@ -40,12 +42,17 @@ _LETTER_DIGIT_BOUNDARY_RE = re.compile(r"(?<=[a-zA-Z])(?=[0-9])|(?<=[0-9])(?=[a-
 _STOPWORDS = {
     "pdf", "et", "al", "and", "the", "of", "in", "a", "an", "is", "are", "on", "for",
     "with", "to", "as", "by", "not", "same", "effect", "effects", "task", "study",
-    "https", "http", "www", "doi", "org", "dx", "com",
+    "https", "http", "www", "doi", "org", "dx", "com", "de", "jr",
 }
 
 HIGH_CONFIDENCE = 0.85
 MEDIUM_CONFIDENCE = 0.5
 LOW_CONFIDENCE = 0.25
+# Policy numbers for cautious matching: a PDF whose publication year
+# contradicts the sheet's can't score above the cap, and a suggestion whose
+# lead over the next plausible candidate is below the margin is shown as low.
+CONTRADICTORY_YEAR_CAP = 0.4
+AMBIGUITY_MARGIN = 0.1
 
 
 @dataclass
@@ -84,7 +91,7 @@ class PdfSignal:
 
 _SIGNAL_CACHE_NAME = "pdf_signals.json"
 _SCORE_CACHE_NAME = "pdf_match_scores.json"
-_SCORE_CACHE_VERSION = 1
+_SCORE_CACHE_VERSION = 2
 
 
 def _signal_cache_path(project: Project) -> Path:
@@ -167,7 +174,7 @@ def _score_cache_key(paper: UnmatchedPaper, signal: PdfSignal) -> str:
 
 
 def _cache_source(grobid_url: str) -> str:
-    return "grobid" if grobid_url else "local"
+    return "identity-v2:grobid" if grobid_url else "identity-v2:local"
 
 
 def _cache_entry(path: Path, signal: PdfSignal, grobid_url: str) -> dict[str, Any]:
@@ -232,6 +239,40 @@ def _significant_tokens(text: str) -> set[str]:
         token
         for token in _normalize(text).split()
         if token not in _STOPWORDS and (len(token) >= 3 or token.isdigit())
+    }
+
+
+def _is_caseless_letter(token: str) -> bool:
+    # A single CJK/Hangul/kana (etc.) character can be a whole surname; a
+    # single Latin, Greek or Cyrillic letter is an initial or a symbol.
+    return len(token) == 1 and token.isalpha() and token.lower() == token.upper()
+
+
+def _short_name_tokens(text: str) -> set[str]:
+    """Short surnames ("Li", "Wu", "王") from an author list or filename.
+
+    Only capitalized two-letter words count, so Vancouver-style initials
+    ("Smith JA") and short title words ("Do we ...") don't become evidence.
+    """
+
+    spaced = _LETTER_DIGIT_BOUNDARY_RE.sub(" ", text)
+    names = {
+        token.lower()
+        for token in _TOKEN_RE.findall(spaced)
+        if _is_caseless_letter(token) or (len(token) == 2 and token[0].isupper() and token[1].islower())
+    }
+    return names - _STOPWORDS
+
+
+def _signal_tokens(text: str) -> set[str]:
+    """Like `_significant_tokens`, but keeps every short word a short
+    surname could match against; case is gone by now, so the paper side
+    decides which short tokens count as evidence."""
+
+    return {
+        token
+        for token in _normalize(text).split()
+        if token not in _STOPWORDS and (len(token) >= 2 or token.isdigit() or _is_caseless_letter(token))
     }
 
 
@@ -340,7 +381,7 @@ def _local_pdf_signal(path: Path) -> PdfSignal:
     # cached. Storing only the significant tokens — the same filter already
     # applied to the paper side — keeps every token that could plausibly be
     # evidence while shrinking the set scoring has to search.
-    return PdfSignal(tokens=" ".join(sorted(_significant_tokens(combined_tokens))), year=text_year)
+    return PdfSignal(tokens=" ".join(sorted(_signal_tokens(combined_tokens))), year=text_year)
 
 
 def grobid_signal(path: Path, grobid_url: str) -> PdfSignal | None:
@@ -414,8 +455,9 @@ def score_pair(paper: UnmatchedPaper, signal: PdfSignal) -> float:
 
     paper_tokens = _significant_tokens(
         f"{paper.authors} {paper.year} {paper.source_pdf} {paper.title} {paper.doi}"
-    )
-    if not paper_tokens:
+    ) | _short_name_tokens(f"{paper.authors} {paper.source_pdf}")
+    # A year (or any bare number) alone says nothing about which paper it is.
+    if all(token.isdigit() for token in paper_tokens):
         return 0.0
 
     signal_tokens = set(signal.tokens.split())
@@ -423,18 +465,25 @@ def score_pair(paper: UnmatchedPaper, signal: PdfSignal) -> float:
     containment = len(matched) / len(paper_tokens)
 
     # Partial credit for near-misses (typos, OCR noise, abbreviations) on the
-    # tokens that didn't match exactly.
+    # tokens that didn't match exactly. Short tokens are left out on both
+    # sides: "li" is 80% similar to "lin", "wei" to "we".
     fuzzy_credit = 0.0
-    unmatched = paper_tokens - matched
-    if unmatched and signal_tokens:
+    unmatched = [token for token in paper_tokens - matched if len(token) >= 3 or token.isdigit()]
+    candidates = [token for token in signal_tokens if len(token) >= 3 or token.isdigit()]
+    if unmatched and candidates:
         best_ratios = [
-            max(SequenceMatcher(None, token, candidate).ratio() for candidate in signal_tokens)
+            max(SequenceMatcher(None, token, candidate).ratio() for candidate in candidates)
             for token in unmatched
         ]
         fuzzy_credit = sum(best_ratios) / len(paper_tokens) * 0.5
 
-    year_bonus = 0.15 if paper.year and signal.year and paper.year == signal.year else 0.0
-    return min(1.0, containment + fuzzy_credit + year_bonus)
+    # "2020a"/"2020b" (same-author disambiguation) is still publication year 2020.
+    paper_year = _find_year(paper.year)
+    year_bonus = 0.15 if paper_year and paper_year == signal.year else 0.0
+    score = min(1.0, containment + fuzzy_credit + year_bonus)
+    if paper_year and signal.year and paper_year != signal.year:
+        score = min(score, CONTRADICTORY_YEAR_CAP)
+    return score
 
 
 def _confidence_band(score: float) -> str:
@@ -531,11 +580,20 @@ def _suggestions_from_scores(
         assigned_score[key] = score
         claimed_orphans.add(name)
 
+    by_paper: dict[str, dict[str, float]] = {}
+    for (key, name), score in scores.items():
+        by_paper.setdefault(key, {})[name] = score
+    claimant = {name: key for key, name in assigned_filename.items()}
+
     suggestions = []
     for paper in papers:
         filename = assigned_filename.get(paper.key)
         score = assigned_score.get(paper.key, 0.0)
         confidence = _confidence_band(score) if filename else "none"
+        if confidence in {"high", "medium"} and _is_contested(
+            paper.key, filename, score, by_paper, assigned_score, claimant
+        ):
+            confidence = "low"
         if confidence == "none":
             filename = None
         suggestions.append(
@@ -544,6 +602,47 @@ def _suggestions_from_scores(
             )
         )
     return suggestions
+
+
+def _clear_lead(score: float, other: float) -> bool:
+    # Tolerance so that e.g. 0.95 - 0.85 (0.0999...) still counts as a 0.1 lead.
+    return score - other >= AMBIGUITY_MARGIN - 1e-9
+
+
+def _is_contested(
+    key: str,
+    filename: str,
+    score: float,
+    by_paper: dict[str, dict[str, float]],
+    assigned_score: dict[str, float],
+    claimant: dict[str, str],
+) -> bool:
+    """Whether another reading is nearly as plausible as `key` -> `filename`:
+    another PDF for this paper, or another paper for this PDF.
+
+    A rival that greedy assignment already gave to something it fits clearly
+    better (another PDF to another paper; another paper to its own PDF) isn't
+    a plausible alternative. Two papers that both fit two PDFs equally well
+    still are — their pairing is arbitrary, whichever way it was made.
+    """
+
+    for name, other in by_paper.get(key, {}).items():
+        if name == filename:
+            continue
+        owner = claimant.get(name)
+        if owner is not None and _clear_lead(assigned_score[owner], other):
+            continue
+        if not _clear_lead(score, other):
+            return True
+    for other_key, other_scores in by_paper.items():
+        other = other_scores.get(filename)
+        if other_key == key or other is None:
+            continue
+        if other_key in assigned_score and _clear_lead(assigned_score[other_key], other):
+            continue
+        if not _clear_lead(score, other):
+            return True
+    return False
 
 
 def apply_source_pdf_matches(path: Path, mapping: dict[str, str]) -> None:
