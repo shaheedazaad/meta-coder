@@ -233,7 +233,10 @@ class Runtime:
         }
 
     def project(self, project_id: str) -> Project:
-        return get_project(project_id, root=self.projects_root)
+        try:
+            return get_project(project_id, root=self.projects_root)
+        except ProjectError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     def api_key(self, provider: str) -> str | None:
         return self._session_keys.get(provider)

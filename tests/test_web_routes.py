@@ -404,3 +404,18 @@ def test_model_warning_preserves_saved_settings(site, monkeypatch):
     response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'})
     assert response.status_code == 303 and 'warning=' in response.headers['location']
     assert load_run_settings(project).model == 'model'
+
+
+@pytest.mark.parametrize(('method', 'suffix', 'data'), [
+    ('get', '/status', None), ('get', '/pdf-scan/status', None),
+    ('get', '/download/zip', None), ('get', '/download/coded', None),
+    ('get', '/download/evidence', None), ('get', '/raw/missing.json', None),
+    ('post', '/clear-output', None), ('post', '/manual/reset', None),
+    ('post', '/run/cancel', None), ('post', '/open-folder', None),
+])
+def test_missing_projects_return_404_across_routes(site, method, suffix, data):
+    client, project, _ = site
+    from meta_coder.projects import delete_project
+    delete_project(project)
+    response = client.request(method, url(project, suffix), data=data)
+    assert response.status_code == 404
