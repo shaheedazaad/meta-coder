@@ -201,7 +201,7 @@ def project_archive_files(project: Project) -> list[tuple[Path, str]]:
         if not path.is_file() or path.is_symlink() or not path.resolve().is_relative_to(project.path.resolve()):
             continue
         rel = path.relative_to(project.path)
-        if path.name.endswith(".tmp"):
+        if path.name.endswith((".tmp", ".uploading")):
             continue
         if rel.parts and rel.parts[0] == ".meta_coder":
             continue

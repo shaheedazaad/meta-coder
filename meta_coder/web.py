@@ -672,27 +672,32 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=manage", status_code=303)
 
     @app.get(f"/{token}/projects/{{project_id}}/download/zip")
-    async def download_project_zip(project_id: str):
+    def download_project_zip(project_id: str):
         project = runtime.project(project_id)
         files = project_archive_files(project)
         handle = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
         tmp_path = Path(handle.name)
         handle.close()
-        with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as archive:
-            checksums = {}
-            for abs_path, arcname in files:
-                digest = hashlib.sha256()
-                size = 0
-                with abs_path.open("rb") as source, archive.open(arcname, "w", force_zip64=True) as destination:
-                    while chunk := source.read(1024 * 1024):
-                        destination.write(chunk)
-                        digest.update(chunk)
-                        size += len(chunk)
-                checksums[arcname] = {"sha256": digest.hexdigest(), "bytes": size}
-            settings_content = json_bytes(load_run_settings(project))
-            archive.writestr("run_settings.json", settings_content)
-            checksums["run_settings.json"] = {"sha256": hashlib.sha256(settings_content).hexdigest(), "bytes": len(settings_content)}
-            archive.writestr("export_manifest.json", json_bytes(export_manifest(project, checksums)))
+        try:
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as archive:
+                checksums = {}
+                for abs_path, arcname in files:
+                    digest = hashlib.sha256()
+                    size = 0
+                    with abs_path.open("rb") as source, archive.open(arcname, "w", force_zip64=True) as destination:
+                        while chunk := source.read(1024 * 1024):
+                            destination.write(chunk)
+                            digest.update(chunk)
+                            size += len(chunk)
+                    checksums[arcname] = {"sha256": digest.hexdigest(), "bytes": size}
+                settings_content = json_bytes(load_run_settings(project))
+                archive.writestr("run_settings.json", settings_content)
+                checksums["run_settings.json"] = {"sha256": hashlib.sha256(settings_content).hexdigest(), "bytes": len(settings_content)}
+                archive.writestr("export_manifest.json", json_bytes(export_manifest(project, checksums)))
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
+
         return FileResponse(
             tmp_path,
             media_type="application/zip",
@@ -854,7 +859,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             reasoning_effort=reasoning_effort,
         ).clamped()
         setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
-        problems = [setup_error] if setup_error else check_model(
+        problems = [setup_error] if setup_error else await run_in_threadpool(check_model,
             settings.provider, settings.model, api_key=runtime.api_key(settings.provider) or "",
             **({"base_url": load_app_settings().openai_base_url} if settings.provider == "openai_compatible" else {})
         )
