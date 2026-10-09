@@ -43,7 +43,7 @@ from .pdf_matching import (
     suggest_matches_from_score_cache,
     unmatched_paper_ids,
 )
-from .extraction import ProviderError
+from .extraction import ProviderError, redact_secret
 from .manual import (
     ManualError,
     manual_from_editor_payload,
@@ -945,9 +945,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 **endpoint_options(provider, settings),
             )
         except ManualDraftError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=400)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=400)
         except ProviderError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=502)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=502)
 
         return JSONResponse(
             {
@@ -991,9 +991,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 **endpoint_options(provider, settings),
             )
         except (CodingSheetDraftError, ManualError) as exc:
-            return JSONResponse({"error": str(exc)}, status_code=400)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=400)
         except ProviderError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=502)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=502)
         return JSONResponse(draft)
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/draft/save", response_class=JSONResponse)

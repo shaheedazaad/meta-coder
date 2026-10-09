@@ -10,7 +10,7 @@ import pytest
 
 from meta_coder import gemini, openrouter
 from meta_coder.coding_sheet import CodingSheetRow
-from meta_coder.extraction import ExtractionCancelled, ProviderError
+from meta_coder.extraction import ExtractionCancelled, ProviderError, redact_secret
 from meta_coder.manual import parse_coding_manual
 
 
@@ -33,7 +33,9 @@ def test_gemini_model_validation_encodes_url_and_checks_capability(monkeypatch):
     request = Mock(return_value=Response({'supportedGenerationMethods': ['generateContent']}))
     monkeypatch.setattr(gemini.urllib.request, 'urlopen', request)
     assert gemini.check_model(' model/name ', api_key='a&b', timeout_sec=3) == []
-    assert request.call_args.args[0].endswith('/models/model%2Fname?key=a%26b')
+    sent = request.call_args.args[0]
+    assert sent.full_url.endswith('/models/model%2Fname')
+    assert sent.get_header('X-goog-api-key') == 'a&b'
     assert request.call_args.kwargs == {'timeout': 3}
     request.return_value = Response({'supportedGenerationMethods': ['embedContent']})
     assert 'does not support' in gemini.check_model('m', api_key='key')[0]
@@ -41,6 +43,25 @@ def test_gemini_model_validation_encodes_url_and_checks_capability(monkeypatch):
     assert gemini.check_model('m', api_key='key') == []
     assert 'API key' in gemini.check_model('m', api_key='')[0]
     assert 'model name' in gemini.check_model(' ', api_key='key')[0]
+
+
+def test_gemini_key_is_sent_as_header_never_in_url(monkeypatch):
+    key = 'synthetic-key/+&'
+    request = Mock(return_value=wire({'candidates': [{'content': {'parts': [{'text': '{}'}]}}]}))
+    monkeypatch.setattr(gemini, 'cancellable_urlopen', request)
+    gemini.generate_structured_text(prompt='x', response_schema={}, api_key=key, model='gemini flash')
+    check = Mock(return_value=Response({}))
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', check)
+    assert gemini.check_model('gemini flash', api_key=key) == []
+    for sent in (request.call_args.args[0], check.call_args.args[0]):
+        assert sent.full_url.split('/models/')[1].startswith('gemini%20flash')
+        assert 'synthetic-key' not in sent.full_url and 'key=' not in sent.full_url
+        assert sent.get_header('X-goog-api-key') == key
+
+
+def test_redact_secret_covers_raw_and_url_encoded_forms():
+    assert redact_secret('a k/y b k%2Fy', 'k/y') == 'a [redacted] b [redacted]'
+    assert redact_secret('unchanged', '') == 'unchanged'
 
 
 @pytest.mark.parametrize('error', [HTTPError('url', 404, 'missing', {}, None), URLError('secret unavailable')])

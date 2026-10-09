@@ -1,10 +1,12 @@
 """Verify provenance at the actual provider wire boundary, including failures."""
 import hashlib
+import http.client
 import io
 import json
 import threading
 import time
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from unittest.mock import Mock
 import zipfile
 
@@ -13,6 +15,8 @@ from fastapi.testclient import TestClient
 
 from meta_coder import gemini, openrouter, openai_compatible, provenance, providers, runner, web
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
+from meta_coder.coding_sheet_drafting import CodingSheetDraftError
+from meta_coder.manual_drafting import ManualDraftError
 from meta_coder.extraction import ExtractionResult, ProviderError, ResponseBytes
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import clear_output, create_project, write_manual
@@ -245,3 +249,74 @@ def test_auditing_preserves_http_error_detail_for_adapter(project, monkeypatch):
         provenance.audited_call(project, 'test', gemini.generate_structured_text,
             api_key='secret-api-key', model='alias', prompt='test', response_schema={})
     assert exchanges(project, records(project)[0])[0]['response']['headers']['X-Request-ID'] == 'failed-1'
+
+
+SYNTHETIC_KEY = 'synthetic/key-123'
+
+
+def run_gemini(project, monkeypatch, transport, model='gemini flash'):
+    manual = parse_coding_manual(project.manual_path.read_text())
+    sheet = CodingSheet([CodingSheetRow('r1', 'paper.pdf', 'Table 1')], [])
+    monkeypatch.setattr(gemini, 'cancellable_urlopen', transport)
+    run = runner.Runner()
+    state = run.start(project=project, manual=manual, coding_sheet=sheet, api_key=SYNTHETIC_KEY,
+                      provider='gemini', model=model, only_pdfs=['paper.pdf'])
+    deadline = time.monotonic() + 10
+    while run.is_running(project.project_id) and time.monotonic() < deadline:
+        time.sleep(.01)
+    return state
+
+
+def assert_key_absent(project, state):
+    persisted = [*project.raw_dir.glob('*.json'), *(project.path / 'audit').rglob('*')]
+    texts = [json.dumps(state.snapshot())]
+    texts += [path.read_bytes().decode('utf-8', 'replace') for path in persisted if path.is_file()]
+    for text in texts:
+        assert SYNTHETIC_KEY not in text and quote(SYNTHETIC_KEY, safe='') not in text
+
+
+def test_gemini_model_with_space_never_puts_key_in_url_or_records(project, monkeypatch):
+    sent = []
+    def transport(request, **kwargs):
+        sent.append(request)
+        if any(ord(char) <= 0x20 for char in request.full_url):  # what http.client rejects
+            raise http.client.InvalidURL(f"URL can't contain control characters. {request.full_url!r}")
+        return json.dumps({'candidates': [{'content': {'parts': [{'text': '{"effects": []}'}]}}]}).encode()
+    state = run_gemini(project, monkeypatch, transport)
+    assert state.status == 'complete'
+    assert '/models/gemini%20flash:generateContent' in sent[0].full_url
+    assert sent[0].get_header('X-goog-api-key') == SYNTHETIC_KEY
+    extraction = [op for op in records(project) if op['operation'] == 'extraction'][0]
+    assert exchanges(project, extraction)[0]['request']['headers'] == {'Content-Type': 'application/json'}
+    assert_key_absent(project, state)
+
+
+def test_unexpected_errors_echoing_the_key_are_redacted_everywhere(project, monkeypatch):
+    def transport(request, **kwargs):
+        raise http.client.InvalidURL(f'{request.full_url}?key={SYNTHETIC_KEY} or {quote(SYNTHETIC_KEY, safe="")}')
+    state = run_gemini(project, monkeypatch, transport)
+    error = runner.load_persisted_results(project)['paper.pdf'].error
+    assert error.startswith('Unexpected error:') and '[redacted]' in error
+    assert state.pdfs[0].error == error
+    assert_key_absent(project, state)
+
+    monkeypatch.setattr(runner, 'collate_results', Mock(side_effect=OSError(f'cannot write {SYNTHETIC_KEY}')))
+    state = run_gemini(project, monkeypatch, transport)
+    assert state.status == 'failed' and state.error == 'cannot write [redacted]'
+    assert_key_absent(project, state)
+
+
+def test_draft_errors_echoing_the_key_are_redacted(project, monkeypatch):
+    monkeypatch.setattr(web.Runtime, 'prepare_provider', lambda *args: None)
+    app = web.create_app(token='test', projects_root=project.path.parent)
+    app.state.runtime._session_keys['gemini'] = SYNTHETIC_KEY
+    routes = [('manual/draft', 'draft_coding_manual', ManualDraftError, 'manual.md'),
+              ('coding-sheet/draft', 'draft_coding_sheet', CodingSheetDraftError, 'sheet.csv')]
+    with TestClient(app, base_url='http://localhost') as client:
+        for route, function, draft_error, filename in routes:
+            for error, status in [(draft_error, 400), (ProviderError, 502)]:
+                monkeypatch.setattr(web, function, Mock(side_effect=error(f'failed with {SYNTHETIC_KEY}')))
+                response = client.post(f'/test/projects/{project.project_id}/{route}',
+                                       files={'file': (filename, b'citation\nSmith 2024')})
+                assert response.status_code == status
+                assert response.json()['error'] == 'failed with [redacted]'

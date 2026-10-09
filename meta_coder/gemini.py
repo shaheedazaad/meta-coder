@@ -25,6 +25,7 @@ from .extraction import (
     ProviderError,
     cancellable_urlopen,
     parse_json_response,
+    redact_secret,
 )
 import threading
 from .manual import CodingManual
@@ -71,7 +72,14 @@ def _build_prompt(manual: CodingManual, rows: list[CodingSheetRow]) -> str:
 
 
 def _redact(text: str, api_key: str) -> str:
-    return text.replace(api_key, "[redacted]") if api_key else text
+    return redact_secret(text, api_key)
+
+
+def _model_url(model: str, suffix: str = "") -> str:
+    # The model is one path segment; quoting keeps spaces or slashes from
+    # producing an invalid URL. The key travels in the x-goog-api-key header,
+    # never the URL, so URL-bearing exception text cannot leak it.
+    return f"{API_BASE}/models/{urllib.parse.quote(model, safe='-_.')}{suffix}"
 
 
 def check_model(model: str, *, api_key: str, timeout_sec: int = 20) -> list[str]:
@@ -82,9 +90,9 @@ def check_model(model: str, *, api_key: str, timeout_sec: int = 20) -> list[str]
     name = model.strip()
     if not name:
         return ["Enter a Gemini model name."]
-    url = f"{API_BASE}/models/{urllib.parse.quote(name, safe='-_.')}?key={urllib.parse.quote(api_key, safe='')}"
+    request = urllib.request.Request(_model_url(name), headers={"x-goog-api-key": api_key})
     try:
-        with urllib.request.urlopen(url, timeout=timeout_sec) as response:
+        with urllib.request.urlopen(request, timeout=timeout_sec) as response:
             body = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         return [f"Gemini could not validate `{name}` ({exc.code})."]
@@ -106,7 +114,7 @@ def _call_gemini_parts(
     service_tier: str = DEFAULT_SERVICE_TIER,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, int | None]]:
-    url = f"{API_BASE}/models/{model}:generateContent?key={api_key}"
+    url = _model_url(model, ":generateContent")
     payload = {
         "contents": [
             {
@@ -127,7 +135,7 @@ def _call_gemini_parts(
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
     try:
