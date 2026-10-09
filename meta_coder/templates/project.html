@@ -933,6 +933,11 @@
     {% endif %}
     {% if result_files_available %}
     <div class="panel panel-pad stack" style="margin-bottom:var(--sp-4)">
+      {% if stale_result_count %}
+      <div class="alert" data-variant="warning"><section>
+        {{ stale_result_count }} result{{ 's are' if stale_result_count != 1 else ' is' }} outdated because the manual, coding sheet, PDF or model settings changed. These CSV files are from the last run; run extraction again to recode outdated PDFs and update them.
+      </section></div>
+      {% endif %}
       <p class="u-sm u-muted">
         <code>evidence.csv</code> has the same shape as <code>coded_data.csv</code>, with each
         cell replaced by the page/quote that supports it — verify a few rows against the source
@@ -981,6 +986,7 @@
                 {% elif pdf.status == 'error' %}<span class="badge" data-variant="destructive">error</span>
                 {% elif pdf.status == 'running' %}<span class="badge" data-variant="info">running</span>
                 {% elif pdf.status == 'cancelled' %}<span class="badge" data-variant="outline">cancelled</span>
+                {% elif pdf.status == 'stale' %}<span class="badge" data-variant="warning">outdated</span>
                 {% else %}<span class="badge" data-variant="outline">pending</span>
                 {% endif %}
               </td>
@@ -989,7 +995,9 @@
               <td class="u-sm u-muted">
                 <span data-run-detail>{% if pdf.error %}{{ pdf.error }}{% endif %}
                 {% if pdf.missing_ids %} missing: {{ pdf.missing_ids | join(', ') }}{% endif %}
-                {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}</span>
+                {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}
+                {% if pdf.kept_success %} The earlier successful result is still used.{% endif %}
+                {% if pdf.unverified %} Coded before MetaCoder recorded each result's inputs, so later changes to them can't be detected.{% endif %}</span>
                 <div class="cluster" style="margin-top:var(--sp-1)">
                   {% if pdf.raw_available %}
                   <a href="/{{ token }}/projects/{{ project.project_id }}/raw/{{ pdf.raw_filename }}"

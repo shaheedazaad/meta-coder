@@ -1,6 +1,7 @@
 """Exercise real ASGI routes, multipart uploads and downloadable artifacts."""
 import io
 import json
+import re
 import zipfile
 from unittest.mock import Mock
 
@@ -404,3 +405,51 @@ def test_model_warning_preserves_saved_settings(site, monkeypatch):
     response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'})
     assert response.status_code == 303 and 'warning=' in response.headers['location']
     assert load_run_settings(project).model == 'model'
+
+
+def test_results_table_shows_latest_attempts_outdated_and_unverified_results(site):
+    from meta_coder.extraction import ExtractionResult
+    from meta_coder.fingerprints import InputChecker
+    from meta_coder.runner import PdfProgress, RunState, write_raw_result
+    from meta_coder.settings import load_run_settings
+    client, project, runtime = site
+    ready_project(project, runtime)
+    (project.sources_dir / 'old.pdf').write_bytes(b'%PDF-old')
+    (project.sources_dir / 'legacy.pdf').write_bytes(b'%PDF-legacy')
+    project.coding_sheet_path.write_text(project.coding_sheet_path.read_text()
+                                         + 'r2,old.pdf,exp1,Lee,2021\nr3,legacy.pdf,exp1,Kim,2022\n')
+    view = web._project_view(runtime, project)
+    settings = load_run_settings(project)
+    checker = InputChecker(project, view['manual'], view['coding_sheet'], provider=settings.provider, model=settings.model)
+    for name in ['paper.pdf', 'old.pdf']:
+        write_raw_result(project, ExtractionResult(name, 'ok', input_fingerprint=checker.fingerprint(name)),
+                         provider='gemini', model='model')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'error', error='Timed out', input_fingerprint=checker.fingerprint('paper.pdf')),
+                     provider='gemini', model='model')
+    write_raw_result(project, ExtractionResult('legacy.pdf', 'ok'), provider='gemini', model='model')
+    (project.output_dir / 'coded_data.csv').write_text('row_id\n')
+    (project.output_dir / 'evidence.csv').write_text('row_id\n')
+    (project.sources_dir / 'old.pdf').write_bytes(b'%PDF-replaced')
+    # The last run's progress can't hide that old.pdf's inputs changed since.
+    runtime.runner._states[project.project_id] = RunState(status='complete', pdfs=[PdfProgress('old.pdf', status='ok')])
+
+    view = web._project_view(runtime, project)
+    assert {article['source_pdf'] for article in view['completed_articles']} == {'paper.pdf', 'legacy.pdf'}
+    assert view['pending_pdf_count'] == 1 and view['stale_result_count'] == 1
+    page = client.get(url(project, '?tab=results')).text
+    assert 'Timed out' in page and 'The earlier successful result is still used.' in page
+    assert '>outdated<' in page and '1 result is outdated' in page
+    assert "Coded before MetaCoder recorded each result" in page
+    assert '.attempt.json' in page  # the raw link opens the latest attempt
+    retry_targets = re.findall(r'run/retry">\s*<input type="hidden" name="source_pdf" value="([^"]+)"', page)
+    assert sorted(retry_targets) == ['old.pdf', 'paper.pdf']  # the failed attempt and the outdated result
+
+
+def test_clearing_output_or_manual_forgets_finished_progress(site):
+    from meta_coder.runner import PdfProgress, RunState
+    client, project, runtime = site
+    ready_project(project, runtime)
+    for route in ['/clear-output', '/manual/reset']:
+        runtime.runner._states[project.project_id] = RunState(status='complete', pdfs=[PdfProgress('paper.pdf', status='error')])
+        assert client.post(url(project, route)).status_code == 303
+        assert runtime.runner.state(project.project_id) is None
