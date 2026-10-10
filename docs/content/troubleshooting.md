@@ -20,7 +20,7 @@ Use raw responses and per-study status messages to identify the cause, then retr
 
 ## Results need review
 
-A response may be rejected when its row IDs do not match the coding sheet or it fails validation. Inspect the raw response, clarify ambiguous locators or manual instructions, and retry. Export existing results first if you need to change the saved manual or sheet.
+A response may be rejected when its row IDs do not match the coding sheet or it fails validation. A response is also held for review when the provider stopped early or its JSON needed repair; the status message gives the reason. Compare its values with the raw response and the PDF, and retry if they look truncated. Otherwise, inspect the raw response, clarify ambiguous locators or manual instructions, and retry. Export existing results first if you need to change the saved manual or sheet.
 
 ## Text is missing from a PDF
 

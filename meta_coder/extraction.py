@@ -41,6 +41,50 @@ def parse_json_response(raw_text: str) -> tuple[object, str | None]:
             ) from repair_exc
 
 
+# Finish reasons meaning the model ended its answer on its own. Gemini's "STOP"
+# and OpenAI/OpenRouter's "stop" normalise to "stop"; "eos_token"/"stop_sequence"
+# are what some self-hosted OpenAI-compatible servers (e.g. TGI) report instead.
+NORMAL_FINISH_REASONS = {"stop", "eos_token", "stop_sequence"}
+# Provider-specific spellings mapped onto the OpenAI vocabulary. Gemini's
+# unspecified value carries no information, so it counts as absent.
+FINISH_REASON_ALIASES = {"max_tokens": "length", "finish_reason_unspecified": None}
+
+
+def normalize_finish_reason(value: object) -> str | None:
+    """One lower-case vocabulary for Gemini `finishReason` and OpenAI-style
+    `finish_reason` values; None when the provider did not report one."""
+
+    if value is None:
+        return None
+    reason = str(value).strip().lower()
+    if not reason:
+        return None
+    return FINISH_REASON_ALIASES.get(reason, reason)
+
+
+def review_issues(*, repaired_response: str | None, finish_reason: str | None) -> list[str]:
+    """Reasons to hold an otherwise valid response for human review.
+
+    A response cut off at the token limit can still be repaired into JSON that
+    passes validation (e.g. `0.125` truncated to `0.12`), so neither a repair
+    nor an abnormal finish is ever accepted as "ok". A missing finish reason is
+    not treated as abnormal: some OpenAI-compatible servers never report one.
+    """
+
+    issues = []
+    if finish_reason is not None and finish_reason not in NORMAL_FINISH_REASONS:
+        issues.append(
+            f"Provider stopped generating early (finish reason: {finish_reason}); "
+            "the response may be truncated or incomplete."
+        )
+    if repaired_response is not None:
+        issues.append(
+            "Provider returned malformed JSON that was automatically repaired; "
+            "check the coded values against the raw response."
+        )
+    return issues
+
+
 class ResponseBytes(bytes):
     """Bytes with a small, safe subset of transport metadata for the audit log."""
     def __new__(cls, data, response):

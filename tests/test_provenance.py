@@ -245,3 +245,11 @@ def test_auditing_preserves_http_error_detail_for_adapter(project, monkeypatch):
         provenance.audited_call(project, 'test', gemini.generate_structured_text,
             api_key='secret-api-key', model='alias', prompt='test', response_schema={})
     assert exchanges(project, records(project)[0])[0]['response']['headers']['X-Request-ID'] == 'failed-1'
+
+
+def test_json_bytes_supports_sets_paths_and_rejects_unknown_objects():
+    from pathlib import Path
+    from meta_coder.provenance import json_bytes
+    assert json.loads(json_bytes({'ids': {'b', 'a'}, 'path': Path('paper.pdf')})) == {'ids': ['a', 'b'], 'path': 'paper.pdf'}
+    with pytest.raises(TypeError, match='Unsupported audit value'):
+        json_bytes(object())

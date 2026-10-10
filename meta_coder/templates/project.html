@@ -143,6 +143,10 @@
               <textarea id="manual-effect-definition" form="manual-form" class="textarea" rows="2" required
                         placeholder="e.g. the difference in response times between compatible and incompatible trials"></textarea>
             </div>
+            <label class="cluster u-sm" style="gap:var(--sp-1)">
+              <input type="checkbox" id="manual-confidence" form="manual-form">
+              Ask the model how confident it is in each coded value (high, medium or low)
+            </label>
           </div>
 
         </div>
@@ -327,7 +331,10 @@
                       placeholder="What should the model look for? (shown to the model as its instruction for this field)"></textarea>
 
             <div data-levels-section class="effect-field-levels hidden">
-              <p class="u-xs u-muted" style="margin:0 0 var(--sp-1)">Categories (the model must pick exactly one):</p>
+              <p class="u-xs u-muted" style="margin:0 0 var(--sp-1)">Categories (the model must pick exactly one, unless several may apply):</p>
+              <label class="cluster u-sm" style="gap:var(--sp-1); margin-bottom:var(--sp-1)">
+                <input type="checkbox" data-field="multiple"> several categories may apply
+              </label>
               <div data-levels-list></div>
               <button type="button" class="btn" data-variant="ghost" data-size="sm" data-add-level>+ Add category</button>
             </div>
@@ -936,7 +943,8 @@
       <p class="u-sm u-muted">
         <code>evidence.csv</code> has the same shape as <code>coded_data.csv</code>, with each
         cell replaced by the page/quote that supports it — verify a few rows against the source
-        PDF before trusting the coded values.
+        PDF before trusting the coded values. <code>quote_check.csv</code> reports whether each
+        quote was found in the PDF's text.
       </p>
       <div class="cluster">
         <a href="/{{ token }}/projects/{{ project.project_id }}/download/coded" class="btn" data-variant="outline" data-size="sm">
@@ -945,6 +953,16 @@
         <a href="/{{ token }}/projects/{{ project.project_id }}/download/evidence" class="btn" data-variant="outline" data-size="sm">
           Download evidence.csv
         </a>
+        {% if quote_check_file_available %}
+        <a href="/{{ token }}/projects/{{ project.project_id }}/download/quote-check" class="btn" data-variant="outline" data-size="sm">
+          Download quote_check.csv
+        </a>
+        {% endif %}
+        {% if confidence_file_available %}
+        <a href="/{{ token }}/projects/{{ project.project_id }}/download/confidence" class="btn" data-variant="outline" data-size="sm">
+          Download confidence.csv
+        </a>
+        {% endif %}
       </div>
     </div>
     {% endif %}
@@ -989,7 +1007,8 @@
               <td class="u-sm u-muted">
                 <span data-run-detail>{% if pdf.error %}{{ pdf.error }}{% endif %}
                 {% if pdf.missing_ids %} missing: {{ pdf.missing_ids | join(', ') }}{% endif %}
-                {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}</span>
+                {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}
+                {% if pdf.cells_to_check %} cells to check: {{ pdf.cells_to_check }}{% endif %}</span>
                 <div class="cluster" style="margin-top:var(--sp-1)">
                   {% if pdf.raw_available %}
                   <a href="/{{ token }}/projects/{{ project.project_id }}/raw/{{ pdf.raw_filename }}"
