@@ -1,0 +1,161 @@
+{
+  "source_pdf": "xia_2022_scanned.pdf",
+  "provider": "gemini",
+  "model": "gemini-3.7-flash",
+  "prompt_version": "6",
+  "status": "ok",
+  "error": null,
+  "coded_by_row_id": {
+    "xia_2022_scanned_1": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Survey data were collected from existing postgraduate scientific research teams and their supervisors across three universities.",
+        "quote": "Data were collected from team members and their team supervisors from three top universities in Jiangsu Province, China",
+        "page": 4,
+        "quote_check": "not_checked"
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams were ongoing scientific research teams/laboratories in universities.",
+        "quote": "The study sample comprised 251 postgraduates from 58 scientific research teams in Chinese universities.",
+        "page": 1,
+        "quote_check": "not_checked"
+      },
+      "industry_sector": {
+        "value": "Academia",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Data were collected from scientific research teams in universities.",
+        "quote": "Data were collected from team members and their team supervisors from three top universities in Jiangsu Province, China (Nanjing University, Southeast University, and Soochow University).",
+        "page": 4,
+        "quote_check": "not_checked"
+      },
+      "team_function": {
+        "value": "R & D / Research",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams were scientific research teams carrying out research work.",
+        "quote": "Considering the characteristics of scientific research, scientific research is classified as creativity-generating tasks based on McGrath’s typology",
+        "page": 1,
+        "quote_check": "not_checked"
+      },
+      "country": {
+        "value": "China",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study sampled universities in Jiangsu Province, China.",
+        "quote": "Data were collected from team members and their team supervisors from three top universities in Jiangsu Province, China",
+        "page": 4,
+        "quote_check": "not_checked"
+      },
+      "n_teams": {
+        "value": 58,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 2 note reports n = 58 teams, and page 4 confirms usable data from 58 team supervisors.",
+        "quote": "In total, we obtained useable data from 251 team members and 58 team supervisors after deleting missing and invalid questionnaires.",
+        "page": 4,
+        "quote_check": "not_checked"
+      },
+      "student_sample": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team members were master's and doctoral candidates.",
+        "quote": "Most of the team members (68.0%) were master’s degree candidates, while doctoral candidates accounted for 32.0%.",
+        "page": 4,
+        "quote_check": "not_checked"
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams were academic research groups, not corporate top management teams.",
+        "quote": "The study sample comprised 251 postgraduates from 58 scientific research teams in Chinese universities.",
+        "page": 1,
+        "quote_check": "not_checked"
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript describes the survey administration and procedure but does not state the year or months of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Cognitive",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Openness to experience is a personality dimension.",
+        "quote": "In the Big Five personality model, openness to experience is considered to be the most relevant and noteworthy to creativity",
+        "page": 2,
+        "quote_check": "not_checked"
+      },
+      "diversity_measure_type": {
+        "value": "Separation",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team variance on openness to experience was operationalized as the coefficient of variation (standard deviation divided by mean).",
+        "quote": "The team variance on openness to experience was computed by dividing the standard deviation of openness to experience scores within each team by its group mean",
+        "page": 5,
+        "quote_check": "not_checked"
+      },
+      "performance_rater": {
+        "value": "Subjective - supervisor",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team creative performance was rated by the team supervisors.",
+        "quote": "Team supervisors rated team creative performance that was adapted by De Dreu (2002) three-item scale.",
+        "page": 5,
+        "quote_check": "not_checked"
+      },
+      "correlation": {
+        "value": -0.15,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 reports the zero-order correlation between row (9) TVO (team variance on openness to experience) and column (7) Team creative performance as -0.15.",
+        "quote": null,
+        "page": 6
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "Scientific research teams require synthesizing divergent thinking, mutual exchange, and joint creative problem-solving.",
+        "quote": "The main reason may be due to the fact that scientific research teams’ creative performance relies on team members synthesizing divergent thinking and mutual exchange perspectives.",
+        "page": 8,
+        "quote_check": "not_checked"
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Academic research work requires graduate-level training.",
+        "quote": "Considering the characteristics of scientific research, scientific research is classified as creativity-generating tasks based on McGrath’s typology (McGrath, 1984), which need to absorb novel ideas, diverse values, and substantial information.",
+        "page": 1,
+        "quote_check": "not_checked"
+      },
+      "team_longevity": {
+        "value": "years",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 reports mean 'Team year' as 2.57 (SD = 1.01), indicating the average team lifespan was over 2 years.",
+        "quote": "In addition, due to differences in team year and team type (1 = Science and engineering; 0 = others [e.g., Social sciences, Arts and humanities]) were controlled for analysis.",
+        "page": 5,
+        "quote_check": "not_checked"
+      },
+      "notes": {
+        "value": null
+      }
+    }
+  },
+  "raw_response": "{\n  \"effects\": [\n    {\n      \"row_id\": \"xia_2022_scanned_1\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Survey data were collected from existing postgraduate scientific research teams and their supervisors across three universities.\",\n        \"quote\": \"Data were collected from team members and their team supervisors from three top universities in Jiangsu Province, China\",\n        \"page\": 4\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams were ongoing scientific research teams/laboratories in universities.\",\n        \"quote\": \"The study sample comprised 251 postgraduates from 58 scientific research teams in Chinese universities.\",\n        \"page\": 1\n      },\n      \"industry_sector\": {\n        \"value\": \"Academia\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Data were collected from scientific research teams in universities.\",\n        \"quote\": \"Data were collected from team members and their team supervisors from three top universities in Jiangsu Province, China (Nanjing University, Southeast University, and Soochow University).\",\n        \"page\": 4\n      },\n      \"team_function\": {\n        \"value\": \"R & D / Research\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams were scientific research teams carrying out research work.\",\n        \"quote\": \"Considering the characteristics of scientific research, scientific research is classified as creativity-generating tasks based on McGrath’s typology\",\n        \"page\": 1\n      },\n      \"country\": {\n        \"value\": \"China\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study sampled universities in Jiangsu Province, China.\",\n        \"quote\": \"Data were collected from team members and their team supervisors from three top universities in Jiangsu Province, China\",\n        \"page\": 4\n      },\n      \"n_teams\": {\n        \"value\": 58,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 2 note reports n = 58 teams, and page 4 confirms usable data from 58 team supervisors.\",\n        \"quote\": \"In total, we obtained useable data from 251 team members and 58 team supervisors after deleting missing and invalid questionnaires.\",\n        \"page\": 4\n      },\n      \"student_sample\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team members were master's and doctoral candidates.\",\n        \"quote\": \"Most of the team members (68.0%) were master’s degree candidates, while doctoral candidates accounted for 32.0%.\",\n        \"page\": 4\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams were academic research groups, not corporate top management teams.\",\n        \"quote\": \"The study sample comprised 251 postgraduates from 58 scientific research teams in Chinese universities.\",\n        \"page\": 1\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript describes the survey administration and procedure but does not state the year or months of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Cognitive\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Openness to experience is a personality dimension.\",\n        \"quote\": \"In the Big Five personality model, openness to experience is considered to be the most relevant and noteworthy to creativity\",\n        \"page\": 2\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Separation\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team variance on openness to experience was operationalized as the coefficient of variation (standard deviation divided by mean).\",\n        \"quote\": \"The team variance on openness to experience was computed by dividing the standard deviation of openness to experience scores within each team by its group mean\",\n        \"page\": 5\n      },\n      \"performance_rater\": {\n        \"value\": \"Subjective - supervisor\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team creative performance was rated by the team supervisors.\",\n        \"quote\": \"Team supervisors rated team creative performance that was adapted by De Dreu (2002) three-item scale.\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.15,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 reports the zero-order correlation between row (9) TVO (team variance on openness to experience) and column (7) Team creative performance as -0.15.\",\n        \"quote\": null,\n        \"page\": 6\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"Scientific research teams require synthesizing divergent thinking, mutual exchange, and joint creative problem-solving.\",\n        \"quote\": \"The main reason may be due to the fact that scientific research teams’ creative performance relies on team members synthesizing divergent thinking and mutual exchange perspectives.\",\n        \"page\": 8\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Academic research work requires graduate-level training.\",\n        \"quote\": \"Considering the characteristics of scientific research, scientific research is classified as creativity-generating tasks based on McGrath’s typology (McGrath, 1984), which need to absorb novel ideas, diverse values, and substantial information.\",\n        \"page\": 1\n      },\n      \"team_longevity\": {\n        \"value\": \"years\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 reports mean 'Team year' as 2.57 (SD = 1.01), indicating the average team lifespan was over 2 years.\",\n        \"quote\": \"In addition, due to differences in team year and team type (1 = Science and engineering; 0 = others [e.g., Social sciences, Arts and humanities]) were controlled for analysis.\",\n        \"page\": 5\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    }\n  ]\n}",
+  "input_tokens": 8941,
+  "output_tokens": 1575,
+  "duration_sec": 258.6
+}

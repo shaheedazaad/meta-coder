@@ -1,0 +1,658 @@
+{
+  "source_pdf": "altiner_2018.pdf",
+  "provider": "gemini",
+  "model": "gemini-3.7-flash",
+  "prompt_version": "6",
+  "status": "ok",
+  "error": null,
+  "coded_by_row_id": {
+    "altiner_2018_1": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes observing five project teams in a bank's credit application development department.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "setting": {
+        "value": "Project work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' states that the teams work in a bank developing a banking package.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Software development",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' explicitly states the teams deal with software development projects.",
+        "quote": "In this department there are numerous teams dealing with different software development projects.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Turkey",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The bank's name and location are not explicitly stated, but all authors are affiliated with Marmara University in Turkey.",
+        "quote": "Industrial Engineering Department, Marmara University, Istanbul, Turkey",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "n_teams": {
+        "value": 5,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes selecting five project teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The participants are employees of a bank's credit application development department.",
+        "quote": "In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are project teams in the credit application development department, not top management teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The diversity measure is based on the age of team members.",
+        "quote": "Team members were classified by age into three groups: young (those less than or equal to 30 years old); middle (those between 31 and 40 years old); and old (those older than or equal to 41 years old).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Diversity is measured using Simpson's Diversity Index based on categorical classifications.",
+        "quote": "Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.",
+        "page": 2,
+        "quote_check": "verified",
+        "quote_found_page": 2
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).",
+        "quote": "In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "correlation": {
+        "value": 0.3,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 11 reports the correlation between Age diversity index and Team efficiency as 0.30.",
+        "quote": null,
+        "page": 8
+      },
+      "interdependence": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.",
+        "quote": "As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "task_complexity": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Software development for banking systems requires a college degree in computer science or related fields.",
+        "quote": "This department is developing a new banking package for the banking credit system within the .Net environment.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_longevity": {
+        "value": "months",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The project period was 180 days (approximately 6 months).",
+        "quote": "The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "notes": {
+        "value": "The locator refers to 'Production', but the paper only provides correlations between diversity indices and DEA-based team efficiency (reported as r = 0.30 in Table 11)."
+      }
+    },
+    "altiner_2018_2": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes observing five project teams in a bank's credit application development department.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "setting": {
+        "value": "Project work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' states that the teams work in a bank developing a banking package.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Software development",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' explicitly states the teams deal with software development projects.",
+        "quote": "In this department there are numerous teams dealing with different software development projects.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Turkey",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The bank's location is not stated, but all authors are affiliated with Marmara University in Turkey.",
+        "quote": "Industrial Engineering Department, Marmara University, Istanbul, Turkey",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "n_teams": {
+        "value": 5,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes selecting five project teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The participants are employees of a bank's credit application development department.",
+        "quote": "In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are project teams in the credit application development department, not top management teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The diversity measure is based on gender.",
+        "quote": "Gender classification was female or male.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Diversity is measured using Simpson's Diversity Index based on categorical classifications.",
+        "quote": "Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.",
+        "page": 2,
+        "quote_check": "verified",
+        "quote_found_page": 2
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).",
+        "quote": "In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "correlation": {
+        "value": 0.56,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 11 reports the correlation between Gender diversity index and Team efficiency as 0.56.",
+        "quote": null,
+        "page": 8
+      },
+      "interdependence": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.",
+        "quote": "As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "task_complexity": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Software development for banking systems requires a college degree in computer science or related fields.",
+        "quote": "This department is developing a new banking package for the banking credit system within the .Net environment.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_longevity": {
+        "value": "months",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The project period was 180 days (approximately 6 months).",
+        "quote": "The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "altiner_2018_3": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes observing five project teams in a bank's credit application development department.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "setting": {
+        "value": "Project work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' states that the teams work in a bank developing a banking package.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Software development",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' explicitly states the teams deal with software development projects.",
+        "quote": "In this department there are numerous teams dealing with different software development projects.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Turkey",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The bank's location is not stated, but all authors are affiliated with Marmara University in Turkey.",
+        "quote": "Industrial Engineering Department, Marmara University, Istanbul, Turkey",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "n_teams": {
+        "value": 5,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes selecting five project teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The participants are employees of a bank's credit application development department.",
+        "quote": "In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are project teams in the credit application development department, not top management teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Cognitive",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The diversity measure is educational level (bachelor's, master's, doctorate).",
+        "quote": "Education was classified by bachelor’s degree; master’s degree; and doctorate.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Diversity is measured using Simpson's Diversity Index based on categorical classifications.",
+        "quote": "Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.",
+        "page": 2,
+        "quote_check": "verified",
+        "quote_found_page": 2
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).",
+        "quote": "In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "correlation": {
+        "value": 0.93,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 11 reports the correlation between Education diversity index and Team efficiency as 0.93.",
+        "quote": null,
+        "page": 8
+      },
+      "interdependence": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.",
+        "quote": "As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "task_complexity": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Software development for banking systems requires a college degree in computer science or related fields.",
+        "quote": "This department is developing a new banking package for the banking credit system within the .Net environment.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_longevity": {
+        "value": "months",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The project period was 180 days (approximately 6 months).",
+        "quote": "The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "altiner_2018_4": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes observing five project teams in a bank's credit application development department.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "setting": {
+        "value": "Project work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' states that the teams work in a bank developing a banking package.",
+        "quote": "The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Software development",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' explicitly states the teams deal with software development projects.",
+        "quote": "In this department there are numerous teams dealing with different software development projects.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Turkey",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The bank's location is not stated, but all authors are affiliated with Marmara University in Turkey.",
+        "quote": "Industrial Engineering Department, Marmara University, Istanbul, Turkey",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "n_teams": {
+        "value": 5,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Case study' describes selecting five project teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below:",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The participants are employees of a bank's credit application development department.",
+        "quote": "In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are project teams in the credit application development department, not top management teams.",
+        "quote": "Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Job-related",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Experience diversity is defined and measured as organizational tenure.",
+        "quote": "Hence, in this study, experience diversity is referred to as tenure in the software project teams.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Diversity is measured using Simpson's Diversity Index based on categorical classifications.",
+        "quote": "Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.",
+        "page": 2,
+        "quote_check": "verified",
+        "quote_found_page": 2
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).",
+        "quote": "In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "correlation": {
+        "value": 0.57,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 11 reports the correlation between Experience diversity index and Team efficiency as 0.57.",
+        "quote": null,
+        "page": 8
+      },
+      "interdependence": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.",
+        "quote": "As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "task_complexity": {
+        "value": "medium",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Software development for banking systems requires a college degree in computer science or related fields.",
+        "quote": "This department is developing a new banking package for the banking credit system within the .Net environment.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_longevity": {
+        "value": "months",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The project period was 180 days (approximately 6 months).",
+        "quote": "The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "notes": {
+        "value": null
+      }
+    }
+  },
+  "raw_response": "{\n  \"effects\": [\n    {\n      \"row_id\": \"altiner_2018_1\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes observing five project teams in a bank's credit application development department.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"setting\": {\n        \"value\": \"Project work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' states that the teams work in a bank developing a banking package.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Software development\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' explicitly states the teams deal with software development projects.\",\n        \"quote\": \"In this department there are numerous teams dealing with different software development projects.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Turkey\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The bank's name and location are not explicitly stated, but all authors are affiliated with Marmara University in Turkey.\",\n        \"quote\": \"Industrial Engineering Department, Marmara University, Istanbul, Turkey\",\n        \"page\": 1\n      },\n      \"n_teams\": {\n        \"value\": 5,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes selecting five project teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The participants are employees of a bank's credit application development department.\",\n        \"quote\": \"In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are project teams in the credit application development department, not top management teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team\",\n        \"page\": 5\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The diversity measure is based on the age of team members.\",\n        \"quote\": \"Team members were classified by age into three groups: young (those less than or equal to 30 years old); middle (those between 31 and 40 years old); and old (those older than or equal to 41 years old).\",\n        \"page\": 5\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Diversity is measured using Simpson's Diversity Index based on categorical classifications.\",\n        \"quote\": \"Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.\",\n        \"page\": 2\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).\",\n        \"quote\": \"In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).\",\n        \"page\": 7\n      },\n      \"correlation\": {\n        \"value\": 0.3,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 11 reports the correlation between Age diversity index and Team efficiency as 0.30.\",\n        \"quote\": null,\n        \"page\": 8\n      },\n      \"interdependence\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.\",\n        \"quote\": \"As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.\",\n        \"page\": 1\n      },\n      \"task_complexity\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Software development for banking systems requires a college degree in computer science or related fields.\",\n        \"quote\": \"This department is developing a new banking package for the banking credit system within the .Net environment.\",\n        \"page\": 5\n      },\n      \"team_longevity\": {\n        \"value\": \"months\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The project period was 180 days (approximately 6 months).\",\n        \"quote\": \"The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.\",\n        \"page\": 5\n      },\n      \"notes\": {\n        \"value\": \"The locator refers to 'Production', but the paper only provides correlations between diversity indices and DEA-based team efficiency (reported as r = 0.30 in Table 11).\"\n      }\n    },\n    {\n      \"row_id\": \"altiner_2018_2\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes observing five project teams in a bank's credit application development department.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"setting\": {\n        \"value\": \"Project work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' states that the teams work in a bank developing a banking package.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Software development\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' explicitly states the teams deal with software development projects.\",\n        \"quote\": \"In this department there are numerous teams dealing with different software development projects.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Turkey\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The bank's location is not stated, but all authors are affiliated with Marmara University in Turkey.\",\n        \"quote\": \"Industrial Engineering Department, Marmara University, Istanbul, Turkey\",\n        \"page\": 1\n      },\n      \"n_teams\": {\n        \"value\": 5,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes selecting five project teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The participants are employees of a bank's credit application development department.\",\n        \"quote\": \"In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are project teams in the credit application development department, not top management teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team\",\n        \"page\": 5\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The diversity measure is based on gender.\",\n        \"quote\": \"Gender classification was female or male.\",\n        \"page\": 5\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Diversity is measured using Simpson's Diversity Index based on categorical classifications.\",\n        \"quote\": \"Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.\",\n        \"page\": 2\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).\",\n        \"quote\": \"In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).\",\n        \"page\": 7\n      },\n      \"correlation\": {\n        \"value\": 0.56,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 11 reports the correlation between Gender diversity index and Team efficiency as 0.56.\",\n        \"quote\": null,\n        \"page\": 8\n      },\n      \"interdependence\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.\",\n        \"quote\": \"As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.\",\n        \"page\": 1\n      },\n      \"task_complexity\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Software development for banking systems requires a college degree in computer science or related fields.\",\n        \"quote\": \"This department is developing a new banking package for the banking credit system within the .Net environment.\",\n        \"page\": 5\n      },\n      \"team_longevity\": {\n        \"value\": \"months\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The project period was 180 days (approximately 6 months).\",\n        \"quote\": \"The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.\",\n        \"page\": 5\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"altiner_2018_3\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes observing five project teams in a bank's credit application development department.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"setting\": {\n        \"value\": \"Project work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' states that the teams work in a bank developing a banking package.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Software development\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' explicitly states the teams deal with software development projects.\",\n        \"quote\": \"In this department there are numerous teams dealing with different software development projects.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Turkey\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The bank's location is not stated, but all authors are affiliated with Marmara University in Turkey.\",\n        \"quote\": \"Industrial Engineering Department, Marmara University, Istanbul, Turkey\",\n        \"page\": 1\n      },\n      \"n_teams\": {\n        \"value\": 5,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes selecting five project teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The participants are employees of a bank's credit application development department.\",\n        \"quote\": \"In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are project teams in the credit application development department, not top management teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team\",\n        \"page\": 5\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Cognitive\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The diversity measure is educational level (bachelor's, master's, doctorate).\",\n        \"quote\": \"Education was classified by bachelor’s degree; master’s degree; and doctorate.\",\n        \"page\": 5\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Diversity is measured using Simpson's Diversity Index based on categorical classifications.\",\n        \"quote\": \"Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.\",\n        \"page\": 2\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).\",\n        \"quote\": \"In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).\",\n        \"page\": 7\n      },\n      \"correlation\": {\n        \"value\": 0.93,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 11 reports the correlation between Education diversity index and Team efficiency as 0.93.\",\n        \"quote\": null,\n        \"page\": 8\n      },\n      \"interdependence\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.\",\n        \"quote\": \"As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.\",\n        \"page\": 1\n      },\n      \"task_complexity\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Software development for banking systems requires a college degree in computer science or related fields.\",\n        \"quote\": \"This department is developing a new banking package for the banking credit system within the .Net environment.\",\n        \"page\": 5\n      },\n      \"team_longevity\": {\n        \"value\": \"months\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The project period was 180 days (approximately 6 months).\",\n        \"quote\": \"The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.\",\n        \"page\": 5\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"altiner_2018_4\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes observing five project teams in a bank's credit application development department.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"setting\": {\n        \"value\": \"Project work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes project teams working on software development projects with an assumed duration of 180 days.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' states that the teams work in a bank developing a banking package.\",\n        \"quote\": \"The proposed model was applied to measure the correlation between different diversity factors and team efficiency at a bank’s credit application development department.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Software development\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' explicitly states the teams deal with software development projects.\",\n        \"quote\": \"In this department there are numerous teams dealing with different software development projects.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Turkey\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The bank's location is not stated, but all authors are affiliated with Marmara University in Turkey.\",\n        \"quote\": \"Industrial Engineering Department, Marmara University, Istanbul, Turkey\",\n        \"page\": 1\n      },\n      \"n_teams\": {\n        \"value\": 5,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Case study' describes selecting five project teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below:\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The participants are employees of a bank's credit application development department.\",\n        \"quote\": \"In addition, the age, experience, education and gender information of each member of each team was gathered from the Human Resources Department.\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are project teams in the credit application development department, not top management teams.\",\n        \"quote\": \"Five project teams were selected within the Credit Application Development Department as indicated below: • Team 1: Retail Loans Team\",\n        \"page\": 5\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript describes the project timeline (180 days) but does not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Job-related\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Experience diversity is defined and measured as organizational tenure.\",\n        \"quote\": \"Hence, in this study, experience diversity is referred to as tenure in the software project teams.\",\n        \"page\": 4\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Diversity is measured using Simpson's Diversity Index based on categorical classifications.\",\n        \"quote\": \"Simpson’s Diversity Index is one of the most commonly used indices to measure diversity, especially in ecology.\",\n        \"page\": 2\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Team efficiency was evaluated using Data Envelopment Analysis (DEA) based on objective KPIs (effort hours, defect counts, requirements met).\",\n        \"quote\": \"In order to calculate the efficiency of each team by DEA, the service units being compared in the DEA analysis were determined as well as the input and output parameters (Table 9).\",\n        \"page\": 7\n      },\n      \"correlation\": {\n        \"value\": 0.57,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 11 reports the correlation between Experience diversity index and Team efficiency as 0.57.\",\n        \"quote\": null,\n        \"page\": 8\n      },\n      \"interdependence\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams are software development teams working on distinct project modules/applications, which fits reciprocal interdependence.\",\n        \"quote\": \"As software development is a labour- and knowledge-intensive task, teamwork in software projects has been long acknowledged as a crucial criterion for the successful design and deployment of software projects.\",\n        \"page\": 1\n      },\n      \"task_complexity\": {\n        \"value\": \"medium\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Software development for banking systems requires a college degree in computer science or related fields.\",\n        \"quote\": \"This department is developing a new banking package for the banking credit system within the .Net environment.\",\n        \"page\": 5\n      },\n      \"team_longevity\": {\n        \"value\": \"months\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The project period was 180 days (approximately 6 months).\",\n        \"quote\": \"The project period was assumed to be 180 days for each team. Starting and finishing dates of each project were assumed to be the same.\",\n        \"page\": 5\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    }\n  ]\n}",
+  "input_tokens": 7334,
+  "output_tokens": 6087,
+  "duration_sec": 43.1
+}
