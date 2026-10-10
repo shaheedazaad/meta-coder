@@ -38,6 +38,9 @@
 <h2 id="edit-coding-fields">Edit coding fields<a class="headerlink" href="#edit-coding-fields" title="Permanent link">&para;</a></h2>
 <p>Open <strong>Coding manual</strong> and choose <strong>Manual editing</strong>. Give each field a clear name, type, and description. For categorical fields, define the allowed levels and explain when each applies. Remove the starter example if it does not fit your analysis.</p>
 <p>Descriptions should be relative to your <a href="../analysis/">effect definition</a>. For instance, a publication-status field could allow “Published” and “Unpublished,” while a numerical field could record the number of participants contributing to that effect.</p>
+<p>Every extraction request sends the model the analysis description, the effect definition, each field’s name, type and description, and each level with its description. Write them as instructions another coder could follow. Level descriptions matter most when level values are short codes such as <code>1</code> and <code>2</code>. The model must choose exactly one level per field; if several seem to apply, it picks the best fit and explains in the <code>notes</code> field.</p>
+<p>You do not need a level or a special number for missing information. For every field, the model can answer that the value is not reported, not applicable, or unclear, and the export <a href="../results/#missing-values">shows which</a>. Use field descriptions to say when a field does not apply, for example “only for studies with a follow-up.”</p>
+<p>Field names must be unique, ignoring capitalization and surrounding spaces. MetaCoder already adds <code>row_id</code>, <code>source_pdf</code>, <code>locator</code>, <code>authors</code>, <code>year</code>, and <code>status</code> to every export, so a field cannot use one of those names in any capitalization — use a more specific name such as <code>publication_year</code> or <code>publication_status</code>.</p>
 <p>Choose <strong>Validate and save</strong> when the fields and effect definition are ready. Fix any validation messages before continuing.</p>
 <h2 id="draft-from-a-document">Draft from a document<a class="headerlink" href="#draft-from-a-document" title="Permanent link">&para;</a></h2>
 <p>Choose <strong>AI draft from document</strong> and provide a PDF, DOCX, RTF, or Markdown manual. Drafting uses the global <a href="../settings/">drafting provider and model</a>, independently of extraction settings.</p>
@@ -58,6 +61,7 @@ effects:
       - value: Unpublished
         description: Thesis, preprint, or other unpublished report.
 </code></pre>
+<p>Category values are kept exactly as written, so <code>yes</code>, <code>no</code>, <code>01</code>, and <code>1.50</code> stay as those labels. Only <code>true</code> and <code>false</code> are read as true/false settings (for example <code>evidence_required: false</code>). A key that appears twice in the same place, such as two fields with the same name, is reported as an error rather than silently overwritten.</p>
 <h2 id="changing-a-saved-manual">Changing a saved manual<a class="headerlink" href="#changing-a-saved-manual" title="Permanent link">&para;</a></h2>
 <p>Saving a changed manual clears earlier extraction results. Export any results you want to keep before changing definitions. A reset restores the starter manual, whose effect definition must be completed again.</p>
       <nav class="docs-pagination" aria-label="Adjacent pages">

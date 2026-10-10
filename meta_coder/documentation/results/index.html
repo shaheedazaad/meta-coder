@@ -39,6 +39,33 @@
 <h2 id="review-each-study">Review each study<a class="headerlink" href="#review-each-study" title="Permanent link">&para;</a></h2>
 <p>The results table reports each PDF's status and available usage information. Open the raw response when you need to understand a provider error or a response that needs review. Readable per-PDF YAML records make it easier to inspect coded effects and supporting quotations.</p>
 <p>Check that each <code>row_id</code> corresponds to the intended experiment or condition, that categories follow your manual, and that cited pages and quotations support the values.</p>
+<h2 id="missing-values">Missing values<a class="headerlink" href="#missing-values" title="Permanent link">&para;</a></h2>
+<p>When MetaCoder cannot code a value, the cell in <code>coded_data.csv</code> says why:</p>
+<table>
+<thead>
+<tr>
+<th>Cell text</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Not Reported</code></td>
+<td>The article does not report the value.</td>
+</tr>
+<tr>
+<td><code>Not Applicable</code></td>
+<td>The field does not apply to this study or effect, such as a follow-up interval for a study without a follow-up.</td>
+</tr>
+<tr>
+<td><code>Unclear</code></td>
+<td>The article addresses the field, but ambiguously or inconsistently, so no single value could be determined.</td>
+</tr>
+</tbody>
+</table>
+<p>The matching cell in <code>evidence.csv</code> explains the reason. Recode these three texts as missing values before analysis, and decide for each field whether <code>Not Applicable</code> belongs in the analysis as its own category.</p>
+<p><code>Unclear</code> cells are the ones most worth reading yourself. The results table shows how many each PDF has as <strong>cells to check</strong>, and the per-PDF YAML records the same count. This count does not change a PDF's status, and a later run does not recode the PDF because of it.</p>
+<p>Results coded before these three reasons existed show <code>Not Reported</code> for every missing value.</p>
 <h2 id="download-the-data">Download the data<a class="headerlink" href="#download-the-data" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -75,7 +102,7 @@
         <a href="../auditing/"><small>Next</small>Audit and reproducibility →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#review-each-study">Review each study</a><a href="#download-the-data">Download the data</a><a href="#preserve-a-run">Preserve a run</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#review-each-study">Review each study</a><a href="#missing-values">Missing values</a><a href="#download-the-data">Download the data</a><a href="#preserve-a-run">Preserve a run</a></nav></aside>
   </div>
 </body>
 </html>

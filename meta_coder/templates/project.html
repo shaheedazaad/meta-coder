@@ -989,7 +989,8 @@
               <td class="u-sm u-muted">
                 <span data-run-detail>{% if pdf.error %}{{ pdf.error }}{% endif %}
                 {% if pdf.missing_ids %} missing: {{ pdf.missing_ids | join(', ') }}{% endif %}
-                {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}</span>
+                {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}
+                {% if pdf.cells_to_check %} cells to check: {{ pdf.cells_to_check }}{% endif %}</span>
                 <div class="cluster" style="margin-top:var(--sp-1)">
                   {% if pdf.raw_available %}
                   <a href="/{{ token }}/projects/{{ project.project_id }}/raw/{{ pdf.raw_filename }}"

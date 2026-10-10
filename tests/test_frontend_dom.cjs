@@ -334,6 +334,20 @@ for (const kind of ['run', 'pdf-scan']) {
   });
 }
 
+test('run polling shows cells to check only for PDFs that have some', async t => {
+  let timers;
+  const current = { status: 'running', processed: 2, total: 3, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', cells_to_check: 2 }, { source_pdf: 'other.pdf', status: 'ok', cells_to_check: 0 }] };
+  const { d } = setup(t, 'project', w => {
+    timers = fakeTimers(w);
+    w.document.body.insertAdjacentHTML('beforeend', `<div id="run-progress" data-running="true" data-status-url="/status"><div data-progress-bar><span></span></div><p data-progress-summary></p></div><table><tr data-run-row="paper.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr><tr data-run-row="other.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr></table>`);
+    w.fetch = async () => ({ json: async () => current });
+  });
+  assert.equal(timers.run(), 1000);
+  await flush();
+  assert.match(d.querySelector('[data-run-row="paper.pdf"] [data-run-detail]').textContent, /^cells to check: 2$/);
+  assert.equal(d.querySelector('[data-run-row="other.pdf"] [data-run-detail]').textContent, '');
+});
+
 test('live search replaces only results, handles stale responses, and permits retry', async t => {
   let timers;
   const requests = [];

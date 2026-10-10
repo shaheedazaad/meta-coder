@@ -24,8 +24,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - run: pixi run --locked -e dev test
-      - run: pixi run --locked -e dev npm test
+      - run: pixi run --locked -e dev coverage
+      - run: pixi run --locked -e dev npm run coverage
   docs:
     runs-on: ubuntu-24.04
     steps:

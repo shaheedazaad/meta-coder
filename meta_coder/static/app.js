@@ -597,6 +597,7 @@ function initTabGroup(root, opts) {
         if (pdf.error) parts.push(pdf.error);
         if (pdf.missing_ids && pdf.missing_ids.length) parts.push("missing: " + pdf.missing_ids.join(", "));
         if (pdf.extra_ids && pdf.extra_ids.length) parts.push("unexpected: " + pdf.extra_ids.join(", "));
+        if (pdf.cells_to_check) parts.push("cells to check: " + pdf.cells_to_check);
         detail.textContent = parts.join(" ");
       }
     });
