@@ -38,6 +38,6 @@ API authentication headers and keys are excluded. If a known API key is echoed i
 
 Older runs cannot acquire missing timestamps, exact prompts, or full response envelopes retrospectively. Their surviving result files are still exported; absent audit records mean provenance is incomplete.
 
-The selected model ID is always recorded. A provider-reported model/version or fingerprint is recorded only when supplied, otherwise it is null. A reported model name may still be an alias rather than an immutable model revision. Unspecified generation parameters use provider defaults, which are not inferred or invented in the audit log.
+The selected model ID is always recorded. A provider-reported model/version or fingerprint is recorded only when supplied, otherwise it is null. Each PDF's result file and YAML record also note the model the provider reported serving, which can differ from the selected model when a provider redirects an older model ID to a newer one. A reported model name may still be an alias rather than an immutable model revision. Unspecified generation parameters use provider defaults, which are not inferred or invented in the audit log.
 
 You can inspect and reconstruct the recorded requests, but hosted model changes, hidden server settings, PDF preprocessing, and nondeterminism can prevent byte-identical results. There is no automatic replay feature. Repeating a request requires provider access and may incur a new charge.

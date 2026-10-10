@@ -32,7 +32,7 @@ from .mechanism import ValidationResult, build_response_schema, validate_respons
 
 
 API_BASE = "https://generativelanguage.googleapis.com/v1beta"
-DEFAULT_MODEL = "gemini-3.7-flash"
+DEFAULT_MODEL = "gemini-3.8-flash"
 DEFAULT_TIMEOUT_SEC = 600
 DEFAULT_SERVICE_TIER = "flex"  # 50% lower cost, variable latency/best-effort availability
 
@@ -105,7 +105,7 @@ def _call_gemini_parts(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     url = f"{API_BASE}/models/{model}:generateContent?key={api_key}"
     payload = {
         "contents": [
@@ -179,13 +179,18 @@ def _call_gemini_parts(
     usage = body.get("usageMetadata") or {}
     if not isinstance(usage, dict):
         raise ProviderError("Gemini returned invalid usage metadata.", raw_response=raw_response)
-    for field in ("promptTokenCount", "candidatesTokenCount"):
+    for field in ("promptTokenCount", "candidatesTokenCount", "thoughtsTokenCount"):
         value = usage.get(field)
         if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
             raise ProviderError("Gemini returned invalid usage metadata.", raw_response=raw_response)
+    # Thinking tokens are billed as output but reported separately from the
+    # candidate (answer) tokens, so output is their sum when either is present.
+    output_counts = [usage[f] for f in ("candidatesTokenCount", "thoughtsTokenCount") if usage.get(f) is not None]
+    served_model = body.get("modelVersion")
     tokens = {
         "input_tokens": usage.get("promptTokenCount"),
-        "output_tokens": usage.get("candidatesTokenCount"),
+        "output_tokens": sum(output_counts) if output_counts else None,
+        "served_model": served_model if isinstance(served_model, str) and served_model else None,
     }
     return text, tokens
 
@@ -200,7 +205,7 @@ def _call_gemini(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     """Structured generation with a native PDF, kept as the extraction seam."""
 
     return _call_gemini_parts(
@@ -307,6 +312,7 @@ def extract_pdf_effects(
             duration_sec=duration,
             input_tokens=tokens.get("input_tokens"),
             output_tokens=tokens.get("output_tokens"),
+            served_model=tokens.get("served_model"),
         )
 
     return ExtractionResult(
@@ -318,4 +324,5 @@ def extract_pdf_effects(
         duration_sec=duration,
         input_tokens=tokens.get("input_tokens"),
         output_tokens=tokens.get("output_tokens"),
+        served_model=tokens.get("served_model"),
     )
