@@ -210,9 +210,10 @@ class Runner:
         return bool(state and state.status in ("running", "cancelling"))
 
     def cancel(self, project_id: str) -> None:
-        """Cooperative cancellation: flips a flag `process_one` checks before
-        starting each PDF. A PDF already mid-request runs to completion rather
-        than being killed — the "next safe checkpoint" plan.md A7 calls for."""
+        """Stop queued PDFs from starting and interrupt in-flight requests:
+        `cancellable_urlopen` abandons a request once `cancel_event` is set,
+        and that PDF is recorded as cancelled. The provider may still finish
+        (and bill) a request it has already received."""
 
         state = self._states.get(project_id)
         if state and state.status == "running":
