@@ -1,0 +1,163 @@
+name: team_diversity_regression_set
+description: >
+  Moderators of the relationship between team diversity and team performance, adapted from
+  Wallrich et al. (2024), https://doi.org/10.1007/s10869-024-09977-0. Each row is one
+  correlation between a team-level diversity measure and a team performance measure. Fields
+  about the study (design, setting, sector, country, team characteristics) take the same value
+  for every row from the same sample.
+effect_definition: >
+  The zero-order correlation between a team-level measure of diversity (how much team members
+  differ on an attribute) and a measure of team performance, with the team as the unit of analysis.
+confidence: true
+effects:
+  design:
+    type: string
+    description: Study design for this effect.
+    levels:
+      - value: Observational
+        description: Survey-based or based on secondary data such as financial databases; team composition was not assigned by the researchers.
+      - value: Experimental
+        description: The researchers formed the teams or set the task, as in a laboratory task or a business simulation run for the study.
+  setting:
+    type: string
+    description: Where the teams did the work whose performance was measured.
+    levels:
+      - value: Daily work
+        description: Ongoing work of existing teams in an organisation, including top management teams.
+      - value: Project work
+        description: Teams formed for a real project with a defined end.
+      - value: Business simulation
+        description: A simulated business or software project, typically lasting days to months, often run with students.
+      - value: Lab
+        description: A short task in a laboratory or classroom experiment, typically lasting minutes to hours.
+  industry_sector:
+    type: string
+    description: Industry the teams worked in. It does not apply to laboratory tasks without an industry context.
+    levels:
+      - value: Multiple/mixed
+        description: Teams from several industries, or firms sampled across sectors.
+      - value: High Tech
+      - value: Manufacturing
+      - value: IT
+        description: Software and information technology firms or projects.
+      - value: Academia
+        description: Universities and research institutes, including student project teams doing academic work.
+      - value: Banking
+      - value: Finance
+        description: Financial services other than banking, such as insurance or investment.
+      - value: Sports
+      - value: Healthcare
+      - value: Arts (incl music/movies)
+      - value: Natural resources / mining
+      - value: Retail
+      - value: Other
+  team_function:
+    type: string
+    description: The kind of work the teams did. It does not apply to laboratory tasks without a work function.
+    levels:
+      - value: Management
+        description: Top management teams, boards and other management teams.
+      - value: R & D / Research
+      - value: Software development
+      - value: Production/manual work
+      - value: Sports players
+      - value: Sales
+      - value: Healthcare
+      - value: Marketing
+      - value: Prof services / consultancy
+      - value: Military personell
+      - value: Mixed
+        description: Teams with different functions in the same sample.
+      - value: Other
+  country:
+    type: string
+    description: >
+      Country where the performance was achieved, as an English country name (for example
+      "Germany"). If it is not stated but all authors are affiliated in the same country, code
+      that country.
+  n_teams:
+    type: number
+    description: Number of teams the correlation is based on (the team-level sample size), not the number of individuals.
+  student_sample:
+    type: boolean
+    description: True if the team members were students, false otherwise.
+  top_management_team:
+    type: boolean
+    description: True if the teams are top management teams or boards of firms, false otherwise.
+  data_collection_years:
+    type: string
+    description: >
+      Year or range of years in which the data were collected, written as "2020" or
+      "2012-2013". If diversity and performance were measured in different years, give the
+      years of the performance measure. Do not use the publication year.
+  diversity_domain:
+    type: string
+    description: Domain of the attribute on which team members differ.
+    levels:
+      - value: Demographic
+        description: Age, gender, ethnicity, nationality, native language and similar attributes.
+      - value: Job-related
+        description: Tenure, functional background and similar attributes tied to the job or organisation.
+      - value: Cognitive
+        description: Educational level, degree subject, personality, values, intelligence and other attributes of how people think.
+  diversity_measure_type:
+    type: string
+    description: Type of index used to measure diversity for this effect.
+    levels:
+      - value: Variety
+        description: Highest when each member is in a different category, such as the Blau index, Teachman (entropy) index, a count of categories, or the proportion of a minority group.
+      - value: Separation
+        description: Highest when the team is split into opposed subgroups, such as the standard deviation, variance, coefficient of variation or mean Euclidean distance.
+      - value: Other
+        description: Anything else, such as a binary split into diverse and homogeneous teams.
+  performance_rater:
+    type: string
+    description: Who or what provided the performance measure for this effect.
+    levels:
+      - value: Objective
+        description: Counted or financial outcomes, including achievement of quantitative targets.
+      - value: Subjective - self
+        description: Rated by the team members themselves.
+      - value: Subjective - supervisor
+        description: Rated by the team leader or supervisor.
+      - value: Subjective - external
+        description: Rated by someone outside the team, including awards and expert judges.
+  correlation:
+    type: number
+    description: >
+      The correlation coefficient (r) between the diversity measure and the performance measure
+      named in the row's locator, exactly as reported, with its sign, usually from the
+      correlation table.
+  interdependence:
+    type: string
+    description: How closely team members had to work together on the task. This is a judgement from the description of the teams' work.
+    levels:
+      - value: low
+        description: Pooled or sequential work, such as retail sales.
+      - value: medium
+        description: Reciprocal turn-taking, such as software teams working on separate modules.
+      - value: high
+        description: Intense collaboration, such as top management teams or a joint problem-solving task.
+  task_complexity:
+    type: string
+    description: Complexity of the task, judged by the education it requires. It refers to the task, not to the people doing it.
+    levels:
+      - value: low
+        description: Does not require a college degree, such as standardised manufacturing or a simple experimental task.
+      - value: medium
+        description: Requires a college degree, such as nursing, technical manufacturing or undergraduate student projects.
+      - value: high
+        description: Requires a graduate degree or similarly intensive training, such as academic research or top management.
+  team_longevity:
+    type: string
+    description: >
+      Unit that best describes how long the team had existed when performance was measured: the
+      unit in which the lifespan is at least 2 (6 weeks is "weeks", 9 weeks is "months").
+    levels:
+      - value: hours
+      - value: days
+      - value: weeks
+      - value: months
+      - value: years
+      - value: stable
+        description: Ongoing teams without a planned end, such as the top management team of an established firm.

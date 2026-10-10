@@ -1,0 +1,5 @@
+# Keep PDFs byte-identical on every platform; some look like text to git.
+*.pdf binary
+# The regression set is compared by checksum and replayed as saved.
+evals/**/*.csv text eol=lf
+evals/**/*.json text eol=lf
