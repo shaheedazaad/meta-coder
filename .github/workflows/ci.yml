@@ -26,6 +26,21 @@ jobs:
       - run: npm ci
       - run: pixi run --locked -e dev test
       - run: pixi run --locked -e dev npm test
+  python-versions:
+    # The pixi jobs above test the locked Python (3.12). This checks the
+    # pip-install range from requires-python: the oldest and newest supported.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.14']
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e '.[dev]'
+      - run: python -m pytest -q
   docs:
     runs-on: ubuntu-24.04
     steps:
