@@ -66,7 +66,7 @@ from .projects import (
     write_manual,
 )
 from .providers import PROVIDER_LABELS, PROVIDERS, check_model, default_model, draft_coding_manual, draft_coding_sheet
-from .runner import Runner, load_persisted_results, raw_json_path_for_read
+from .runner import Runner, audit_yaml_path, load_persisted_results, raw_json_path_for_read
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .uploads import list_uploaded_pdfs, save_pdf_upload
@@ -132,6 +132,7 @@ def _run_table_rows(results, coding_sheet, project: Project) -> list[dict]:
     for pdf in results:
         sheet_row = first_row_by_pdf.get(pdf.source_pdf)
         raw_path = raw_json_path_for_read(project, pdf.source_pdf)
+        audit_path = audit_yaml_path(project, pdf.source_pdf)
         rows.append(
             {
                 "source_pdf": pdf.source_pdf,
@@ -147,6 +148,8 @@ def _run_table_rows(results, coding_sheet, project: Project) -> list[dict]:
                 or getattr(pdf, "repaired_response", None) is not None,
                 "raw_available": raw_path.is_file(),
                 "raw_filename": raw_path.name,
+                "audit_available": audit_path.is_file(),
+                "audit_filename": audit_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
             }
         )

@@ -121,6 +121,8 @@ def test_raw_and_audit_artifacts_reject_escape_and_bad_data(site, tmp_path):
     response = client.get(url(project, '/audit/paper.yml'))
     assert response.status_code == 200 and response.text == 'estimate: 1'
     assert response.headers['content-type'].startswith('text/plain')
+    for attempt in ['/audit/..%2Fraw%2Fbad.json', '/audit/%2E%2E%2F%2E%2E%2Fcoding_manual.yml']:
+        assert client.get(url(project, attempt)).status_code == 404
 
 
 def test_manual_save_validation_import_and_reset(site):
@@ -366,6 +368,26 @@ def test_run_explains_empty_sheet_and_already_completed_results(site):
     ready_project(project, runtime)
     write_raw_result(project, ExtractionResult('paper.pdf', 'ok'), provider='gemini', model='test')
     assert 'already coded' in client.post(url(project, '/run')).text
+
+
+def test_results_table_links_per_pdf_yaml_only_when_written(site):
+    from meta_coder.extraction import ExtractionResult
+    from meta_coder.runner import audit_yaml_path, write_raw_result
+    client, project, runtime = site
+    ready_project(project, runtime)
+    write_raw_result(project, ExtractionResult('paper.pdf', 'ok'), provider='gemini', model='test')
+    audit_path = audit_yaml_path(project, 'paper.pdf')
+    link = url(project, f'/audit/{audit_path.name}')
+    page = client.get(url(project, '?tab=results')).text
+    assert 'view raw output (YAML)' in page
+    assert link not in page and 'view coded effects (YAML)' not in page
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text('source_pdf: paper.pdf\n', encoding='utf-8')
+    page = client.get(url(project, '?tab=results')).text
+    assert f'href="{link}"' in page and 'view coded effects (YAML)' in page
+    response = client.get(link)
+    assert response.status_code == 200 and response.text == 'source_pdf: paper.pdf\n'
+    assert response.headers['content-type'].startswith('text/plain')
 
 
 def test_valid_project_settings_save_without_warning(site, monkeypatch):

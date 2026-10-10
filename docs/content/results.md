@@ -8,7 +8,7 @@ Use **Results** to inspect processed studies, investigate failures, and download
 
 ## Review each study
 
-The results table reports each PDF's status and available usage information. Open the raw response when you need to understand a provider error or a response that needs review. Readable per-PDF YAML records make it easier to inspect coded effects and supporting quotations.
+The results table reports each PDF's status and available usage information. Open the raw response (**view raw output (YAML)** in the Detail column) when you need to understand a provider error or a response that needs review. Readable per-PDF YAML records make it easier to inspect coded effects and supporting quotations: open one with **view coded effects (YAML)** in the same column. The link appears once the PDF has been processed, and the file is also saved in the project's `output/coded/` folder.
 
 Check that each `row_id` corresponds to the intended experiment or condition, that categories follow your manual, and that cited pages and quotations support the values.
 
