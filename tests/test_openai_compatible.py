@@ -142,6 +142,33 @@ def test_extraction_through_runner_preserves_validation_and_usage(tmp_path, monk
     assert captured[0]['response_format'] == {'type': 'json_object'}
 
 
+@pytest.mark.parametrize('choice_extra, expected', [
+    ({}, 'ok'),  # local servers that omit finish metadata are not penalised
+    ({'finish_reason': 'stop'}, 'ok'), ({'finish_reason': 'eos_token'}, 'ok'),
+    ({'finish_reason': 'length'}, 'needs_review'), ({'finish_reason': 'content_filter'}, 'needs_review'),
+])
+def test_finish_reason_decides_whether_valid_reply_needs_review(tmp_path, monkeypatch, choice_extra, expected):
+    make_pdf(tmp_path / 'paper.pdf')
+    body = {'choices': [{'message': {'content': json.dumps(REPLY)}, **choice_extra}]}
+    monkeypatch.setattr(adapter, 'cancellable_urlopen', lambda *a, **k: json.dumps(body).encode())
+    result = adapter.extract_pdf_effects(pdf_path=tmp_path / 'paper.pdf', manual=MANUAL, api_key='', model='m',
+        rows=[CodingSheetRow(row_id='r1', source_pdf='paper.pdf', locator='')], base_url='http://localhost/v1')
+    assert result.status == expected
+    assert result.coded_by_row_id['r1']['estimate']['value'] == 42
+    if expected == 'needs_review':
+        assert f"finish reason: {choice_extra['finish_reason']}" in result.error
+
+
+def test_repaired_reply_needs_review_but_keeps_values(tmp_path, monkeypatch):
+    make_pdf(tmp_path / 'paper.pdf')
+    body = {'choices': [{'message': {'content': json.dumps(REPLY)[:-1] + ',}'}, 'finish_reason': 'stop'}]}
+    monkeypatch.setattr(adapter, 'cancellable_urlopen', lambda *a, **k: json.dumps(body).encode())
+    result = adapter.extract_pdf_effects(pdf_path=tmp_path / 'paper.pdf', manual=MANUAL, api_key='', model='m',
+        rows=[CodingSheetRow(row_id='r1', source_pdf='paper.pdf', locator='')], base_url='http://localhost/v1')
+    assert result.status == 'needs_review' and 'automatically repaired' in result.error
+    assert result.coded_by_row_id == {'r1': {k: v for k, v in REPLY['effects'][0].items() if k != 'row_id'}}
+
+
 def test_blank_pdf_and_cancelled_pdf_fail_without_network(tmp_path, monkeypatch):
     path = tmp_path / 'blank.pdf'
     make_pdf(path, '')
@@ -412,7 +439,7 @@ def test_invalid_usage_is_ignored_and_reasoning_effort_forwarded(monkeypatch):
         captured.append(json.loads(request.data))
         return json.dumps({'choices': [{'message': {'content': '{}'}}], 'usage': 'bad'}).encode()
     monkeypatch.setattr(adapter, 'cancellable_urlopen', respond)
-    assert endpoint_call(reasoning_effort='high') == ('{}', {'input_tokens': None, 'output_tokens': None})
+    assert endpoint_call(reasoning_effort='high') == ('{}', {'input_tokens': None, 'output_tokens': None, 'finish_reason': None})
     assert captured[0]['reasoning_effort'] == 'high'
     request = adapter._request('http://localhost/v1', api_key='')
     assert request.data is None and request.get_header('Authorization') is None

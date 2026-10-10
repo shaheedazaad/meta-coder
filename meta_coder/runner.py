@@ -22,9 +22,10 @@ from .coding_sheet import CodingSheet
 from .extraction import ExtractionResult
 from .manual import CodingManual
 from .projects import Project
+from .prompts import PROMPT_VERSION
 from .provenance import AuditOperation, audited_call, json_bytes
 from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
-from .results import collate_results, render_pdf_audit_yaml, rows_to_csv
+from .results import cells_to_check, collate_results, render_pdf_audit_yaml, rows_to_csv
 
 
 _SAFE_STEM_RE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -63,6 +64,7 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
                 "audit_operation_id": result.audit_operation_id,
                 "provider": provider,
                 "model": model,
+                "prompt_version": PROMPT_VERSION,
                 "status": result.status,
                 "error": result.error,
                 "coded_by_row_id": result.coded_by_row_id,
@@ -157,6 +159,7 @@ class PdfProgress:
     input_tokens: int | None = None
     output_tokens: int | None = None
     json_repaired: bool = False
+    cells_to_check: int = 0
 
 
 @dataclass
@@ -188,6 +191,7 @@ class RunState:
                     "input_tokens": p.input_tokens,
                     "output_tokens": p.output_tokens,
                     "json_repaired": p.json_repaired,
+                    "cells_to_check": p.cells_to_check,
                 }
                 for p in self.pdfs
             ],
@@ -271,7 +275,8 @@ class Runner:
             started_at=time.time(),
         )
         state.audit_run = AuditOperation(project, "extraction_run", {
-            "provider": provider, "model": model, "parallel_requests": parallel_requests,
+            "provider": provider, "model": model, "prompt_version": PROMPT_VERSION,
+            "parallel_requests": parallel_requests,
             "request_delay_sec": request_delay_sec, "timeout_sec": request_timeout_sec,
             "service_tier": service_tier, "reasoning_effort": reasoning_effort,
             "base_url": base_url, "response_format": response_format,
@@ -356,7 +361,8 @@ class Runner:
                 result = audited_call(
                     project, "extraction", extract_pdf_effects,
                     audit_inputs={"run_coding_sheet.json": json_bytes(coding_sheet)},
-                    audit_settings={"parallel_requests": parallel_requests, "request_delay_sec": request_delay_sec,
+                    audit_settings={"prompt_version": PROMPT_VERSION,
+                                    "parallel_requests": parallel_requests, "request_delay_sec": request_delay_sec,
                                     "run_id": state.audit_run.id if state.audit_run else None},
                     provider=provider,
                     pdf_path=pdf_path,
@@ -397,6 +403,7 @@ class Runner:
                 progress.input_tokens = result.input_tokens
                 progress.output_tokens = result.output_tokens
                 progress.json_repaired = result.repaired_response is not None
+                progress.cells_to_check = cells_to_check(result.coded_by_row_id)
                 state.processed += 1
 
         try:
