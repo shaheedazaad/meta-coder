@@ -17,7 +17,7 @@ Each request includes all coding-sheet rows for one PDF. The response must inclu
 
 Expand **Advanced run settings** to adjust parallel requests, request delay, and timeout. Lower concurrency or add delay if the provider rejects requests because of rate limits. Provider-specific controls include Gemini service tier and reasoning effort for the other supported provider types.
 
-Extraction settings are saved per project. They are separate from the global model used to draft manuals or convert sheets.
+To estimate spending before processing every PDF, see [Cost](costs.md). Extraction settings are saved per project. They are separate from the global model used to draft manuals or convert sheets.
 
 ## Cancel and retry
 

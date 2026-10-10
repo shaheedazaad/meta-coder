@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A practical guide to coding studies with MetaCoder.">
+  <title>Validating the coding · MetaCoder Guide</title>
+  <script src="../theme.js"></script>
+  <link rel="stylesheet" href="../assets/vendor/basecoat.min.css">
+  <link rel="stylesheet" href="../assets/app.css">
+  <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+  <a class="u-visually-hidden-focusable" href="#main">Skip to content</a>
+  <header class="app-bar">
+    <a class="app-bar-brand" href=".."><span class="app-bar-mark" aria-hidden="true">M</span>MetaCoder <span class="docs-brand-label">Guide</span></a>
+    <span class="app-bar-spacer"></span>
+    <a class="btn" data-variant="ghost" data-size="sm" id="back-to-app" hidden>Back to app</a>
+    <label class="u-visually-hidden" for="docs-theme">Theme</label>
+    <select id="docs-theme" class="select" aria-label="Theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+  </header>
+  <div class="docs-layout">
+    <aside class="docs-sidebar">
+      <details id="docs-navigation" open>
+        <summary>In this guide</summary>
+        <nav aria-label="Documentation">
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="./" aria-current="page"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+        </nav>
+      </details>
+      <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
+    </aside>
+    <main id="main" class="docs-article">
+      <p class="docs-eyebrow">METACODER / USER GUIDE</p>
+      <h1 id="validating-the-coding">Validating the coding<a class="headerlink" href="#validating-the-coding" title="Permanent link">&para;</a></h1>
+<p>An LLM can code quickly and consistently, but it can also misread a table, pick the wrong condition, or apply a category loosely. Before you rely on its output, compare it with human coding on a sample of studies, and report how you did so.</p>
+<p>Evidence synthesis guidance expects this level of care. The <a href="https://www.cochrane.org/authors/handbooks-and-manuals/handbook/current/chapter-05">Cochrane Handbook</a> (section 5.5) recommends that at least two people extract data independently, and a <a href="https://doi.org/10.1186/s13750-025-00374-5">2025 joint position statement</a> by Cochrane, the Campbell Collaboration, JBI, and the Collaboration for Environmental Evidence asks that AI be used with human oversight and reported transparently.</p>
+<h2 id="choose-a-validation-sample">Choose a validation sample<a class="headerlink" href="#choose-a-validation-sample" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Sample studies, not rows.</strong> Rows from the same PDF share a request and tend to share errors. Draw a random sample of PDFs and check every row in each.</li>
+<li><strong>Decide the size in advance.</strong> There is no fixed rule. Choose a sample large enough that each important category appears several times and that agreement statistics are not driven by a handful of studies. Rare categories need more studies, or a deliberate extra sample of studies likely to contain them.</li>
+<li><strong>Include the difficult cases.</strong> Make sure the sample covers long articles, multi-study papers, and any study types you expect to be hard. Add these on top of the random sample rather than replacing it, so your agreement figures stay representative.</li>
+<li><strong>Record how you drew the sample</strong>, for example the random seed or list used.</li>
+</ul>
+<h2 id="code-the-sample-independently">Code the sample independently<a class="headerlink" href="#code-the-sample-independently" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Give human coders the same coding manual and coding sheet rows as the model.</li>
+<li>Ask them to code without seeing MetaCoder's output, so that their judgements are independent.</li>
+<li>Record their codes in a spreadsheet with the same <code>row_id</code> and field names as <code>coded_data.csv</code>.</li>
+<li>Treat "not reported" as a value in its own right: a missing value coded as present is an error.</li>
+</ol>
+<p>Use a version of the manual that will not change during validation. If you revise the manual afterwards, see <a href="#act-on-disagreements">Act on disagreements</a>.</p>
+<h2 id="compare-the-codes">Compare the codes<a class="headerlink" href="#compare-the-codes" title="Permanent link">&para;</a></h2>
+<p>Export <code>coded_data.csv</code> from <a href="../results/">Results</a> and join it with the human codes on <code>row_id</code>. Report agreement separately for each field, because a high overall figure can hide one unreliable field.</p>
+<table>
+<thead>
+<tr>
+<th>Field type</th>
+<th>Suggested measures</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Categorical (nominal)</td>
+<td>Percentage agreement plus Cohen's kappa for two coders, or Krippendorff's alpha, which also handles more than two coders and missing values</td>
+</tr>
+<tr>
+<td>Ordinal</td>
+<td>Weighted kappa or Krippendorff's alpha for ordinal data</td>
+</tr>
+<tr>
+<td>Numeric (sample sizes, means, statistics)</td>
+<td>Proportion of exact matches, the size of any differences, and an intraclass correlation (ICC) for agreement where values vary across studies</td>
+</tr>
+</tbody>
+</table>
+<p>Kappa can be low when one category is very common, even if raw agreement is high, so report percentage agreement alongside it. For numeric inputs to effect sizes, exact agreement matters more than correlation: one transposed digit can change a study's weight. Use an ICC form that measures absolute agreement rather than consistency.</p>
+<p>There is no universal threshold. Decide in your protocol what level of agreement you will accept for each field, and what you will do if a field falls short.</p>
+<h2 id="act-on-disagreements">Act on disagreements<a class="headerlink" href="#act-on-disagreements" title="Permanent link">&para;</a></h2>
+<p>For each disagreement, return to the PDF and decide which value is correct. Use MetaCoder's evidence to locate the source quickly:</p>
+<ul>
+<li><code>evidence.csv</code> and the per-PDF YAML give the page and quotation for each coded value.</li>
+<li>The raw response on <strong>Results</strong> shows the model's full answer, including notes on uncertain rows.</li>
+<li>The <a href="../auditing/">audit ZIP</a> records the exact request, model, and settings that produced each value.</li>
+</ul>
+<p>Then classify the cause:</p>
+<ul>
+<li><strong>Model error.</strong> The value does not match the article. Note whether errors cluster in one field or study type.</li>
+<li><strong>Human error.</strong> The model was right. Count these too; they show the value of independent checking.</li>
+<li><strong>Manual ambiguity.</strong> Both readings are defensible. Clarify the field description or categories in the coding manual.</li>
+</ul>
+<p>If you change the manual, saving it clears working results and the next run codes all studies again. Check the new run on a fresh random sample, not only on the studies used to refine the manual, because agreement on those studies will overstate accuracy.</p>
+<p>For fields with low agreement, consider having a human check every study, or coding that field by hand.</p>
+<h2 id="report-your-methods">Report your methods<a class="headerlink" href="#report-your-methods" title="Permanent link">&para;</a></h2>
+<p>Describe LLM-assisted coding in enough detail for others to understand and repeat it. Include:</p>
+<ul>
+<li>The provider, the model ID, and any model version reported in the audit records.</li>
+<li>The dates of the extraction runs and key settings, such as the Gemini service tier or reasoning effort.</li>
+<li>The coding manual used for the final run, as a supplement, and how it was developed.</li>
+<li>That MetaCoder sent one request per PDF with the full PDF (or extracted text), and the MetaCoder version from the audit record.</li>
+<li>The validation sample: how it was drawn, its size, and how human coders were blinded.</li>
+<li>Agreement statistics for each field, before any disagreements were resolved.</li>
+<li>How disagreements were resolved, and which fields or studies were checked by humans in full.</li>
+<li>Where the audit records are available. Share prompts and responses as supplementary material if possible, but do not publish copyrighted PDFs: the audit ZIP contains the source documents.</li>
+</ul>
+<h2 id="further-reading">Further reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Cohen, J. (1960). A coefficient of agreement for nominal scales. <em>Educational and Psychological Measurement, 20</em>(1), 37–46. <a href="https://doi.org/10.1177/001316446002000104">https://doi.org/10.1177/001316446002000104</a></li>
+<li>Feinstein, A. R., &amp; Cicchetti, D. V. (1990). High agreement but low kappa: I. The problems of two paradoxes. <em>Journal of Clinical Epidemiology, 43</em>(6), 543–549. <a href="https://doi.org/10.1016/0895-4356(90)90158-L">https://doi.org/10.1016/0895-4356(90)90158-L</a></li>
+<li>Hayes, A. F., &amp; Krippendorff, K. (2007). Answering the call for a standard reliability measure for coding data. <em>Communication Methods and Measures, 1</em>(1), 77–89. <a href="https://doi.org/10.1080/19312450709336664">https://doi.org/10.1080/19312450709336664</a></li>
+<li>Koo, T. K., &amp; Li, M. Y. (2016). A guideline of selecting and reporting intraclass correlation coefficients for reliability research. <em>Journal of Chiropractic Medicine, 15</em>(2), 155–163. <a href="https://doi.org/10.1016/j.jcm.2016.02.012">https://doi.org/10.1016/j.jcm.2016.02.012</a></li>
+<li>Gartlehner, G., Kahwati, L., Hilscher, R., et al. (2024). Data extraction for evidence synthesis using a large language model: A proof-of-concept study. <em>Research Synthesis Methods, 15</em>(4), 576–589. <a href="https://doi.org/10.1002/jrsm.1710">https://doi.org/10.1002/jrsm.1710</a></li>
+</ul>
+      <nav class="docs-pagination" aria-label="Adjacent pages">
+        <a href="../auditing/"><small>Previous</small>Audit and reproducibility ←</a>
+        <a href="../projects/"><small>Next</small>Project settings →</a>
+      </nav>
+    </main>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#choose-a-validation-sample">Choose a validation sample</a><a href="#code-the-sample-independently">Code the sample independently</a><a href="#compare-the-codes">Compare the codes</a><a href="#act-on-disagreements">Act on disagreements</a><a href="#report-your-methods">Report your methods</a><a href="#further-reading">Further reading</a></nav></aside>
+  </div>
+</body>
+</html>

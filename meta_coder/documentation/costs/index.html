@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A practical guide to coding studies with MetaCoder.">
+  <title>Cost · MetaCoder Guide</title>
+  <script src="../theme.js"></script>
+  <link rel="stylesheet" href="../assets/vendor/basecoat.min.css">
+  <link rel="stylesheet" href="../assets/app.css">
+  <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+  <a class="u-visually-hidden-focusable" href="#main">Skip to content</a>
+  <header class="app-bar">
+    <a class="app-bar-brand" href=".."><span class="app-bar-mark" aria-hidden="true">M</span>MetaCoder <span class="docs-brand-label">Guide</span></a>
+    <span class="app-bar-spacer"></span>
+    <a class="btn" data-variant="ghost" data-size="sm" id="back-to-app" hidden>Back to app</a>
+    <label class="u-visually-hidden" for="docs-theme">Theme</label>
+    <select id="docs-theme" class="select" aria-label="Theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+  </header>
+  <div class="docs-layout">
+    <aside class="docs-sidebar">
+      <details id="docs-navigation" open>
+        <summary>In this guide</summary>
+        <nav aria-label="Documentation">
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="./" aria-current="page"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+        </nav>
+      </details>
+      <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
+    </aside>
+    <main id="main" class="docs-article">
+      <p class="docs-eyebrow">METACODER / USER GUIDE</p>
+      <h1 id="cost">Cost<a class="headerlink" href="#cost" title="Permanent link">&para;</a></h1>
+<p>MetaCoder is free, but hosted providers charge for AI requests. Costs are usually modest per study, yet they add up across many PDFs, retries, and repeated runs. Run a small batch first and check the usage before processing everything.</p>
+<h2 id="what-drives-cost">What drives cost<a class="headerlink" href="#what-drives-cost" title="Permanent link">&para;</a></h2>
+<p>Providers charge per token, a unit of text roughly the size of a short word. Input tokens (what is sent) and output tokens (what the model writes) are priced separately, and output usually costs more.</p>
+<ul>
+<li><strong>One request per PDF.</strong> Each extraction request contains one complete PDF and all of its coding-sheet rows, so long articles cost more than short ones.</li>
+<li><strong>PDF length.</strong> Gemini and OpenRouter models with native PDF input count each page as tokens, including figures and tables. OpenAI-compatible endpoints receive extracted text instead.</li>
+<li><strong>Coding manual size.</strong> The instructions and field descriptions are repeated in every request, so a long manual adds to every PDF.</li>
+<li><strong>Output size.</strong> More rows, more fields, and longer evidence quotes increase output tokens.</li>
+<li><strong>Reasoning.</strong> Models that "think" before answering are billed for those reasoning tokens as output. A higher <strong>Reasoning effort</strong> setting usually increases cost.</li>
+<li><strong>Service tier.</strong> For Gemini, the <code>flex</code> service tier (MetaCoder's default) costs less than <code>standard</code> but may respond more slowly.</li>
+<li><strong>Retries and re-runs.</strong> OpenRouter and OpenAI-compatible requests are retried automatically after temporary errors; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.</li>
+<li><strong>Drafting.</strong> AI manual drafting and coding sheet conversion are separate, usually small, requests.</li>
+</ul>
+<p>OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a>.</p>
+<h2 id="estimate-before-a-full-run">Estimate before a full run<a class="headerlink" href="#estimate-before-a-full-run" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Upload only three to five typical PDFs at first, including a long one, and run extraction. A run processes only matched PDFs, so the remaining coding-sheet rows are skipped for now. Upload the other PDFs later; the next run codes only studies that still need coding.</li>
+<li>Open <strong>Results</strong> and read the <strong>Input tokens</strong> and <strong>Output tokens</strong> columns. The same figures are stored with each response in the <a href="../auditing/">audit history</a>.</li>
+<li>Multiply the average per PDF by the number of PDFs and apply your provider's current prices. Add a margin for retries and re-runs.</li>
+<li>Compare the estimate with your provider's billing or usage page, which shows the actual charge.</li>
+</ol>
+<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
+<p>The following example uses prices checked on 10 October 2026 from the <a href="https://ai.google.dev/gemini-api/docs/pricing">Gemini API pricing page</a>. Prices change; Google lists higher rates from 1 January 2027 for these models.</p>
+<p>Gemini 3.8 Flash on the Flex tier was listed at US $0.375 per million input tokens and US $1.875 per million output tokens. Google's <a href="https://ai.google.dev/gemini-api/docs/document-processing">document understanding guide</a> counts each PDF page as 258 tokens for Gemini 3 models. A 20-page article with a 2,000-token prompt is therefore about 7,000 input tokens. With 3,000 output tokens including reasoning, one request costs about US $0.008, and 200 such articles about US $1.65 before retries.</p>
+<p>Treat this as an illustration of the calculation, not a quote. Your own token counts from a trial run are a better guide.</p>
+<h2 id="pricing-pages">Pricing pages<a class="headerlink" href="#pricing-pages" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Gemini: <a href="https://ai.google.dev/gemini-api/docs/pricing">Gemini Developer API pricing</a>. Paid and unpaid use also have different <a href="../privacy/#google-gemini">data terms</a>.</li>
+<li>OpenRouter: each model page lists its price per provider. OpenRouter states that it passes provider prices through and charges a fee when you buy credits; see the <a href="https://openrouter.ai/docs/faq">OpenRouter FAQ</a>.</li>
+<li>OpenAI-compatible endpoints: check your service's pricing. A local model has no per-request charge, but uses your computer's resources.</li>
+</ul>
+<h2 id="keep-costs-under-control">Keep costs under control<a class="headerlink" href="#keep-costs-under-control" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Finalise the manual and coding sheet on a small batch of uploaded PDFs before adding the rest. Changing them later clears working results and the next run sends PDFs again.</li>
+<li>Set a spending limit or budget alert with your provider, where available.</li>
+<li>Use <code>flex</code> for Gemini runs that are not urgent, and leave <strong>Reasoning effort</strong> at the model default unless a trial shows it improves accuracy.</li>
+<li>Retry only failed or needs-review studies rather than re-running the whole project.</li>
+</ul>
+      <nav class="docs-pagination" aria-label="Adjacent pages">
+        <a href="../run/"><small>Previous</small>Run extraction ←</a>
+        <a href="../results/"><small>Next</small>Review and export →</a>
+      </nav>
+    </main>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#what-drives-cost">What drives cost</a><a href="#estimate-before-a-full-run">Estimate before a full run</a><a href="#example">Example</a><a href="#pricing-pages">Pricing pages</a><a href="#keep-costs-under-control">Keep costs under control</a></nav></aside>
+  </div>
+</body>
+</html>
