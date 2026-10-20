@@ -13,10 +13,61 @@ import yaml
 
 from .coding_sheet import CodingSheet, CodingSheetRow
 from .extraction import ExtractionResult
-from .manual import CodingManual
+from .manual import BASE_COLUMNS, MULTIPLE_SEPARATOR, CodingManual, FieldSpec
 
 
-BASE_COLUMNS = ("row_id", "source_pdf", "locator", "authors", "year", "status")
+def _field_mapping(coded: dict, field_name: str) -> dict:
+    """Malformed model cells stay in raw JSON, but cannot break exports."""
+    value = coded.get(field_name)
+    return value if isinstance(value, dict) else {}
+
+
+# How each `missing` code (mechanism.MISSING_CODES) reads in coded_data.csv. A
+# null value without a code, as in results saved before the codes existed,
+# stays "Not Reported".
+MISSING_LABELS = {
+    "not_reported": "Not Reported",
+    "not_applicable": "Not Applicable",
+    "unclear": "Unclear",
+}
+
+
+def _missing_label(field_value: dict) -> str:
+    code = field_value.get("missing")
+    return MISSING_LABELS.get(code if isinstance(code, str) else "", "Not Reported")
+
+
+def _cell_text(value: object, spec: FieldSpec) -> str:
+    """A coded value as CSV text. The levels selected for a `multiple` field
+    share one cell, in the manual's level order whatever order the model used."""
+
+    if not isinstance(value, list):
+        return str(value)
+    order = {level.value: index for index, level in enumerate(spec.levels)}
+    items = sorted((str(item) for item in value), key=lambda item: order.get(item, len(order)))
+    return MULTIPLE_SEPARATOR.join(items)
+
+
+def cells_to_check(coded_by_row_id: object) -> int:
+    """How many coded cells a person should look at first: currently those the
+    model marked `unclear`. Never affects a PDF's status."""
+
+    if not isinstance(coded_by_row_id, dict):
+        return 0
+    return sum(
+        isinstance(cell, dict) and cell.get("value") is None and cell.get("missing") == "unclear"
+        for coded in coded_by_row_id.values()
+        if isinstance(coded, dict)
+        for cell in coded.values()
+    )
+
+
+def _audit_field(field_value: dict) -> dict[str, Any]:
+    entry: dict[str, Any] = {"value": field_value.get("value")}
+    if entry["value"] is None and "missing" in field_value:
+        entry["missing"] = field_value["missing"]
+    entry["evidence"] = field_value.get("evidence")
+    return entry
 
 
 def collate_results(
@@ -46,9 +97,13 @@ def collate_results(
         coded_row = dict(base)
         evidence_row = dict(base)
         for field_name in effect_columns:
-            field_value = coded.get(field_name) or {}
+            field_value = _field_mapping(coded, field_name)
             value = field_value.get("value", "")
-            coded_row[field_name] = "Not Reported" if value is None else str(value)
+            coded_row[field_name] = (
+                _missing_label(field_value)
+                if value is None
+                else _cell_text(value, manual.effects[field_name])
+            )
             evidence_row[field_name] = str(field_value.get("evidence", ""))
 
         coded_rows.append(coded_row)
@@ -87,10 +142,7 @@ def render_pdf_audit_yaml(
             entry["status"] = "not returned by the model"
         else:
             entry["fields"] = {
-                field_name: {
-                    "value": (coded.get(field_name) or {}).get("value"),
-                    "evidence": (coded.get(field_name) or {}).get("evidence"),
-                }
+                field_name: _audit_field(_field_mapping(coded, field_name))
                 for field_name in manual.effects
             }
         effects[row.row_id] = entry
@@ -106,6 +158,8 @@ def render_pdf_audit_yaml(
         data["missing_row_ids"] = sorted(result.missing_ids)
     if result.extra_ids:
         data["unexpected_row_ids"] = sorted(result.extra_ids)
+    if to_check := cells_to_check(result.coded_by_row_id):
+        data["cells_to_check"] = to_check
     data["effects"] = effects
 
     return yaml.dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=100)

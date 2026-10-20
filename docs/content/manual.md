@@ -10,6 +10,12 @@ Open **Coding manual** and choose **Manual editing**. Give each field a clear na
 
 Descriptions should be relative to your [effect definition](analysis.md). For instance, a publication-status field could allow “Published” and “Unpublished,” while a numerical field could record the number of participants contributing to that effect.
 
+Every extraction request sends the model the analysis description, the effect definition, each field’s name, type and description, and each level with its description. Write them as instructions another coder could follow. Level descriptions matter most when level values are short codes such as `1` and `2`. The model must choose exactly one level per field; if several seem to apply, it picks the best fit and explains in the `notes` field. To let it select several, see [Fields where several categories apply](#fields-where-several-categories-apply).
+
+You do not need a level or a special number for missing information. For every field, the model can answer that the value is not reported, not applicable, or unclear, and the export [shows which](results.md#missing-values). Use field descriptions to say when a field does not apply, for example “only for studies with a follow-up.”
+
+Field names must be unique, ignoring capitalization and surrounding spaces. MetaCoder already adds `row_id`, `source_pdf`, `locator`, `authors`, `year`, and `status` to every export, so a field cannot use one of those names in any capitalization — use a more specific name such as `publication_year` or `publication_status`.
+
 Choose **Validate and save** when the fields and effect definition are ready. Fix any validation messages before continuing.
 
 ## Draft from a document
@@ -37,6 +43,26 @@ effects:
       - value: Unpublished
         description: Thesis, preprint, or other unpublished report.
 ```
+
+### Fields where several categories apply
+
+Some fields are not either/or: a study can collect data by survey and by interview. In the editor, tick **several categories may apply** under the field's categories. In YAML, add `multiple: true` to a field that has `levels`:
+
+```yaml
+effects:
+  Data collection:
+    type: string
+    multiple: true
+    description: Every method used to collect the outcome for this effect.
+    levels:
+      - value: survey
+      - value: interview
+      - value: observation
+```
+
+The model then returns every level that applies, and the export [lists them in one cell](results.md#fields-with-several-categories). Category labels of such a field cannot contain a semicolon, because the export separates the selected categories with one. Fields without `multiple: true` still take exactly one level.
+
+Category values are kept exactly as written, so `yes`, `no`, `01`, and `1.50` stay as those labels. Only `true` and `false` are read as true/false settings (for example `evidence_required: false`). A key that appears twice in the same place, such as two fields with the same name, is reported as an error rather than silently overwritten.
 
 ## Changing a saved manual
 

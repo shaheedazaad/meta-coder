@@ -72,7 +72,7 @@ def test_gemini_pdf_wire_payload_and_usage(monkeypatch):
     request = Mock(return_value=wire({'candidates': [{'content': {'parts': [{'text': 'a'}, {'inline_data': {}}, {'text': 'b'}]}}], 'usageMetadata': {'promptTokenCount': 10, 'candidatesTokenCount': 2}}))
     monkeypatch.setattr(gemini, 'cancellable_urlopen', request)
     event = threading.Event()
-    assert gemini._call_gemini(model='m', api_key='secret', prompt='input', pdf_bytes=b'%PDF', response_schema={'type': 'OBJECT'}, service_tier='standard', timeout_sec=12, cancel_event=event) == ('ab', {'input_tokens': 10, 'output_tokens': 2})
+    assert gemini._call_gemini(model='m', api_key='secret', prompt='input', pdf_bytes=b'%PDF', response_schema={'type': 'OBJECT'}, service_tier='standard', timeout_sec=12, cancel_event=event) == ('ab', {'input_tokens': 10, 'output_tokens': 2, 'finish_reason': None})
     payload = json.loads(request.call_args.args[0].data)
     assert payload['contents'][0]['parts'][1]['inline_data'] == {'mime_type': 'application/pdf', 'data': base64.b64encode(b'%PDF').decode()}
     assert payload['service_tier'] == 'standard'
@@ -130,7 +130,7 @@ def test_openrouter_retries_with_exponential_backoff_and_preserves_request(monke
     event.wait.return_value = False
     requests = Mock(side_effect=[HTTPError('url', 503, 'busy', {}, io.BytesIO(b'busy')), URLError('offline'), wire({'choices': [{'message': {'content': '{}'}}], 'usage': {'prompt_tokens': 5, 'completion_tokens': 3}})])
     monkeypatch.setattr(openrouter, 'cancellable_urlopen', requests)
-    assert call(openrouter, reasoning_effort='high', cancel_event=event) == ('{}', {'input_tokens': 5, 'output_tokens': 3})
+    assert call(openrouter, reasoning_effort='high', cancel_event=event) == ('{}', {'input_tokens': 5, 'output_tokens': 3, 'finish_reason': None})
     assert [args.args[0] for args in event.wait.call_args_list] == [2, 4]
     assert requests.call_count == 3
     bodies = [json.loads(args.args[0].data) for args in requests.call_args_list]
@@ -156,7 +156,7 @@ def test_openrouter_retry_exhaustion_and_cancellation(monkeypatch):
 
 def test_openrouter_nonobject_usage_is_ignored(monkeypatch):
     monkeypatch.setattr(openrouter, 'cancellable_urlopen', Mock(return_value=wire({'choices': [{'message': {'content': '{}'}}], 'usage': 'bad'})))
-    assert call(openrouter) == ('{}', {'input_tokens': None, 'output_tokens': None})
+    assert call(openrouter) == ('{}', {'input_tokens': None, 'output_tokens': None, 'finish_reason': None})
 
 
 @pytest.fixture
@@ -182,7 +182,8 @@ def test_extraction_outcomes_preserve_evidence(monkeypatch, adapter, extraction_
         monkeypatch.setattr(adapter, 'parse_json_response', Mock(side_effect=ProviderError('invalid JSON')))
     monkeypatch.setattr(adapter, '_call_gemini' if adapter is gemini else '_call_openrouter', transport)
     result = adapter.extract_pdf_effects(**extraction_input)
-    expected = {'parse_error': 'error', 'repaired': 'ok'}.get(status, status)
+    # Repaired JSON is never accepted silently: it may be a truncated response.
+    expected = {'parse_error': 'error', 'repaired': 'needs_review'}.get(status, status)
     assert result.status == expected
     assert result.source_pdf == 'paper.pdf'
     assert result.duration_sec >= 0
@@ -194,12 +195,54 @@ def test_extraction_outcomes_preserve_evidence(monkeypatch, adapter, extraction_
         assert result.raw_response == raw
     if expected in ('ok', 'needs_review'):
         assert (result.input_tokens, result.output_tokens) == (11, 4)
-    if expected == 'ok':
+    if status in ('ok', 'repaired'):
         assert result.coded_by_row_id['r1']['estimate'] == item['estimate']
     if status == 'needs_review':
         assert result.missing_ids == {'r1'} and result.error
     if status == 'repaired':
         assert json.loads(result.repaired_response) == {'effects': [item]}
+        assert 'automatically repaired' in result.error and not result.missing_ids
+
+
+@pytest.mark.parametrize('adapter', [gemini, openrouter])
+@pytest.mark.parametrize('reason, expected', [(None, 'ok'), ('stop', 'ok'), ('length', 'needs_review'), ('content_filter', 'needs_review')])
+def test_abnormal_finish_holds_valid_response_for_review(monkeypatch, adapter, extraction_input, reason, expected):
+    item = {'row_id': 'r1', 'estimate': {'value': 0.12, 'evidence': 'p. 2'}, 'notes': {'value': '', 'evidence': ''}}
+    transport = Mock(return_value=(json.dumps({'effects': [item]}), {'input_tokens': 1, 'output_tokens': 2, 'finish_reason': reason}))
+    monkeypatch.setattr(adapter, '_call_gemini' if adapter is gemini else '_call_openrouter', transport)
+    result = adapter.extract_pdf_effects(**extraction_input)
+    assert result.status == expected
+    assert result.coded_by_row_id['r1']['estimate'] == item['estimate']
+    if expected == 'needs_review':
+        assert f'finish reason: {reason}' in result.error and result.repaired_response is None
+
+
+@pytest.mark.parametrize('adapter', [gemini, openrouter])
+def test_truncated_and_repaired_response_lists_every_reason(monkeypatch, adapter, extraction_input):
+    raw = '{"effects": [{"row_id": "r1", "estimate": {"value": 0.12, "evidence": "p. 2"'
+    transport = Mock(return_value=(raw, {'finish_reason': 'length'}))
+    monkeypatch.setattr(adapter, '_call_gemini' if adapter is gemini else '_call_openrouter', transport)
+    result = adapter.extract_pdf_effects(**extraction_input)
+    assert result.status == 'needs_review' and result.repaired_response is not None
+    assert result.error.index('finish reason: length') < result.error.index('automatically repaired')
+    # The repaired row lacks `notes`, so the validation error is reported too.
+    assert 'omitted required field' in result.error
+
+
+@pytest.mark.parametrize('finish, expected', [('STOP', 'stop'), ('MAX_TOKENS', 'length'), ('SAFETY', 'safety'), ('FINISH_REASON_UNSPECIFIED', None), (None, None)])
+def test_gemini_reports_normalised_finish_reason(monkeypatch, finish, expected):
+    candidate = {'content': {'parts': [{'text': '{}'}]}}
+    if finish:
+        candidate['finishReason'] = finish
+    monkeypatch.setattr(gemini, 'cancellable_urlopen', Mock(return_value=wire({'candidates': [candidate]})))
+    assert call(gemini)[1]['finish_reason'] == expected
+
+
+@pytest.mark.parametrize('finish, expected', [('stop', 'stop'), ('length', 'length'), ('content_filter', 'content_filter'), (None, None), ('', None)])
+def test_openrouter_reports_normalised_finish_reason(monkeypatch, finish, expected):
+    choice = {'message': {'content': '{}'}, 'finish_reason': finish}
+    monkeypatch.setattr(openrouter, 'cancellable_urlopen', Mock(return_value=wire({'choices': [choice]})))
+    assert call(openrouter)[1]['finish_reason'] == expected
 
 
 @pytest.mark.parametrize('adapter', [gemini, openrouter])

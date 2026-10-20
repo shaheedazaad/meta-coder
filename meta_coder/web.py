@@ -66,6 +66,7 @@ from .projects import (
     write_manual,
 )
 from .providers import PROVIDER_LABELS, PROVIDERS, check_model, default_model, draft_coding_manual, draft_coding_sheet
+from .results import cells_to_check
 from .runner import Runner, load_persisted_results, raw_json_path_for_read
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
@@ -145,6 +146,9 @@ def _run_table_rows(results, coding_sheet, project: Project) -> list[dict]:
                 "output_tokens": pdf.output_tokens,
                 "json_repaired": getattr(pdf, "json_repaired", False)
                 or getattr(pdf, "repaired_response", None) is not None,
+                # Progress entries carry the count; persisted results are counted here.
+                "cells_to_check": pdf.cells_to_check if hasattr(pdf, "cells_to_check")
+                else cells_to_check(pdf.coded_by_row_id),
                 "raw_available": raw_path.is_file(),
                 "raw_filename": raw_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
