@@ -27,10 +27,10 @@ from starlette.staticfiles import StaticFiles
 
 from .updates import UpdateChecker
 from . import credentials
-from .provenance import audited_call, export_manifest, json_bytes
+from .provenance import atomic_write, audited_call, export_manifest, json_bytes
 from .app_settings import AppSettings, endpoint_options, load_app_settings, save_app_settings
 from .openai_compatible import normalize_base_url
-from .coding_sheet import coding_sheet_template_csv, read_coding_sheet
+from .coding_sheet import coding_sheet_template_csv, parse_coding_sheet_csv, read_coding_sheet
 from .coding_sheet_drafting import CodingSheetDraftError, read_source_csv, validate_sheet_csv
 from .pdf_matching import (
     PdfScanner,
@@ -962,8 +962,23 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet")
     async def upload_coding_sheet(project_id: str, file: UploadFile = File(...)):
         project = runtime.project(project_id)
-        raw = await file.read()
-        project.coding_sheet_path.write_text(raw.decode("utf-8", errors="replace"), encoding="utf-8")
+        limit = load_app_settings().upload_size_cap_bytes
+        raw = await file.read(limit + 1)
+        if len(raw) > limit:
+            raise HTTPException(status_code=413, detail="The coding sheet exceeds the upload limit.")
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Save the CSV as UTF-8 and try again.") from exc
+        sheet = parse_coding_sheet_csv(text, uploaded_filenames={p.name for p in list_uploaded_pdfs(project.sources_dir)})
+        if sheet.sheet_issues:
+            raise HTTPException(status_code=400, detail="; ".join(issue.message for issue in sheet.sheet_issues))
+        if runtime.runner.is_running(project_id):
+            raise HTTPException(status_code=409, detail="Wait for the active run to finish before replacing the sheet.")
+        previous = project.coding_sheet_path.read_text(encoding="utf-8")
+        if text != previous:
+            atomic_write(project.coding_sheet_path, text.encode("utf-8"))
+            clear_output(project)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/draft", response_class=JSONResponse)

@@ -122,10 +122,26 @@ class CodingSheet:
         return uploaded_filenames - covered
 
 
+def coding_sheet_reader(text: str) -> csv.DictReader:
+    """Use the same normalized headers for validation and PDF matching."""
+    reader = csv.DictReader(io.StringIO(text.removeprefix("\ufeff")), strict=True)
+    reader.fieldnames = [name.strip() for name in (reader.fieldnames or [])]
+    return reader
+
+
 def parse_coding_sheet_csv(text: str, *, uploaded_filenames: set[str]) -> CodingSheet:
-    reader = csv.DictReader(io.StringIO(text))
-    fieldnames = [name.strip() for name in (reader.fieldnames or [])]
     issues: list[CodingSheetIssue] = []
+    try:
+        reader = coding_sheet_reader(text)
+        fieldnames = reader.fieldnames or []
+        if len(fieldnames) != len(set(fieldnames)):
+            raise ValueError("Duplicate coding-sheet column headers.")
+        records = list(reader)
+        for record in records:
+            if None in record or any(value is None for value in record.values()):
+                raise ValueError("A coding-sheet row has the wrong number of cells.")
+    except (csv.Error, ValueError) as exc:
+        return CodingSheet(rows=[], issues=[CodingSheetIssue(None, str(exc))])
 
     missing_columns = [col for col in REQUIRED_COLUMNS if col not in fieldnames]
     if missing_columns:
@@ -153,7 +169,7 @@ def parse_coding_sheet_csv(text: str, *, uploaded_filenames: set[str]) -> Coding
 
     rows: list[CodingSheetRow] = []
     seen_ids: dict[str, int] = {}
-    for line_number, record in enumerate(reader, start=2):  # header is line 1
+    for line_number, record in enumerate(records, start=2):  # header is line 1
         row_id = (record.get("row_id") or "").strip()
         source_pdf = (record.get("source_pdf") or "").strip()
         locator = (record.get("locator") or "").strip()
@@ -173,6 +189,16 @@ def parse_coding_sheet_csv(text: str, *, uploaded_filenames: set[str]) -> Coding
             continue
         seen_ids[row_id] = line_number
 
+        if not authors:
+            issues.append(
+                CodingSheetIssue(line_number, f"row_id `{row_id}` has no authors.")
+            )
+            continue
+
+        if not year:
+            issues.append(CodingSheetIssue(line_number, f"row_id `{row_id}` has no year."))
+            continue
+
         if not source_pdf:
             issues.append(
                 CodingSheetIssue(line_number, f"row_id `{row_id}` has no source_pdf.", kind="pdf")
@@ -188,15 +214,6 @@ def parse_coding_sheet_csv(text: str, *, uploaded_filenames: set[str]) -> Coding
             )
             continue
 
-        if not authors:
-            issues.append(
-                CodingSheetIssue(line_number, f"row_id `{row_id}` has no authors.")
-            )
-            continue
-
-        if not year:
-            issues.append(CodingSheetIssue(line_number, f"row_id `{row_id}` has no year."))
-            continue
 
         rows.append(
             CodingSheetRow(
@@ -216,7 +233,10 @@ def parse_coding_sheet_csv(text: str, *, uploaded_filenames: set[str]) -> Coding
 def read_coding_sheet(path: Path, *, uploaded_filenames: set[str]) -> CodingSheet:
     if not path.is_file():
         return CodingSheet(rows=[], issues=[])
-    text = path.read_text(encoding="utf-8")
+    try:
+        text = path.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        return CodingSheet(rows=[], issues=[CodingSheetIssue(None, "Save the CSV as UTF-8 and try again.")])
     if not text.strip():
         return CodingSheet(rows=[], issues=[])
     return parse_coding_sheet_csv(text, uploaded_filenames=uploaded_filenames)
