@@ -17,6 +17,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import threading
 from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, quote
@@ -26,6 +27,7 @@ import zipfile
 from . import __version__
 
 _CURRENT: ContextVar[Any] = ContextVar('audit_operation', default=None)
+_BLOB_LOCK = threading.Lock()
 
 
 def utc_now():
@@ -116,8 +118,10 @@ class AuditOperation:
         digest = hashlib.sha256(data).hexdigest()
         relative = f'blobs/{digest}'
         target = self.root / relative
-        if not target.exists():
-            atomic_write(target, data)
+        # Workers share immutable blobs. Avoid competing replacements on Windows.
+        with _BLOB_LOCK:
+            if not target.exists():
+                atomic_write(target, data)
         return {'path': 'audit/' + relative, 'sha256': digest, 'bytes': len(data)}
 
     def input(self, name, data):

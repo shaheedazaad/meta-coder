@@ -100,6 +100,17 @@ def test_collation_failure_marks_run_failed(inputs, monkeypatch):
     assert module.load_persisted_results(inputs[0])['paper.pdf'].status == 'ok'
 
 
+def test_audit_finalization_disk_failure_marks_run_failed(inputs, monkeypatch):
+    monkeypatch.setattr(module, 'extract_pdf_effects', Mock(return_value=ExtractionResult('paper.pdf', 'ok')))
+    audit = Mock()
+    audit.finish.side_effect = OSError('audit disk full')
+    state = run_sync(inputs, monkeypatch, state={'audit_run': audit})
+    assert state.status == 'failed'
+    assert state.error == 'Could not finalize audit history: audit disk full'
+    assert state.finished_at
+    audit.finish.assert_called_once()
+
+
 def test_cancel_while_pacing_skips_provider(inputs, monkeypatch):
     monkeypatch.setattr(module._RequestPacer, 'wait', lambda *a: False)
     monkeypatch.setattr(module, 'extract_pdf_effects', lambda **k: pytest.fail('request after cancellation'))

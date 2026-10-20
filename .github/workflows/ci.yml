@@ -41,6 +41,12 @@ jobs:
                   )
       - run: pixi run --locked -e dev test
       - run: pixi run --locked -e dev npm test
+      - name: Verify Windows coverage (temporary)
+        if: runner.os == 'Windows'
+        run: |
+          pixi run --locked -e dev coverage
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pixi run --locked -e dev npm run coverage
   docs:
     runs-on: ubuntu-24.04
     steps:

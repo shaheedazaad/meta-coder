@@ -17,7 +17,7 @@ from meta_coder import gemini, openrouter, openai_compatible, provenance, provid
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
 from meta_coder.extraction import ExtractionResult, ProviderError, ResponseBytes
 from meta_coder.manual import parse_coding_manual
-from meta_coder.projects import clear_output, create_project, write_manual
+from meta_coder.projects import clear_output, create_project, project_archive_files, write_manual
 
 
 @pytest.fixture
@@ -42,6 +42,23 @@ def blob(project, ref):
     data = (project.path / ref['path']).read_bytes()
     assert hashlib.sha256(data).hexdigest() == ref['sha256']
     return data
+
+
+def test_audit_json_paths_and_unsupported_values(tmp_path):
+    assert json.loads(provenance.json_bytes({'path': tmp_path})) == {'path': str(tmp_path)}
+    with pytest.raises(TypeError, match='Unsupported audit value: object'):
+        provenance.json_bytes(object())
+
+
+def test_export_excludes_unpublished_audit_temporary_files(project):
+    pending = project.path / 'audit' / 'blobs' / 'pending.tmp'
+    pending.parent.mkdir(parents=True)
+    pending.write_bytes(b'incomplete')
+    published = pending.with_name('published')
+    published.write_bytes(b'complete')
+    exported = dict((name, path) for path, name in project_archive_files(project))
+    assert 'audit/blobs/pending.tmp' not in exported
+    assert exported['audit/blobs/published'].read_bytes() == b'complete'
 
 
 @pytest.mark.parametrize('adapter', [gemini, openrouter, openai_compatible])
@@ -248,6 +265,43 @@ def test_parallel_results_reports_pre_barrier_failure():
     assert 'Worker 0 failed:' in report
     assert 'Worker 1 failed:' in report
     assert 'BrokenBarrierError' in report
+
+
+def test_concurrent_identical_blobs_are_published_once(project, monkeypatch):
+    operations = [provenance.AuditOperation(project, 'test', {}) for _ in range(3)]
+    barrier = threading.Barrier(3)
+    lock = provenance._BLOB_LOCK
+
+    class PublicationLock:
+        def __enter__(self):
+            # Force all three publishers to attempt the critical section together.
+            barrier.wait(timeout=5)
+            lock.acquire()
+
+        def __exit__(self, *args):
+            lock.release()
+
+    monkeypatch.setattr(provenance, '_BLOB_LOCK', PublicationLock())
+    write = Mock(wraps=provenance.atomic_write)
+    monkeypatch.setattr(provenance, 'atomic_write', write)
+    data = b'identical concurrent audit input\x00\xff'
+    references = parallel_results(lambda index: operations[index].blob(data), barrier)
+    assert references == [references[0]] * 3
+    assert blob(project, references[0]) == data
+    write.assert_called_once()
+    assert not list((project.path / 'audit').rglob('*.tmp'))
+
+
+def test_blob_disk_failure_propagates_and_cleans_temporary_file(project, monkeypatch):
+    operation = provenance.AuditOperation(project, 'test', {})
+    data = b'new blob requiring publication'
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance.os, 'replace', Mock(side_effect=PermissionError('disk denied')))
+        with pytest.raises(PermissionError, match='disk denied'):
+            operation.blob(data)
+    assert not list((project.path / 'audit').rglob('*.tmp'))
+    assert not (project.path / 'audit/blobs' / hashlib.sha256(data).hexdigest()).exists()
+    assert blob(project, operation.blob(data)) == data
 
 
 def test_parallel_operations_keep_requests_separate(project, monkeypatch):
