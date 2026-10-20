@@ -1,6 +1,6 @@
 import json
 
-from meta_coder.extraction import parse_json_response
+from meta_coder.extraction import normalize_finish_reason, parse_json_response, review_issues
 
 
 def test_parse_json_response_preserves_repaired_payload():
@@ -142,3 +142,19 @@ def test_waiting_for_http_response_survives_a_poll_timeout(monkeypatch):
     result = extraction.cancellable_urlopen(Request('https://example.test'), timeout=1, cancel_event=threading.Event())
     assert result == b'completed after polling'
     assert response.closed
+
+
+@pytest.mark.parametrize('value, expected', [
+    (None, None), ('', None), ('  ', None), ('STOP', 'stop'), (' stop ', 'stop'),
+    ('MAX_TOKENS', 'length'), ('length', 'length'), ('FINISH_REASON_UNSPECIFIED', None), ('SAFETY', 'safety'),
+])
+def test_normalize_finish_reason(value, expected):
+    assert normalize_finish_reason(value) == expected
+
+
+def test_review_issues_flag_repairs_and_abnormal_finishes_only():
+    assert review_issues(repaired_response=None, finish_reason=None) == []
+    for normal in ('stop', 'eos_token', 'stop_sequence'):
+        assert review_issues(repaired_response=None, finish_reason=normal) == []
+    issues = review_issues(repaired_response='{}', finish_reason='length')
+    assert len(issues) == 2 and 'finish reason: length' in issues[0] and 'repaired' in issues[1]

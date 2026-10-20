@@ -1,0 +1,497 @@
+{
+  "source_pdf": "li_2018.pdf",
+  "provider": "gemini",
+  "model": "gemini-3.7-flash",
+  "prompt_version": "6",
+  "status": "ok",
+  "error": null,
+  "coded_by_row_id": {
+    "li_2018_1": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Survey data collected across two time points from teams in two research centers without experimental manipulation.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams conducted ongoing daily work in financial research centers of a bank.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study was conducted in a state-owned bank.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "team_function": {
+        "value": "R & D / Research",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams' main work was to research and design new financial products and services.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "country": {
+        "value": "China",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study centers were located in Beijing and Shanghai, China.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "n_teams": {
+        "value": 98,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 note and Participants section report N = 98 teams.",
+        "quote": "our final dataset included 98 teams (460 subordinates) with overall response rates of 65 and 73% at the team and individual levels, respectively.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were employees and supervisors at a bank.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams were assembled with analysts and specialists, not top executives or corporate boards.",
+        "quote": "The company creates teams by assembling individuals with a range of relevant expertise, such as analysts, data-bank specialists, and market specialists.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The authors report the two survey rounds were separated by 1 month, but do not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Job-related",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Tenure diversity reflects length of time in the job or organization.",
+        "quote": "We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.",
+        "page": 5,
+        "quote_check": "approximate",
+        "quote_found_page": 5
+      },
+      "diversity_measure_type": {
+        "value": "Separation",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Tenure diversity was operationalized using the coefficient of variation.",
+        "quote": "We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.",
+        "page": 5,
+        "quote_check": "approximate",
+        "quote_found_page": 5
+      },
+      "performance_rater": {
+        "value": "Subjective - supervisor",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Innovative performance was rated by team supervisors/leaders.",
+        "quote": "Therefore, team leaders rated the four-item team innovative performance scale developed by Anderson and West (1998)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": -0.04,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 reports the correlation between variable 5 (Team tenure diversity) and variable 9 (Team innovative performance) as -0.04.",
+        "quote": null,
+        "page": 6
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Multidisciplinary research and product design requiring coordination and perspective taking across specialists.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "Financial research and product development by specialized analysts requires extensive training and higher education.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The teams are ongoing organizational work units within financial research centers without a designated end date.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "li_2018_2": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Survey data collected across two time points from teams in two research centers without experimental manipulation.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams conducted ongoing daily work in financial research centers of a bank.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study was conducted in a state-owned bank.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "team_function": {
+        "value": "R & D / Research",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams' main work was to research and design new financial products and services.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "country": {
+        "value": "China",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study centers were located in Beijing and Shanghai, China.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "n_teams": {
+        "value": 98,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 note and Participants section report N = 98 teams.",
+        "quote": "our final dataset included 98 teams (460 subordinates) with overall response rates of 65 and 73% at the team and individual levels, respectively.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were employees and supervisors at a bank.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams were assembled with analysts and specialists, not top executives or corporate boards.",
+        "quote": "The company creates teams by assembling individuals with a range of relevant expertise, such as analysts, data-bank specialists, and market specialists.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The authors report the two survey rounds were separated by 1 month, but do not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Age is a demographic characteristic.",
+        "quote": "We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.",
+        "page": 5,
+        "quote_check": "approximate",
+        "quote_found_page": 5
+      },
+      "diversity_measure_type": {
+        "value": "Separation",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Age diversity was operationalized using the coefficient of variation.",
+        "quote": "We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.",
+        "page": 5,
+        "quote_check": "approximate",
+        "quote_found_page": 5
+      },
+      "performance_rater": {
+        "value": "Subjective - supervisor",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Innovative performance was rated by team supervisors/leaders.",
+        "quote": "Therefore, team leaders rated the four-item team innovative performance scale developed by Anderson and West (1998)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": -0.03,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 reports the correlation between variable 4 (Team age diversity) and variable 9 (Team innovative performance) as -0.03.",
+        "quote": null,
+        "page": 6
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Multidisciplinary research and product design requiring coordination and perspective taking across specialists.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "Financial research and product development by specialized analysts requires extensive training and higher education.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The teams are ongoing organizational work units within financial research centers without a designated end date.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "li_2018_3": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Survey data collected across two time points from teams in two research centers without experimental manipulation.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams conducted ongoing daily work in financial research centers of a bank.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "industry_sector": {
+        "value": "Banking",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study was conducted in a state-owned bank.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "team_function": {
+        "value": "R & D / Research",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The teams' main work was to research and design new financial products and services.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "country": {
+        "value": "China",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The study centers were located in Beijing and Shanghai, China.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "n_teams": {
+        "value": 98,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 note and Participants section report N = 98 teams.",
+        "quote": "our final dataset included 98 teams (460 subordinates) with overall response rates of 65 and 73% at the team and individual levels, respectively.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were employees and supervisors at a bank.",
+        "quote": "We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams were assembled with analysts and specialists, not top executives or corporate boards.",
+        "quote": "The company creates teams by assembling individuals with a range of relevant expertise, such as analysts, data-bank specialists, and market specialists.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The authors report the two survey rounds were separated by 1 month, but do not state the calendar year(s) of data collection.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Gender is a demographic characteristic.",
+        "quote": "We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.",
+        "page": 5,
+        "quote_check": "approximate",
+        "quote_found_page": 5
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Gender diversity was operationalized using Blau's index.",
+        "quote": "We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.",
+        "page": 5,
+        "quote_check": "approximate",
+        "quote_found_page": 5
+      },
+      "performance_rater": {
+        "value": "Subjective - supervisor",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Innovative performance was rated by team supervisors/leaders.",
+        "quote": "Therefore, team leaders rated the four-item team innovative performance scale developed by Anderson and West (1998)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": 0.11,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 reports the correlation between variable 3 (Team gender diversity) and variable 9 (Team innovative performance) as 0.11.",
+        "quote": null,
+        "page": 6
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Multidisciplinary research and product design requiring coordination and perspective taking across specialists.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "Financial research and product development by specialized analysts requires extensive training and higher education.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "medium",
+        "evidence": "The teams are ongoing organizational work units within financial research centers without a designated end date.",
+        "quote": "The main functions of the teams within these centers are to research and design new financial products and services.",
+        "page": 4,
+        "quote_check": "verified",
+        "quote_found_page": 4
+      },
+      "notes": {
+        "value": null
+      }
+    }
+  },
+  "raw_response": "{\n  \"effects\": [\n    {\n      \"row_id\": \"li_2018_1\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Survey data collected across two time points from teams in two research centers without experimental manipulation.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams conducted ongoing daily work in financial research centers of a bank.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study was conducted in a state-owned bank.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"team_function\": {\n        \"value\": \"R & D / Research\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams' main work was to research and design new financial products and services.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"country\": {\n        \"value\": \"China\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study centers were located in Beijing and Shanghai, China.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"n_teams\": {\n        \"value\": 98,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 note and Participants section report N = 98 teams.\",\n        \"quote\": \"our final dataset included 98 teams (460 subordinates) with overall response rates of 65 and 73% at the team and individual levels, respectively.\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were employees and supervisors at a bank.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams were assembled with analysts and specialists, not top executives or corporate boards.\",\n        \"quote\": \"The company creates teams by assembling individuals with a range of relevant expertise, such as analysts, data-bank specialists, and market specialists.\",\n        \"page\": 4\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The authors report the two survey rounds were separated by 1 month, but do not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Job-related\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Tenure diversity reflects length of time in the job or organization.\",\n        \"quote\": \"We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.\",\n        \"page\": 5\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Separation\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Tenure diversity was operationalized using the coefficient of variation.\",\n        \"quote\": \"We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.\",\n        \"page\": 5\n      },\n      \"performance_rater\": {\n        \"value\": \"Subjective - supervisor\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Innovative performance was rated by team supervisors/leaders.\",\n        \"quote\": \"Therefore, team leaders rated the four-item team innovative performance scale developed by Anderson and West (1998)\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.04,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 reports the correlation between variable 5 (Team tenure diversity) and variable 9 (Team innovative performance) as -0.04.\",\n        \"quote\": null,\n        \"page\": 6\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Multidisciplinary research and product design requiring coordination and perspective taking across specialists.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"Financial research and product development by specialized analysts requires extensive training and higher education.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The teams are ongoing organizational work units within financial research centers without a designated end date.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"li_2018_2\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Survey data collected across two time points from teams in two research centers without experimental manipulation.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams conducted ongoing daily work in financial research centers of a bank.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study was conducted in a state-owned bank.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"team_function\": {\n        \"value\": \"R & D / Research\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams' main work was to research and design new financial products and services.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"country\": {\n        \"value\": \"China\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study centers were located in Beijing and Shanghai, China.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"n_teams\": {\n        \"value\": 98,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 note and Participants section report N = 98 teams.\",\n        \"quote\": \"our final dataset included 98 teams (460 subordinates) with overall response rates of 65 and 73% at the team and individual levels, respectively.\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were employees and supervisors at a bank.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams were assembled with analysts and specialists, not top executives or corporate boards.\",\n        \"quote\": \"The company creates teams by assembling individuals with a range of relevant expertise, such as analysts, data-bank specialists, and market specialists.\",\n        \"page\": 4\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The authors report the two survey rounds were separated by 1 month, but do not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Age is a demographic characteristic.\",\n        \"quote\": \"We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.\",\n        \"page\": 5\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Separation\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Age diversity was operationalized using the coefficient of variation.\",\n        \"quote\": \"We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.\",\n        \"page\": 5\n      },\n      \"performance_rater\": {\n        \"value\": \"Subjective - supervisor\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Innovative performance was rated by team supervisors/leaders.\",\n        \"quote\": \"Therefore, team leaders rated the four-item team innovative performance scale developed by Anderson and West (1998)\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.03,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 reports the correlation between variable 4 (Team age diversity) and variable 9 (Team innovative performance) as -0.03.\",\n        \"quote\": null,\n        \"page\": 6\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Multidisciplinary research and product design requiring coordination and perspective taking across specialists.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"Financial research and product development by specialized analysts requires extensive training and higher education.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The teams are ongoing organizational work units within financial research centers without a designated end date.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"li_2018_3\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Survey data collected across two time points from teams in two research centers without experimental manipulation.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams conducted ongoing daily work in financial research centers of a bank.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"industry_sector\": {\n        \"value\": \"Banking\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study was conducted in a state-owned bank.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"team_function\": {\n        \"value\": \"R & D / Research\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The teams' main work was to research and design new financial products and services.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"country\": {\n        \"value\": \"China\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The study centers were located in Beijing and Shanghai, China.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"n_teams\": {\n        \"value\": 98,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 note and Participants section report N = 98 teams.\",\n        \"quote\": \"our final dataset included 98 teams (460 subordinates) with overall response rates of 65 and 73% at the team and individual levels, respectively.\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were employees and supervisors at a bank.\",\n        \"quote\": \"We collected data from two financial research centers of a state-owned bank located in Beijing and Shanghai, China.\",\n        \"page\": 4\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams were assembled with analysts and specialists, not top executives or corporate boards.\",\n        \"quote\": \"The company creates teams by assembling individuals with a range of relevant expertise, such as analysts, data-bank specialists, and market specialists.\",\n        \"page\": 4\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The authors report the two survey rounds were separated by 1 month, but do not state the calendar year(s) of data collection.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Gender is a demographic characteristic.\",\n        \"quote\": \"We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.\",\n        \"page\": 5\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Gender diversity was operationalized using Blau's index.\",\n        \"quote\": \"We used the coefficient of variation (standard deviation divided by the mean) for continuous demographic variables—team tenure and age—and Blau’s (1977) index for gender.\",\n        \"page\": 5\n      },\n      \"performance_rater\": {\n        \"value\": \"Subjective - supervisor\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Innovative performance was rated by team supervisors/leaders.\",\n        \"quote\": \"Therefore, team leaders rated the four-item team innovative performance scale developed by Anderson and West (1998)\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": 0.11,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 reports the correlation between variable 3 (Team gender diversity) and variable 9 (Team innovative performance) as 0.11.\",\n        \"quote\": null,\n        \"page\": 6\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Multidisciplinary research and product design requiring coordination and perspective taking across specialists.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"Financial research and product development by specialized analysts requires extensive training and higher education.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"medium\",\n        \"evidence\": \"The teams are ongoing organizational work units within financial research centers without a designated end date.\",\n        \"quote\": \"The main functions of the teams within these centers are to research and design new financial products and services.\",\n        \"page\": 4\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    }\n  ]\n}",
+  "input_tokens": 7913,
+  "output_tokens": 4496,
+  "duration_sec": 43.9
+}

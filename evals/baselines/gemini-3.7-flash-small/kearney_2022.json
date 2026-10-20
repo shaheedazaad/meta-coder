@@ -1,0 +1,642 @@
+{
+  "source_pdf": "kearney_2022.pdf",
+  "provider": "gemini",
+  "model": "gemini-3.7-flash",
+  "prompt_version": "6",
+  "status": "ok",
+  "error": null,
+  "coded_by_row_id": {
+    "kearney_2022_1": {
+      "design": {
+        "value": "Experimental",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 3.1 describes a laboratory experiment with randomly assigned teams.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "setting": {
+        "value": "Lab",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The task took place in an experimental laboratory during a 75- to 90-minute session.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "industry_sector": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory task performed by students without an actual industry context.",
+        "quote": null,
+        "page": null
+      },
+      "team_function": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory decision task without a real-world work function.",
+        "quote": null,
+        "page": null
+      },
+      "country": {
+        "value": "Germany",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Conducted at a German university.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "n_teams": {
+        "value": 142,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Reported in the sample description and Table 1 note.",
+        "quote": "three of the teams had to be excluded from our final sample, which thus included 142 teams",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "student_sample": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were university students.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams consisted of students participating in a laboratory study.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript does not state the years during which experimental sessions were conducted.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Age is a demographic characteristic.",
+        "quote": "we used the standard deviation of team members' age to operationalize age diversity.",
+        "page": 9,
+        "quote_check": "verified",
+        "quote_found_page": 9
+      },
+      "diversity_measure_type": {
+        "value": "Separation",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Measured using standard deviation.",
+        "quote": "we used the standard deviation of team members' age to operationalize age diversity.",
+        "page": 9,
+        "quote_check": "verified",
+        "quote_found_page": 9
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Performance was measured as the financial revenue achieved by the team in the task.",
+        "quote": "We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "correlation": {
+        "value": -0.14,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 shows the correlation between Variable 1 (Age diversity) and Variable 9 (Team performance).",
+        "quote": null,
+        "page": 10
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The distributed information task required intensive collaboration and integration across expert roles.",
+        "quote": "Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "task_complexity": {
+        "value": "low",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "A short experimental simulation task lasting 20-35 minutes that does not require a college degree.",
+        "quote": "A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "team_longevity": {
+        "value": "hours",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The experimental sessions lasted between 75 and 90 minutes.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "kearney_2022_2": {
+      "design": {
+        "value": "Experimental",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 3.1 describes a laboratory experiment with randomly assigned teams.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "setting": {
+        "value": "Lab",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The task took place in an experimental laboratory during a 75- to 90-minute session.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "industry_sector": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory task performed by students without an actual industry context.",
+        "quote": null,
+        "page": null
+      },
+      "team_function": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory decision task without a real-world work function.",
+        "quote": null,
+        "page": null
+      },
+      "country": {
+        "value": "Germany",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Conducted at a German university.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "n_teams": {
+        "value": 142,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Reported in the sample description and Table 1 note.",
+        "quote": "three of the teams had to be excluded from our final sample, which thus included 142 teams",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "student_sample": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were university students.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams consisted of students participating in a laboratory study.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript does not state the years during which experimental sessions were conducted.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Cognitive",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Degree / educational background diversity represents cognitive differences.",
+        "quote": "and educational background diversity (i.e., differences in team members' fields of study).",
+        "page": 9,
+        "quote_check": "verified",
+        "quote_found_page": 9
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Operationalized using Blau's index of heterogeneity.",
+        "quote": "used Blau's (1977) index of homogeneity to operationalize language diversity (i.e., differences in team members' native language) and educational background diversity (i.e., differences in team members' fields of study).",
+        "page": 9,
+        "quote_check": "verified",
+        "quote_found_page": 9
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Performance was measured as the financial revenue achieved by the team in the task.",
+        "quote": "We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "correlation": {
+        "value": -0.08,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 shows the correlation between Variable 3 (Educational background diversity) and Variable 9 (Team performance).",
+        "quote": null,
+        "page": 10
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The distributed information task required intensive collaboration and integration across expert roles.",
+        "quote": "Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "task_complexity": {
+        "value": "low",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "A short experimental simulation task lasting 20-35 minutes that does not require a college degree.",
+        "quote": "A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "team_longevity": {
+        "value": "hours",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The experimental sessions lasted between 75 and 90 minutes.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "kearney_2022_3": {
+      "design": {
+        "value": "Experimental",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 3.1 describes a laboratory experiment with randomly assigned teams.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "setting": {
+        "value": "Lab",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The task took place in an experimental laboratory during a 75- to 90-minute session.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "industry_sector": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory task performed by students without an actual industry context.",
+        "quote": null,
+        "page": null
+      },
+      "team_function": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory decision task without a real-world work function.",
+        "quote": null,
+        "page": null
+      },
+      "country": {
+        "value": "Germany",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Conducted at a German university.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "n_teams": {
+        "value": 142,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Reported in the sample description and Table 1 note.",
+        "quote": "three of the teams had to be excluded from our final sample, which thus included 142 teams",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "student_sample": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were university students.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams consisted of students participating in a laboratory study.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript does not state the years during which experimental sessions were conducted.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Native language is classified as a demographic diversity attribute.",
+        "quote": "used Blau's (1977) index of homogeneity to operationalize language diversity (i.e., differences in team members' native language)",
+        "page": 9,
+        "quote_check": "verified",
+        "quote_found_page": 9
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Operationalized using Blau's index of heterogeneity.",
+        "quote": "used Blau's (1977) index of homogeneity to operationalize language diversity (i.e., differences in team members' native language)",
+        "page": 9,
+        "quote_check": "verified",
+        "quote_found_page": 9
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Performance was measured as the financial revenue achieved by the team in the task.",
+        "quote": "We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "correlation": {
+        "value": 0.06,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 shows the correlation between Variable 2 (Language diversity) and Variable 9 (Team performance).",
+        "quote": null,
+        "page": 10
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The distributed information task required intensive collaboration and integration across expert roles.",
+        "quote": "Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "task_complexity": {
+        "value": "low",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "A short experimental simulation task lasting 20-35 minutes that does not require a college degree.",
+        "quote": "A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "team_longevity": {
+        "value": "hours",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The experimental sessions lasted between 75 and 90 minutes.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "kearney_2022_4": {
+      "design": {
+        "value": "Experimental",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 3.1 describes a laboratory experiment with randomly assigned teams.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "setting": {
+        "value": "Lab",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The task took place in an experimental laboratory during a 75- to 90-minute session.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "industry_sector": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory task performed by students without an actual industry context.",
+        "quote": null,
+        "page": null
+      },
+      "team_function": {
+        "value": null,
+        "missing": "not_applicable",
+        "confidence": "high",
+        "evidence": "Laboratory decision task without a real-world work function.",
+        "quote": null,
+        "page": null
+      },
+      "country": {
+        "value": "Germany",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Conducted at a German university.",
+        "quote": "To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "n_teams": {
+        "value": 142,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Reported in the sample description and Table 1 note.",
+        "quote": "three of the teams had to be excluded from our final sample, which thus included 142 teams",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "student_sample": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Participants were university students.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "top_management_team": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Teams consisted of students participating in a laboratory study.",
+        "quote": "The participants in our final sample were 568 students (282 males; 296 females) from different fields of study",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "data_collection_years": {
+        "value": null,
+        "missing": "not_reported",
+        "confidence": "high",
+        "evidence": "The manuscript does not state the years during which experimental sessions were conducted.",
+        "quote": null,
+        "page": null
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Gender is a demographic diversity attribute.",
+        "quote": "For gender diversity, we used a binary variable capturing whether the teams were homogeneous (comprising only female or only male team members) or diverse (comprising two female and two male team members).",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "diversity_measure_type": {
+        "value": "Other",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Gender diversity was operationalized as a binary indicator comparing homogeneous and diverse teams.",
+        "quote": "For gender diversity, we used a binary variable capturing whether the teams were homogeneous (comprising only female or only male team members) or diverse (comprising two female and two male team members).",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Performance was measured as the financial revenue achieved by the team in the task.",
+        "quote": "We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "correlation": {
+        "value": -0.04,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 1 shows the correlation between Variable 5 (Gender diversity) and Variable 9 (Team performance).",
+        "quote": null,
+        "page": 10
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The distributed information task required intensive collaboration and integration across expert roles.",
+        "quote": "Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration",
+        "page": 8,
+        "quote_check": "verified",
+        "quote_found_page": 8
+      },
+      "task_complexity": {
+        "value": "low",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "A short experimental simulation task lasting 20-35 minutes that does not require a college degree.",
+        "quote": "A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "team_longevity": {
+        "value": "hours",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "The experimental sessions lasted between 75 and 90 minutes.",
+        "quote": "The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.",
+        "page": 7,
+        "quote_check": "verified",
+        "quote_found_page": 7
+      },
+      "notes": {
+        "value": null
+      }
+    }
+  },
+  "raw_response": "{\n  \"effects\": [\n    {\n      \"row_id\": \"kearney_2022_1\",\n      \"design\": {\n        \"value\": \"Experimental\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 3.1 describes a laboratory experiment with randomly assigned teams.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.\",\n        \"page\": 7\n      },\n      \"setting\": {\n        \"value\": \"Lab\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The task took place in an experimental laboratory during a 75- to 90-minute session.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"industry_sector\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory task performed by students without an actual industry context.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_function\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory decision task without a real-world work function.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"country\": {\n        \"value\": \"Germany\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Conducted at a German university.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.\",\n        \"page\": 7\n      },\n      \"n_teams\": {\n        \"value\": 142,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Reported in the sample description and Table 1 note.\",\n        \"quote\": \"three of the teams had to be excluded from our final sample, which thus included 142 teams\",\n        \"page\": 7\n      },\n      \"student_sample\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were university students.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams consisted of students participating in a laboratory study.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript does not state the years during which experimental sessions were conducted.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Age is a demographic characteristic.\",\n        \"quote\": \"we used the standard deviation of team members' age to operationalize age diversity.\",\n        \"page\": 9\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Separation\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Measured using standard deviation.\",\n        \"quote\": \"we used the standard deviation of team members' age to operationalize age diversity.\",\n        \"page\": 9\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Performance was measured as the financial revenue achieved by the team in the task.\",\n        \"quote\": \"We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.\",\n        \"page\": 8\n      },\n      \"correlation\": {\n        \"value\": -0.14,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 shows the correlation between Variable 1 (Age diversity) and Variable 9 (Team performance).\",\n        \"quote\": null,\n        \"page\": 10\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The distributed information task required intensive collaboration and integration across expert roles.\",\n        \"quote\": \"Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration\",\n        \"page\": 8\n      },\n      \"task_complexity\": {\n        \"value\": \"low\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"A short experimental simulation task lasting 20-35 minutes that does not require a college degree.\",\n        \"quote\": \"A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.\",\n        \"page\": 7\n      },\n      \"team_longevity\": {\n        \"value\": \"hours\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The experimental sessions lasted between 75 and 90 minutes.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"kearney_2022_2\",\n      \"design\": {\n        \"value\": \"Experimental\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 3.1 describes a laboratory experiment with randomly assigned teams.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.\",\n        \"page\": 7\n      },\n      \"setting\": {\n        \"value\": \"Lab\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The task took place in an experimental laboratory during a 75- to 90-minute session.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"industry_sector\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory task performed by students without an actual industry context.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_function\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory decision task without a real-world work function.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"country\": {\n        \"value\": \"Germany\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Conducted at a German university.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.\",\n        \"page\": 7\n      },\n      \"n_teams\": {\n        \"value\": 142,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Reported in the sample description and Table 1 note.\",\n        \"quote\": \"three of the teams had to be excluded from our final sample, which thus included 142 teams\",\n        \"page\": 7\n      },\n      \"student_sample\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were university students.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams consisted of students participating in a laboratory study.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript does not state the years during which experimental sessions were conducted.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Cognitive\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Degree / educational background diversity represents cognitive differences.\",\n        \"quote\": \"and educational background diversity (i.e., differences in team members' fields of study).\",\n        \"page\": 9\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Operationalized using Blau's index of heterogeneity.\",\n        \"quote\": \"used Blau's (1977) index of homogeneity to operationalize language diversity (i.e., differences in team members' native language) and educational background diversity (i.e., differences in team members' fields of study).\",\n        \"page\": 9\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Performance was measured as the financial revenue achieved by the team in the task.\",\n        \"quote\": \"We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.\",\n        \"page\": 8\n      },\n      \"correlation\": {\n        \"value\": -0.08,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 shows the correlation between Variable 3 (Educational background diversity) and Variable 9 (Team performance).\",\n        \"quote\": null,\n        \"page\": 10\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The distributed information task required intensive collaboration and integration across expert roles.\",\n        \"quote\": \"Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration\",\n        \"page\": 8\n      },\n      \"task_complexity\": {\n        \"value\": \"low\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"A short experimental simulation task lasting 20-35 minutes that does not require a college degree.\",\n        \"quote\": \"A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.\",\n        \"page\": 7\n      },\n      \"team_longevity\": {\n        \"value\": \"hours\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The experimental sessions lasted between 75 and 90 minutes.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"kearney_2022_3\",\n      \"design\": {\n        \"value\": \"Experimental\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 3.1 describes a laboratory experiment with randomly assigned teams.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.\",\n        \"page\": 7\n      },\n      \"setting\": {\n        \"value\": \"Lab\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The task took place in an experimental laboratory during a 75- to 90-minute session.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"industry_sector\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory task performed by students without an actual industry context.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_function\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory decision task without a real-world work function.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"country\": {\n        \"value\": \"Germany\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Conducted at a German university.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.\",\n        \"page\": 7\n      },\n      \"n_teams\": {\n        \"value\": 142,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Reported in the sample description and Table 1 note.\",\n        \"quote\": \"three of the teams had to be excluded from our final sample, which thus included 142 teams\",\n        \"page\": 7\n      },\n      \"student_sample\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were university students.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams consisted of students participating in a laboratory study.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript does not state the years during which experimental sessions were conducted.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Native language is classified as a demographic diversity attribute.\",\n        \"quote\": \"used Blau's (1977) index of homogeneity to operationalize language diversity (i.e., differences in team members' native language)\",\n        \"page\": 9\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Operationalized using Blau's index of heterogeneity.\",\n        \"quote\": \"used Blau's (1977) index of homogeneity to operationalize language diversity (i.e., differences in team members' native language)\",\n        \"page\": 9\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Performance was measured as the financial revenue achieved by the team in the task.\",\n        \"quote\": \"We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.\",\n        \"page\": 8\n      },\n      \"correlation\": {\n        \"value\": 0.06,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 shows the correlation between Variable 2 (Language diversity) and Variable 9 (Team performance).\",\n        \"quote\": null,\n        \"page\": 10\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The distributed information task required intensive collaboration and integration across expert roles.\",\n        \"quote\": \"Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration\",\n        \"page\": 8\n      },\n      \"task_complexity\": {\n        \"value\": \"low\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"A short experimental simulation task lasting 20-35 minutes that does not require a college degree.\",\n        \"quote\": \"A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.\",\n        \"page\": 7\n      },\n      \"team_longevity\": {\n        \"value\": \"hours\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The experimental sessions lasted between 75 and 90 minutes.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"kearney_2022_4\",\n      \"design\": {\n        \"value\": \"Experimental\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 3.1 describes a laboratory experiment with randomly assigned teams.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university. In a between-subjects design, participants were randomly assigned to 145 four-person teams.\",\n        \"page\": 7\n      },\n      \"setting\": {\n        \"value\": \"Lab\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The task took place in an experimental laboratory during a 75- to 90-minute session.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"industry_sector\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory task performed by students without an actual industry context.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_function\": {\n        \"value\": null,\n        \"missing\": \"not_applicable\",\n        \"confidence\": \"high\",\n        \"evidence\": \"Laboratory decision task without a real-world work function.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"country\": {\n        \"value\": \"Germany\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Conducted at a German university.\",\n        \"quote\": \"To test our hypotheses, we conducted an experiment in the experimental laboratory of a large German university.\",\n        \"page\": 7\n      },\n      \"n_teams\": {\n        \"value\": 142,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Reported in the sample description and Table 1 note.\",\n        \"quote\": \"three of the teams had to be excluded from our final sample, which thus included 142 teams\",\n        \"page\": 7\n      },\n      \"student_sample\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Participants were university students.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"top_management_team\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Teams consisted of students participating in a laboratory study.\",\n        \"quote\": \"The participants in our final sample were 568 students (282 males; 296 females) from different fields of study\",\n        \"page\": 7\n      },\n      \"data_collection_years\": {\n        \"value\": null,\n        \"missing\": \"not_reported\",\n        \"confidence\": \"high\",\n        \"evidence\": \"The manuscript does not state the years during which experimental sessions were conducted.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Gender is a demographic diversity attribute.\",\n        \"quote\": \"For gender diversity, we used a binary variable capturing whether the teams were homogeneous (comprising only female or only male team members) or diverse (comprising two female and two male team members).\",\n        \"page\": 8\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Other\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Gender diversity was operationalized as a binary indicator comparing homogeneous and diverse teams.\",\n        \"quote\": \"For gender diversity, we used a binary variable capturing whether the teams were homogeneous (comprising only female or only male team members) or diverse (comprising two female and two male team members).\",\n        \"page\": 8\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Performance was measured as the financial revenue achieved by the team in the task.\",\n        \"quote\": \"We operationalized our dependent variable team performance as the revenues achieved by the teams in the experimental task.\",\n        \"page\": 8\n      },\n      \"correlation\": {\n        \"value\": -0.04,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 1 shows the correlation between Variable 5 (Gender diversity) and Variable 9 (Team performance).\",\n        \"quote\": null,\n        \"page\": 10\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The distributed information task required intensive collaboration and integration across expert roles.\",\n        \"quote\": \"Since identifying those combinations necessitated combining information from different expert roles within the team, this distributed information setup constituted an ideal scenario within which heterogeneity could potentially benefit teams via information elaboration\",\n        \"page\": 8\n      },\n      \"task_complexity\": {\n        \"value\": \"low\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"A short experimental simulation task lasting 20-35 minutes that does not require a college degree.\",\n        \"quote\": \"A distributive information decision task previously used by van Knippenberg et al. (2010) and based on the architectural design firm task (Palmer & Thompson, 1998) served as our experimental task.\",\n        \"page\": 7\n      },\n      \"team_longevity\": {\n        \"value\": \"hours\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"The experimental sessions lasted between 75 and 90 minutes.\",\n        \"quote\": \"The complete experimental session, which was conducted in German, lasted 90 min in the non-time pressure condition and 75 min in the time pressure condition.\",\n        \"page\": 7\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    }\n  ]\n}",
+  "input_tokens": 11738,
+  "output_tokens": 5929,
+  "duration_sec": 47.4
+}

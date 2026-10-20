@@ -1,0 +1,799 @@
+{
+  "source_pdf": "ninerola_2022.pdf",
+  "provider": "gemini",
+  "model": "gemini-3.7-flash",
+  "prompt_version": "6",
+  "status": "ok",
+  "error": null,
+  "coded_by_row_id": {
+    "ninerola_2022_1": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.",
+        "quote": "Data from Spanish companies with direct investment in China were collected through a questionnaire.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ongoing top management teams of Spanish companies operating in China.",
+        "quote": "This study was carried out using a sample of Spanish companies having FDI in China.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Multiple/mixed",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.",
+        "quote": "contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Management",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Title and section 'Method': the teams investigated are top management teams.",
+        "quote": "information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Spain",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "n_teams": {
+        "value": 82,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method' on page 5.",
+        "quote": "Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': participants are corporate executives / CEOs.",
+        "quote": "with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Introduction' and 'Method': teams are explicitly TMTs.",
+        "quote": "This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "data_collection_years": {
+        "value": "2013",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Control Variables' specifies that the ROE values refer to 2013.",
+        "quote": "Size and profitability (ROE) values referred to 2013.",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': age is a demographic attribute.",
+        "quote": "TMT demographic diversity (age, gender, tenure, and functional experience).",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "diversity_measure_type": {
+        "value": "Separation",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': age diversity was measured using the coefficient of variation.",
+        "quote": "On the other hand, we used the variation coefficient for quantitative diversity variables (age and organizational tenure).",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ROE was obtained from the SABI financial database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": -0.199,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 3 on page 9: correlation between row 6 'Age (Div)' and column 2 'ROE'.",
+        "quote": null,
+        "page": 9
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management teams require high interdependence and joint decision-making.",
+        "quote": null,
+        "page": null
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management requires high task complexity.",
+        "quote": null,
+        "page": null
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "TMTs in operating companies are stable, ongoing teams.",
+        "quote": null,
+        "page": null
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "ninerola_2022_2": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.",
+        "quote": "Data from Spanish companies with direct investment in China were collected through a questionnaire.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ongoing top management teams of Spanish companies operating in China.",
+        "quote": "This study was carried out using a sample of Spanish companies having FDI in China.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Multiple/mixed",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.",
+        "quote": "contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Management",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Title and section 'Method': the teams investigated are top management teams.",
+        "quote": "information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Spain",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "n_teams": {
+        "value": 82,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method' on page 5.",
+        "quote": "Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': participants are corporate executives / CEOs.",
+        "quote": "with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Introduction' and 'Method': teams are explicitly TMTs.",
+        "quote": "This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "data_collection_years": {
+        "value": "2013",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Control Variables' specifies that the ROE values refer to 2013.",
+        "quote": "Size and profitability (ROE) values referred to 2013.",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': gender is a demographic attribute.",
+        "quote": "TMT demographic diversity (age, gender, tenure, and functional experience).",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': gender diversity was measured using the Blau index.",
+        "quote": "In the case of diversity, for categorical variables (gender and functional experience) we used the Blau Heterogeneity Index (Blau, 1977)",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ROE was obtained from the SABI financial database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": -0.144,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 3 on page 9: correlation between row 8 'Gender (Div)' and column 2 'ROE'.",
+        "quote": null,
+        "page": 9
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management teams require high interdependence and joint decision-making.",
+        "quote": null,
+        "page": null
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management requires high task complexity.",
+        "quote": null,
+        "page": null
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "TMTs in operating companies are stable, ongoing teams.",
+        "quote": null,
+        "page": null
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "ninerola_2022_3": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.",
+        "quote": "Data from Spanish companies with direct investment in China were collected through a questionnaire.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ongoing top management teams of Spanish companies operating in China.",
+        "quote": "This study was carried out using a sample of Spanish companies having FDI in China.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Multiple/mixed",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.",
+        "quote": "contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Management",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Title and section 'Method': the teams investigated are top management teams.",
+        "quote": "information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Spain",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "n_teams": {
+        "value": 82,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method' on page 5.",
+        "quote": "Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': participants are corporate executives / CEOs.",
+        "quote": "with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Introduction' and 'Method': teams are explicitly TMTs.",
+        "quote": "This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "data_collection_years": {
+        "value": "2013",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Control Variables' specifies that the ROE values refer to 2013.",
+        "quote": "Size and profitability (ROE) values referred to 2013.",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "diversity_domain": {
+        "value": "Job-related",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': organizational tenure is an organization- and job-related attribute.",
+        "quote": "The effect of organizational tenure diversity (years of service in a company) on strategic decisions is not entirely clear",
+        "page": 3,
+        "quote_check": "verified",
+        "quote_found_page": 3
+      },
+      "diversity_measure_type": {
+        "value": "Separation",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': tenure diversity was measured using the coefficient of variation.",
+        "quote": "On the other hand, we used the variation coefficient for quantitative diversity variables (age and organizational tenure).",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ROE was obtained from the SABI financial database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": 0.038,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 3 on page 9: correlation between row 10 'Tenure (Div)' and column 2 'ROE'.",
+        "quote": null,
+        "page": 9
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management teams require high interdependence and joint decision-making.",
+        "quote": null,
+        "page": null
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management requires high task complexity.",
+        "quote": null,
+        "page": null
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "TMTs in operating companies are stable, ongoing teams.",
+        "quote": null,
+        "page": null
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "ninerola_2022_4": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.",
+        "quote": "Data from Spanish companies with direct investment in China were collected through a questionnaire.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ongoing top management teams of Spanish companies operating in China.",
+        "quote": "This study was carried out using a sample of Spanish companies having FDI in China.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Multiple/mixed",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.",
+        "quote": "contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Management",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Title and section 'Method': the teams investigated are top management teams.",
+        "quote": "information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Spain",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "n_teams": {
+        "value": 82,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method' on page 5.",
+        "quote": "Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': participants are corporate executives / CEOs.",
+        "quote": "with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Introduction' and 'Method': teams are explicitly TMTs.",
+        "quote": "This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "data_collection_years": {
+        "value": "2013",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Control Variables' specifies that the ROE values refer to 2013.",
+        "quote": "Size and profitability (ROE) values referred to 2013.",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "diversity_domain": {
+        "value": "Job-related",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': functional experience is a job-related attribute.",
+        "quote": "In this sense, the functional experience is highly job-related (Joshi & Roh, 2009), confirming previous findings.",
+        "page": 10,
+        "quote_check": "verified",
+        "quote_found_page": 10
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': functional experience diversity was measured using the Blau index.",
+        "quote": "In the case of diversity, for categorical variables (gender and functional experience) we used the Blau Heterogeneity Index (Blau, 1977)",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ROE was obtained from the SABI financial database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": -0.235,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 3 on page 9: correlation between row 11 'Funct. Exp (Div)' and column 2 'ROE'.",
+        "quote": null,
+        "page": 9
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management teams require high interdependence and joint decision-making.",
+        "quote": null,
+        "page": null
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management requires high task complexity.",
+        "quote": null,
+        "page": null
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "TMTs in operating companies are stable, ongoing teams.",
+        "quote": null,
+        "page": null
+      },
+      "notes": {
+        "value": null
+      }
+    },
+    "ninerola_2022_5": {
+      "design": {
+        "value": "Observational",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.",
+        "quote": "Data from Spanish companies with direct investment in China were collected through a questionnaire.",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "setting": {
+        "value": "Daily work",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ongoing top management teams of Spanish companies operating in China.",
+        "quote": "This study was carried out using a sample of Spanish companies having FDI in China.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "industry_sector": {
+        "value": "Multiple/mixed",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.",
+        "quote": "contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "team_function": {
+        "value": "Management",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Title and section 'Method': the teams investigated are top management teams.",
+        "quote": "information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "country": {
+        "value": "Spain",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "n_teams": {
+        "value": 82,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method' on page 5.",
+        "quote": "Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "student_sample": {
+        "value": false,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': participants are corporate executives / CEOs.",
+        "quote": "with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "top_management_team": {
+        "value": true,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Introduction' and 'Method': teams are explicitly TMTs.",
+        "quote": "This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "data_collection_years": {
+        "value": "2013",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Control Variables' specifies that the ROE values refer to 2013.",
+        "quote": "Size and profitability (ROE) values referred to 2013.",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "diversity_domain": {
+        "value": "Demographic",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Independent Variables': gender is a demographic attribute.",
+        "quote": "TMT demographic diversity (age, gender, tenure, and functional experience).",
+        "page": 1,
+        "quote_check": "verified",
+        "quote_found_page": 1
+      },
+      "diversity_measure_type": {
+        "value": "Variety",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Per the coding manual, the proportion of a minority group (here, proportion of women) is classified as Variety.",
+        "quote": "For demographics, we used the age and tenure mean of the TMT members and the proportion of women in each TMT.",
+        "page": 6,
+        "quote_check": "verified",
+        "quote_found_page": 6
+      },
+      "performance_rater": {
+        "value": "Objective",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Section 'Method': ROE was obtained from the SABI financial database.",
+        "quote": "The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).",
+        "page": 5,
+        "quote_check": "verified",
+        "quote_found_page": 5
+      },
+      "correlation": {
+        "value": -0.11,
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Table 3 on page 9: correlation between row 7 'Women (Proportion)' and column 2 'ROE'.",
+        "quote": null,
+        "page": 9
+      },
+      "interdependence": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management teams require high interdependence and joint decision-making.",
+        "quote": null,
+        "page": null
+      },
+      "task_complexity": {
+        "value": "high",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "Top management requires high task complexity.",
+        "quote": null,
+        "page": null
+      },
+      "team_longevity": {
+        "value": "stable",
+        "missing": null,
+        "confidence": "high",
+        "evidence": "TMTs in operating companies are stable, ongoing teams.",
+        "quote": null,
+        "page": null
+      },
+      "notes": {
+        "value": null
+      }
+    }
+  },
+  "raw_response": "{\n  \"effects\": [\n    {\n      \"row_id\": \"ninerola_2022_1\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.\",\n        \"quote\": \"Data from Spanish companies with direct investment in China were collected through a questionnaire.\",\n        \"page\": 1\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ongoing top management teams of Spanish companies operating in China.\",\n        \"quote\": \"This study was carried out using a sample of Spanish companies having FDI in China.\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Multiple/mixed\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.\",\n        \"quote\": \"contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Management\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Title and section 'Method': the teams investigated are top management teams.\",\n        \"quote\": \"information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Spain\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"n_teams\": {\n        \"value\": 82,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method' on page 5.\",\n        \"quote\": \"Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': participants are corporate executives / CEOs.\",\n        \"quote\": \"with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Introduction' and 'Method': teams are explicitly TMTs.\",\n        \"quote\": \"This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms\",\n        \"page\": 1\n      },\n      \"data_collection_years\": {\n        \"value\": \"2013\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Control Variables' specifies that the ROE values refer to 2013.\",\n        \"quote\": \"Size and profitability (ROE) values referred to 2013.\",\n        \"page\": 6\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': age is a demographic attribute.\",\n        \"quote\": \"TMT demographic diversity (age, gender, tenure, and functional experience).\",\n        \"page\": 1\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Separation\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': age diversity was measured using the coefficient of variation.\",\n        \"quote\": \"On the other hand, we used the variation coefficient for quantitative diversity variables (age and organizational tenure).\",\n        \"page\": 6\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ROE was obtained from the SABI financial database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.199,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 3 on page 9: correlation between row 6 'Age (Div)' and column 2 'ROE'.\",\n        \"quote\": null,\n        \"page\": 9\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management teams require high interdependence and joint decision-making.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management requires high task complexity.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"TMTs in operating companies are stable, ongoing teams.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"ninerola_2022_2\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.\",\n        \"quote\": \"Data from Spanish companies with direct investment in China were collected through a questionnaire.\",\n        \"page\": 1\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ongoing top management teams of Spanish companies operating in China.\",\n        \"quote\": \"This study was carried out using a sample of Spanish companies having FDI in China.\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Multiple/mixed\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.\",\n        \"quote\": \"contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Management\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Title and section 'Method': the teams investigated are top management teams.\",\n        \"quote\": \"information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Spain\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"n_teams\": {\n        \"value\": 82,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method' on page 5.\",\n        \"quote\": \"Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': participants are corporate executives / CEOs.\",\n        \"quote\": \"with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Introduction' and 'Method': teams are explicitly TMTs.\",\n        \"quote\": \"This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms\",\n        \"page\": 1\n      },\n      \"data_collection_years\": {\n        \"value\": \"2013\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Control Variables' specifies that the ROE values refer to 2013.\",\n        \"quote\": \"Size and profitability (ROE) values referred to 2013.\",\n        \"page\": 6\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': gender is a demographic attribute.\",\n        \"quote\": \"TMT demographic diversity (age, gender, tenure, and functional experience).\",\n        \"page\": 1\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': gender diversity was measured using the Blau index.\",\n        \"quote\": \"In the case of diversity, for categorical variables (gender and functional experience) we used the Blau Heterogeneity Index (Blau, 1977)\",\n        \"page\": 6\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ROE was obtained from the SABI financial database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.144,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 3 on page 9: correlation between row 8 'Gender (Div)' and column 2 'ROE'.\",\n        \"quote\": null,\n        \"page\": 9\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management teams require high interdependence and joint decision-making.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management requires high task complexity.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"TMTs in operating companies are stable, ongoing teams.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"ninerola_2022_3\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.\",\n        \"quote\": \"Data from Spanish companies with direct investment in China were collected through a questionnaire.\",\n        \"page\": 1\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ongoing top management teams of Spanish companies operating in China.\",\n        \"quote\": \"This study was carried out using a sample of Spanish companies having FDI in China.\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Multiple/mixed\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.\",\n        \"quote\": \"contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Management\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Title and section 'Method': the teams investigated are top management teams.\",\n        \"quote\": \"information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Spain\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"n_teams\": {\n        \"value\": 82,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method' on page 5.\",\n        \"quote\": \"Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': participants are corporate executives / CEOs.\",\n        \"quote\": \"with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Introduction' and 'Method': teams are explicitly TMTs.\",\n        \"quote\": \"This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms\",\n        \"page\": 1\n      },\n      \"data_collection_years\": {\n        \"value\": \"2013\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Control Variables' specifies that the ROE values refer to 2013.\",\n        \"quote\": \"Size and profitability (ROE) values referred to 2013.\",\n        \"page\": 6\n      },\n      \"diversity_domain\": {\n        \"value\": \"Job-related\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': organizational tenure is an organization- and job-related attribute.\",\n        \"quote\": \"The effect of organizational tenure diversity (years of service in a company) on strategic decisions is not entirely clear\",\n        \"page\": 3\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Separation\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': tenure diversity was measured using the coefficient of variation.\",\n        \"quote\": \"On the other hand, we used the variation coefficient for quantitative diversity variables (age and organizational tenure).\",\n        \"page\": 6\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ROE was obtained from the SABI financial database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": 0.038,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 3 on page 9: correlation between row 10 'Tenure (Div)' and column 2 'ROE'.\",\n        \"quote\": null,\n        \"page\": 9\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management teams require high interdependence and joint decision-making.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management requires high task complexity.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"TMTs in operating companies are stable, ongoing teams.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"ninerola_2022_4\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.\",\n        \"quote\": \"Data from Spanish companies with direct investment in China were collected through a questionnaire.\",\n        \"page\": 1\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ongoing top management teams of Spanish companies operating in China.\",\n        \"quote\": \"This study was carried out using a sample of Spanish companies having FDI in China.\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Multiple/mixed\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.\",\n        \"quote\": \"contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Management\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Title and section 'Method': the teams investigated are top management teams.\",\n        \"quote\": \"information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Spain\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"n_teams\": {\n        \"value\": 82,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method' on page 5.\",\n        \"quote\": \"Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': participants are corporate executives / CEOs.\",\n        \"quote\": \"with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Introduction' and 'Method': teams are explicitly TMTs.\",\n        \"quote\": \"This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms\",\n        \"page\": 1\n      },\n      \"data_collection_years\": {\n        \"value\": \"2013\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Control Variables' specifies that the ROE values refer to 2013.\",\n        \"quote\": \"Size and profitability (ROE) values referred to 2013.\",\n        \"page\": 6\n      },\n      \"diversity_domain\": {\n        \"value\": \"Job-related\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': functional experience is a job-related attribute.\",\n        \"quote\": \"In this sense, the functional experience is highly job-related (Joshi & Roh, 2009), confirming previous findings.\",\n        \"page\": 10\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': functional experience diversity was measured using the Blau index.\",\n        \"quote\": \"In the case of diversity, for categorical variables (gender and functional experience) we used the Blau Heterogeneity Index (Blau, 1977)\",\n        \"page\": 6\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ROE was obtained from the SABI financial database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.235,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 3 on page 9: correlation between row 11 'Funct. Exp (Div)' and column 2 'ROE'.\",\n        \"quote\": null,\n        \"page\": 9\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management teams require high interdependence and joint decision-making.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management requires high task complexity.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"TMTs in operating companies are stable, ongoing teams.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    },\n    {\n      \"row_id\": \"ninerola_2022_5\",\n      \"design\": {\n        \"value\": \"Observational\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': cross-sectional survey and archival financial database data were collected without experimental intervention.\",\n        \"quote\": \"Data from Spanish companies with direct investment in China were collected through a questionnaire.\",\n        \"page\": 1\n      },\n      \"setting\": {\n        \"value\": \"Daily work\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ongoing top management teams of Spanish companies operating in China.\",\n        \"quote\": \"This study was carried out using a sample of Spanish companies having FDI in China.\",\n        \"page\": 5\n      },\n      \"industry_sector\": {\n        \"value\": \"Multiple/mixed\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': sampled all Spanish companies with a joint venture or WFOE in China across industries.\",\n        \"quote\": \"contacting all 377 Spanish companies that had a joint venture or a Wholly Foreign-Owned Enterprise in China in 2012.\",\n        \"page\": 5\n      },\n      \"team_function\": {\n        \"value\": \"Management\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Title and section 'Method': the teams investigated are top management teams.\",\n        \"quote\": \"information on all the team members included in the TMT, on different aspects of the company, and its internationalization process.\",\n        \"page\": 5\n      },\n      \"country\": {\n        \"value\": \"Spain\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': the firms are Spanish companies, and financial data (ROE) are retrieved from the SABI database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"n_teams\": {\n        \"value\": 82,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method' on page 5.\",\n        \"quote\": \"Subsequently, responses were received from 82 teams (i.e., 82 companies), which represented a response rate of 21.8%\",\n        \"page\": 5\n      },\n      \"student_sample\": {\n        \"value\": false,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': participants are corporate executives / CEOs.\",\n        \"quote\": \"with follow-up via an e-mail questionnaire addressed to the Chief Executive Officer (CEO)\",\n        \"page\": 5\n      },\n      \"top_management_team\": {\n        \"value\": true,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Introduction' and 'Method': teams are explicitly TMTs.\",\n        \"quote\": \"This study investigates the relationship between diversity in the Top Management Team (TMT) of Spanish firms\",\n        \"page\": 1\n      },\n      \"data_collection_years\": {\n        \"value\": \"2013\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Control Variables' specifies that the ROE values refer to 2013.\",\n        \"quote\": \"Size and profitability (ROE) values referred to 2013.\",\n        \"page\": 6\n      },\n      \"diversity_domain\": {\n        \"value\": \"Demographic\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Independent Variables': gender is a demographic attribute.\",\n        \"quote\": \"TMT demographic diversity (age, gender, tenure, and functional experience).\",\n        \"page\": 1\n      },\n      \"diversity_measure_type\": {\n        \"value\": \"Variety\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Per the coding manual, the proportion of a minority group (here, proportion of women) is classified as Variety.\",\n        \"quote\": \"For demographics, we used the age and tenure mean of the TMT members and the proportion of women in each TMT.\",\n        \"page\": 6\n      },\n      \"performance_rater\": {\n        \"value\": \"Objective\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Section 'Method': ROE was obtained from the SABI financial database.\",\n        \"quote\": \"The data sources for this were the Spanish Institute of Foreign Trade and the SABI database (Sistema de Análisis de Balances Ibéricos).\",\n        \"page\": 5\n      },\n      \"correlation\": {\n        \"value\": -0.11,\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Table 3 on page 9: correlation between row 7 'Women (Proportion)' and column 2 'ROE'.\",\n        \"quote\": null,\n        \"page\": 9\n      },\n      \"interdependence\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management teams require high interdependence and joint decision-making.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"task_complexity\": {\n        \"value\": \"high\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"Top management requires high task complexity.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"team_longevity\": {\n        \"value\": \"stable\",\n        \"missing\": null,\n        \"confidence\": \"high\",\n        \"evidence\": \"TMTs in operating companies are stable, ongoing teams.\",\n        \"quote\": null,\n        \"page\": null\n      },\n      \"notes\": {\n        \"value\": null\n      }\n    }\n  ]\n}",
+  "input_tokens": 9878,
+  "output_tokens": 7128,
+  "duration_sec": 36.5
+}
