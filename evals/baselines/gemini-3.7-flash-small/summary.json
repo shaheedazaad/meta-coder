@@ -1,0 +1,290 @@
+{
+  "pdfs": 5,
+  "statuses": {
+    "ok": 5
+  },
+  "cells": 272,
+  "correct": 240,
+  "accuracy": 0.8824,
+  "per_field": {
+    "correlation": {
+      "correct": 17,
+      "cells": 17
+    },
+    "country": {
+      "correct": 17,
+      "cells": 17
+    },
+    "data_collection_years": {
+      "correct": 12,
+      "cells": 17
+    },
+    "design": {
+      "correct": 17,
+      "cells": 17
+    },
+    "diversity_domain": {
+      "correct": 17,
+      "cells": 17
+    },
+    "diversity_measure_type": {
+      "correct": 16,
+      "cells": 17
+    },
+    "industry_sector": {
+      "correct": 14,
+      "cells": 17
+    },
+    "interdependence": {
+      "correct": 13,
+      "cells": 17
+    },
+    "n_teams": {
+      "correct": 17,
+      "cells": 17
+    },
+    "performance_rater": {
+      "correct": 17,
+      "cells": 17
+    },
+    "setting": {
+      "correct": 13,
+      "cells": 17
+    },
+    "student_sample": {
+      "correct": 17,
+      "cells": 17
+    },
+    "task_complexity": {
+      "correct": 9,
+      "cells": 17
+    },
+    "team_function": {
+      "correct": 17,
+      "cells": 17
+    },
+    "team_longevity": {
+      "correct": 10,
+      "cells": 17
+    },
+    "top_management_team": {
+      "correct": 17,
+      "cells": 17
+    }
+  },
+  "missing_values": {
+    "same_code": 20,
+    "value_given": 3
+  },
+  "accuracy_by_confidence": {
+    "high": {
+      "correct": 232,
+      "cells": 261
+    },
+    "medium": {
+      "correct": 8,
+      "cells": 11
+    }
+  },
+  "quote_checks": {
+    "verified": 200,
+    "approximate": 6,
+    "not_checked": 14
+  },
+  "input_tokens": 45804,
+  "output_tokens": 25215,
+  "errors": [
+    {
+      "row_id": "kearney_2022_1",
+      "field": "task_complexity",
+      "expected": "medium",
+      "coded": "low"
+    },
+    {
+      "row_id": "kearney_2022_2",
+      "field": "task_complexity",
+      "expected": "medium",
+      "coded": "low"
+    },
+    {
+      "row_id": "kearney_2022_3",
+      "field": "task_complexity",
+      "expected": "medium",
+      "coded": "low"
+    },
+    {
+      "row_id": "kearney_2022_4",
+      "field": "task_complexity",
+      "expected": "medium",
+      "coded": "low"
+    },
+    {
+      "row_id": "ninerola_2022_1",
+      "field": "data_collection_years",
+      "expected": "2012-2013",
+      "coded": "2013"
+    },
+    {
+      "row_id": "ninerola_2022_2",
+      "field": "data_collection_years",
+      "expected": "2012-2013",
+      "coded": "2013"
+    },
+    {
+      "row_id": "ninerola_2022_3",
+      "field": "data_collection_years",
+      "expected": "2012-2013",
+      "coded": "2013"
+    },
+    {
+      "row_id": "ninerola_2022_4",
+      "field": "data_collection_years",
+      "expected": "2012-2013",
+      "coded": "2013"
+    },
+    {
+      "row_id": "ninerola_2022_5",
+      "field": "data_collection_years",
+      "expected": "2012-2013",
+      "coded": "2013"
+    },
+    {
+      "row_id": "li_2018_1",
+      "field": "industry_sector",
+      "expected": "Finance",
+      "coded": "Banking"
+    },
+    {
+      "row_id": "li_2018_1",
+      "field": "team_longevity",
+      "expected": "not_reported",
+      "coded": "stable"
+    },
+    {
+      "row_id": "li_2018_2",
+      "field": "industry_sector",
+      "expected": "Finance",
+      "coded": "Banking"
+    },
+    {
+      "row_id": "li_2018_2",
+      "field": "team_longevity",
+      "expected": "not_reported",
+      "coded": "stable"
+    },
+    {
+      "row_id": "li_2018_3",
+      "field": "industry_sector",
+      "expected": "Finance",
+      "coded": "Banking"
+    },
+    {
+      "row_id": "li_2018_3",
+      "field": "team_longevity",
+      "expected": "not_reported",
+      "coded": "stable"
+    },
+    {
+      "row_id": "altiner_2018_1",
+      "field": "setting",
+      "expected": "Daily work",
+      "coded": "Project work"
+    },
+    {
+      "row_id": "altiner_2018_1",
+      "field": "diversity_measure_type",
+      "expected": "Separation",
+      "coded": "Variety"
+    },
+    {
+      "row_id": "altiner_2018_1",
+      "field": "interdependence",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_1",
+      "field": "task_complexity",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_1",
+      "field": "team_longevity",
+      "expected": "stable",
+      "coded": "months"
+    },
+    {
+      "row_id": "altiner_2018_2",
+      "field": "setting",
+      "expected": "Daily work",
+      "coded": "Project work"
+    },
+    {
+      "row_id": "altiner_2018_2",
+      "field": "interdependence",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_2",
+      "field": "task_complexity",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_2",
+      "field": "team_longevity",
+      "expected": "stable",
+      "coded": "months"
+    },
+    {
+      "row_id": "altiner_2018_3",
+      "field": "setting",
+      "expected": "Daily work",
+      "coded": "Project work"
+    },
+    {
+      "row_id": "altiner_2018_3",
+      "field": "interdependence",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_3",
+      "field": "task_complexity",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_3",
+      "field": "team_longevity",
+      "expected": "stable",
+      "coded": "months"
+    },
+    {
+      "row_id": "altiner_2018_4",
+      "field": "setting",
+      "expected": "Daily work",
+      "coded": "Project work"
+    },
+    {
+      "row_id": "altiner_2018_4",
+      "field": "interdependence",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_4",
+      "field": "task_complexity",
+      "expected": "high",
+      "coded": "medium"
+    },
+    {
+      "row_id": "altiner_2018_4",
+      "field": "team_longevity",
+      "expected": "stable",
+      "coded": "months"
+    }
+  ]
+}

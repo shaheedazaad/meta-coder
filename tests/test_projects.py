@@ -126,3 +126,9 @@ def test_manual_validation_preserves_outputs_and_reset_recovers(tmp_path):
     projects.reset_manual_to_default(project)
     assert projects.read_manual_text(project) == original
     assert project.raw_dir.is_dir() and project.audit_dir.is_dir()
+
+
+def test_archive_excludes_temporary_output(tmp_path):
+    project = create_project('Archive', root=tmp_path)
+    (project.output_dir / 'partial.tmp').write_text('unfinished')
+    assert not any(name.endswith('.tmp') for _, name in project_archive_files(project))

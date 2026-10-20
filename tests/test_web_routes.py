@@ -142,6 +142,25 @@ def test_manual_save_validation_import_and_reset(site):
     assert project.manual_path.read_text() == original
 
 
+def test_existing_manual_with_reserved_field_name_loads_with_repairable_error(site):
+    # Manuals saved before reserved names were rejected must still open: the
+    # page shows the error and the import/reset recovery, and keeps the file.
+    client, project, _ = site
+    legacy = 'effect_definition: comparison\neffects:\n  year: {type: integer}\n'
+    project.manual_path.write_text(legacy)
+    page = client.get(url(project))
+    assert page.status_code == 200
+    assert 'is reserved for a column MetaCoder adds' in page.text
+    assert 'publication_year' in page.text
+    assert 'Reset to a blank manual' in page.text and '/manual/import' in page.text
+    assert project.manual_path.read_text() == legacy
+    rejected = client.post(url(project, '/manual'), data={'manual_json': json.dumps(
+        {'effect_definition': 'comparison', 'effects': [{'name': 'Year', 'type': 'integer'}]}
+    )})
+    assert rejected.status_code == 400 and 'is reserved' in rejected.text
+    assert project.manual_path.read_text() == legacy
+
+
 def test_upload_routes_and_scanner_dispatch(site):
     client, project, runtime = site
     response = client.post(url(project, '/uploads'), files=[('files', ('ok.PDF', b'%PDF-good')), ('files', ('bad.pdf', b'bad'))])

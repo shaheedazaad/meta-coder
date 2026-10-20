@@ -35,3 +35,6 @@ coverage.json
 
 # JavaScript coverage reports
 coverage/
+
+# Evaluation runs (evals/baselines holds the committed ones)
+evals/runs/

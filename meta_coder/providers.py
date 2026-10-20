@@ -9,6 +9,7 @@ from . import gemini, openrouter, openai_compatible
 from .coding_sheet import CodingSheetRow
 from .extraction import ExtractionResult
 from .manual import CodingManual
+from .quote_check import annotate_quote_checks
 from .manual_drafting import (
     build_manual_draft_prompt,
     build_manual_draft_schema,
@@ -151,14 +152,14 @@ def extract_pdf_effects(
     blindly, since neither adapter's signature accepts the other's kwarg."""
 
     if provider == "openai_compatible":
-        return openai_compatible.extract_pdf_effects(
+        result = openai_compatible.extract_pdf_effects(
             pdf_path=pdf_path, manual=manual, rows=rows, api_key=api_key, model=model,
             base_url=base_url, response_format=response_format,
             timeout_sec=timeout_sec or openai_compatible.DEFAULT_TIMEOUT_SEC,
             reasoning_effort=reasoning_effort, cancel_event=cancel_event,
         )
-    if provider == "openrouter":
-        return openrouter.extract_pdf_effects(
+    elif provider == "openrouter":
+        result = openrouter.extract_pdf_effects(
             pdf_path=pdf_path,
             manual=manual,
             rows=rows,
@@ -168,8 +169,8 @@ def extract_pdf_effects(
             reasoning_effort=reasoning_effort,
             cancel_event=cancel_event,
         )
-    if provider == "gemini":
-        return gemini.extract_pdf_effects(
+    elif provider == "gemini":
+        result = gemini.extract_pdf_effects(
             pdf_path=pdf_path,
             manual=manual,
             rows=rows,
@@ -179,4 +180,8 @@ def extract_pdf_effects(
             service_tier=service_tier,
             cancel_event=cancel_event,
         )
-    raise ValueError(f"Unknown provider: {provider!r} (use one of {PROVIDERS}).")
+    else:
+        raise ValueError(f"Unknown provider: {provider!r} (use one of {PROVIDERS}).")
+    # Every provider's quotes are checked against the same local text layer.
+    annotate_quote_checks(result.coded_by_row_id, pdf_path)
+    return result
