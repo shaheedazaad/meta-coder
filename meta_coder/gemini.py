@@ -29,45 +29,13 @@ from .extraction import (
 import threading
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
+from .prompts import build_extraction_prompt
 
 
 API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_MODEL = "gemini-3.7-flash"
 DEFAULT_TIMEOUT_SEC = 600
 DEFAULT_SERVICE_TIER = "flex"  # 50% lower cost, variable latency/best-effort availability
-
-BASELINE_RULES = """You are a research assistant coding effects for a meta-analysis.
-
-Rules:
-1. Only use information present in the article. No outside knowledge, no inference
-   or best-guessing, unless a field's description explicitly says otherwise.
-2. If the article does not report a value for a field, set "value" to null and
-   say "Not reported" in "evidence" rather than guessing. A missing field is invalid.
-3. Code values must follow the exact formatting the field description specifies
-   (units, decimal places, category label text).
-4. "evidence" must be concise but specific: include a page number and/or a short
-   quotation, not a vague paraphrase.
-5. For a categorical field, report exactly one level unless its description states
-   that multiple levels are valid.
-6. Every object in "effects" MUST include a "row_id" that exactly matches one of the
-   requested row IDs below. Never invent, rename, or omit a row_id. Return exactly
-   one object per requested row, no more, no fewer."""
-
-
-def _build_prompt(manual: CodingManual, rows: list[CodingSheetRow]) -> str:
-    row_lines = "\n".join(
-        f"- row_id: {row.row_id}\n  locator: {row.locator or '(none)'}" for row in rows
-    )
-    return (
-        f"{BASELINE_RULES}\n\n"
-        f"Effect definition for this meta-analysis:\n{manual.effect_definition}\n\n"
-        f"Code the following {len(rows)} row(s) from the attached PDF. Each row is one "
-        "study/experiment/condition; use its locator to find the right one. A row with no "
-        "locator means this manuscript has only one effect of interest: identify and code it. "
-        "If it is not clear which effect that is, say so in the row's `notes` field rather "
-        "than guessing:\n"
-        f"{row_lines}"
-    )
 
 
 def _redact(text: str, api_key: str) -> str:
@@ -259,7 +227,7 @@ def extract_pdf_effects(
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual)
-    prompt = _build_prompt(manual, rows)
+    prompt = build_extraction_prompt(manual, rows)
 
     try:
         raw_text, tokens = _call_gemini(

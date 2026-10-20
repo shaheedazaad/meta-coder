@@ -21,8 +21,7 @@ from .extraction import (
 )
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
-
-from .openrouter import _build_prompt
+from .prompts import build_extraction_prompt
 
 DEFAULT_MODEL = ""
 DEFAULT_TIMEOUT_SEC = 600
@@ -219,7 +218,7 @@ def extract_pdf_effects(
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = _build_prompt(manual, rows).replace("attached PDF", "article text below")
+    prompt = build_extraction_prompt(manual, rows, article="article text below")
 
     try:
         raw_text, tokens = _call(
