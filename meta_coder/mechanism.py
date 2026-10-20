@@ -9,9 +9,10 @@ proven correct with hand-written fake responses before spending a single API cal
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
-from .manual import CodingManual, FieldSpec
+from .manual import NOTES_FIELD_NAME, CodingManual, FieldSpec
 
 
 # Two response-schema dialects share this same builder: Gemini's `responseSchema`
@@ -39,9 +40,47 @@ JSON_SCHEMA_TYPE = {
 }
 DIALECTS = {"gemini": GEMINI_TYPE, "json_schema": JSON_SCHEMA_TYPE}
 
+# Why a field has no value. Every coded field except the built-in `notes` field
+# carries one of these in `missing` when its `value` is null, and null otherwise.
+MISSING_CODES = ("not_reported", "not_applicable", "unclear")
+
+
+# The model's own confidence in a coded field, requested only when the manual
+# sets `confidence: true`. Never asked of the built-in `notes` field.
+CONFIDENCE_LEVELS = ("high", "medium", "low")
+
+
+def _missing_schema(type_map: dict[str, str]) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": type_map["string"],
+        "description": "Why `value` is null; null when a value is given.",
+        "enum": list(MISSING_CODES),
+    }
+    if type_map is JSON_SCHEMA_TYPE:
+        schema["type"] = [type_map["string"], "null"]
+        schema["enum"].append(None)
+    else:
+        schema["nullable"] = True
+    return schema
+
 
 def _value_schema(spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
-    schema: dict[str, Any] = {"type": type_map[spec.type]}
+    if spec.multiple:
+        # A list of levels. The enum sits on the items, and "nothing applies" is
+        # a null value with a `missing` code, never an empty list.
+        schema: dict[str, Any] = {
+            "type": type_map["array"],
+            "items": {
+                "type": type_map["string"],
+                "enum": [level.value for level in spec.levels],
+            },
+        }
+        if type_map is JSON_SCHEMA_TYPE:
+            schema["type"] = [type_map["array"], "null"]
+        else:
+            schema["nullable"] = True
+        return schema
+    schema = {"type": type_map[spec.type]}
     if type_map is JSON_SCHEMA_TYPE:
         schema["type"] = [type_map[spec.type], "null"]
     else:
@@ -53,9 +92,21 @@ def _value_schema(spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
     return schema
 
 
-def _coded_field_schema(name: str, spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
+def _coded_field_schema(
+    name: str, spec: FieldSpec, type_map: dict[str, str], *, confidence: bool = False
+) -> dict[str, Any]:
     properties: dict[str, Any] = {"value": _value_schema(spec, type_map)}
     required = ["value"]
+    if name != NOTES_FIELD_NAME:
+        properties["missing"] = _missing_schema(type_map)
+        required.append("missing")
+    if confidence and name != NOTES_FIELD_NAME:
+        properties["confidence"] = {
+            "type": type_map["string"],
+            "description": "How confident you are in this field's value or missing reason.",
+            "enum": list(CONFIDENCE_LEVELS),
+        }
+        required.append("confidence")
     if spec.evidence_required:
         properties["evidence"] = {
             "type": type_map["string"],
@@ -80,8 +131,9 @@ def build_response_schema(manual: CodingManual, *, dialect: str = "gemini") -> d
     location) are deliberately excluded — they are never requested of the model
     and are rejoined from the coding sheet at collation time.
 
-    Every manual field is required in each row. `value: null` means the article
-    does not report that value; omitting the field is never valid. The JSON
+    Every manual field is required in each row. `value: null` means no value
+    could be coded, with `missing` giving the reason (see MISSING_CODES);
+    omitting the field is never valid. The JSON
     Schema dialect is closed (`additionalProperties: false`) so OpenRouter can
     enforce it with strict structured output.
     """
@@ -104,7 +156,9 @@ def build_response_schema(manual: CodingManual, *, dialect: str = "gemini") -> d
     }
     required = ["row_id"]
     for name, spec in manual.effects.items():
-        effect_properties[name] = _coded_field_schema(name, spec, type_map)
+        effect_properties[name] = _coded_field_schema(
+            name, spec, type_map, confidence=manual.confidence
+        )
         required.append(name)
 
     item_schema: dict[str, Any] = {
@@ -145,19 +199,43 @@ class ValidationResult:
 def _valid_field_value(value: object, spec: FieldSpec) -> bool:
     if value is None:
         return True
+    if spec.multiple:
+        # At least one level, each listed in the manual, none repeated.
+        allowed = {level.value for level in spec.levels}
+        return (
+            isinstance(value, list)
+            and bool(value)
+            and all(isinstance(item, str) and item in allowed for item in value)
+            and len(set(value)) == len(value)
+        )
     if spec.type == "string":
         return isinstance(value, str) and (not spec.levels or value in {level.value for level in spec.levels})
     if spec.type == "number":
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
+        # Python's json module accepts NaN/Infinity, which no paper reports.
+        # Ints are always finite (and huge ones would overflow math.isfinite).
+        if isinstance(value, float):
+            return math.isfinite(value)
+        return isinstance(value, int) and not isinstance(value, bool)
     if spec.type == "integer":
         return isinstance(value, int) and not isinstance(value, bool)
     return isinstance(value, bool)
+
+
+def _valid_missing_code(field: dict) -> bool:
+    """A null value needs a reason; a coded value must not carry one."""
+
+    code = field.get("missing")
+    if field["value"] is None:
+        return isinstance(code, str) and code in MISSING_CODES
+    return code is None
 
 
 def validate_response(
     parsed: object,
     requested_row_ids: set[str],
     expected_fields: dict[str, FieldSpec] | set[str] | None = None,
+    *,
+    confidence: bool = False,
 ) -> ValidationResult:
     """Hard-validate a parsed response against the coding-sheet rows that were
     requested for one PDF.
@@ -165,7 +243,9 @@ def validate_response(
     Deliberately does NOT trust positional alignment: the returned row_id set must
     equal the requested set exactly, or the whole PDF is flagged needs_review. A
     mismatch is never partially accepted. When `expected_fields` is supplied,
-    every returned row must also include every manual field.
+    every returned row must also include every manual field. `confidence` is
+    the manual's setting: when true, every field except `notes` must carry one
+    of CONFIDENCE_LEVELS.
     """
 
     if not isinstance(parsed, dict):
@@ -177,11 +257,13 @@ def validate_response(
     coded_by_row_id: dict[str, dict[str, Any]] = {}
     returned_ids: set[str] = set()
     for index, item in enumerate(effects, start=1):
-        if not isinstance(item, dict) or not str(item.get("row_id") or "").strip():
+        # row_id must be the exact requested string: a number or a padded copy
+        # is never coerced into a match.
+        row_id = item.get("row_id") if isinstance(item, dict) else None
+        if not isinstance(row_id, str) or not row_id.strip():
             return ValidationResult(
-                ok=False, error=f"effects[{index}] is missing a non-empty `row_id`."
+                ok=False, error=f"effects[{index}] is missing a non-empty string `row_id`."
             )
-        row_id = str(item["row_id"]).strip()
         if row_id in returned_ids:
             return ValidationResult(ok=False, error=f"Duplicate row_id in response: `{row_id}`.")
         returned_ids.add(row_id)
@@ -225,6 +307,18 @@ def validate_response(
                 if "value" not in field or (
                     isinstance(expected_fields, dict)
                     and not _valid_field_value(field["value"], expected_fields[name])
+                ):
+                    names.append(name)
+                elif (
+                    isinstance(expected_fields, dict)
+                    and name != NOTES_FIELD_NAME
+                    and not _valid_missing_code(field)
+                ):
+                    names.append(name)
+                elif (
+                    confidence
+                    and name != NOTES_FIELD_NAME
+                    and field.get("confidence") not in CONFIDENCE_LEVELS
                 ):
                     names.append(name)
                 elif isinstance(expected_fields, dict) and expected_fields[name].evidence_required:

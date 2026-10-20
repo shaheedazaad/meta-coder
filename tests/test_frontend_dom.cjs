@@ -334,6 +334,20 @@ for (const kind of ['run', 'pdf-scan']) {
   });
 }
 
+test('run polling shows cells to check only for PDFs that have some', async t => {
+  let timers;
+  const current = { status: 'running', processed: 2, total: 3, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', cells_to_check: 2 }, { source_pdf: 'other.pdf', status: 'ok', cells_to_check: 0 }] };
+  const { d } = setup(t, 'project', w => {
+    timers = fakeTimers(w);
+    w.document.body.insertAdjacentHTML('beforeend', `<div id="run-progress" data-running="true" data-status-url="/status"><div data-progress-bar><span></span></div><p data-progress-summary></p></div><table><tr data-run-row="paper.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr><tr data-run-row="other.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr></table>`);
+    w.fetch = async () => ({ json: async () => current });
+  });
+  assert.equal(timers.run(), 1000);
+  await flush();
+  assert.match(d.querySelector('[data-run-row="paper.pdf"] [data-run-detail]').textContent, /^cells to check: 2$/);
+  assert.equal(d.querySelector('[data-run-row="other.pdf"] [data-run-detail]').textContent, '');
+});
+
 test('live search replaces only results, handles stale responses, and permits retry', async t => {
   let timers;
   const requests = [];
@@ -514,6 +528,30 @@ test('optional upload and editor controls can be absent without breaking the pag
   assert.equal(w.projectEdits.dirty(), true);
 });
 
+test('ticking several categories is saved, and switching to a number resets it', t => {
+  const { w, d } = setup(t, 'project', w => {
+    w.document.getElementById('manual-editor-data').textContent = JSON.stringify({
+      effects: [{ name: 'outcome', type: 'string', levels: [{ value: 'accuracy', description: '' }, { value: 'speed', description: '' }] }],
+    });
+  });
+  const block = [...d.querySelectorAll('#effect-fields-list details')]
+    .find(el => el.querySelector('[data-field="name"]').value === 'outcome');
+  const box = block.querySelector('[data-field="multiple"]');
+  const form = d.getElementById('manual-form');
+  form.addEventListener('submit', e => e.preventDefault());
+  assert.equal(box.checked, false);
+  box.checked = true;
+  box.dispatchEvent(new w.Event('change', { bubbles: true }));
+  submit(w, form);
+  let field = JSON.parse(d.getElementById('manual-json-input').value).effects.find(f => f.name === 'outcome');
+  assert.equal(field.multiple, true);
+  change(w, block.querySelector('[data-field="type"]'), 'number', 'change');
+  assert.equal(box.checked, false);
+  submit(w, form);
+  field = JSON.parse(d.getElementById('manual-json-input').value).effects.find(f => f.name === 'outcome');
+  assert.equal(field.multiple, false);
+});
+
 test('empty editor payload still permits adding a coding field', t => {
   const { d } = setup(t, 'project', w => {
     w.document.getElementById('manual-editor-data').textContent = '{}';
@@ -677,3 +715,29 @@ for (const preference of ['system', 'light', 'dark', 'invalid', null, 'storage-e
     });
   }
 }
+
+test('manual confidence checkbox reflects the editor data and submits its setting', t => {
+  const { w, d } = setup(t, 'project', w => {
+    w.document.getElementById('manual-editor-data').textContent = JSON.stringify({ effects: [], confidence: true });
+  });
+  const checkbox = d.getElementById('manual-confidence');
+  assert.equal(checkbox.checked, true);
+  const form = d.getElementById('manual-form');
+  form.addEventListener('submit', e => e.preventDefault());
+  checkbox.checked = false;
+  checkbox.dispatchEvent(new w.Event('change', { bubbles: true }));
+  submit(w, form);
+  assert.equal(JSON.parse(d.getElementById('manual-json-input').value).confidence, false);
+  checkbox.checked = true;
+  checkbox.dispatchEvent(new w.Event('change', { bubbles: true }));
+  submit(w, form);
+  assert.equal(JSON.parse(d.getElementById('manual-json-input').value).confidence, true);
+
+  const sparse = setup(t, 'project', w => {
+    w.document.getElementById('manual-editor-data').textContent = JSON.stringify({ effects: [] });
+  });
+  assert.equal(sparse.d.getElementById('manual-confidence').checked, false);
+  sparse.d.getElementById('manual-form').addEventListener('submit', e => e.preventDefault());
+  submit(sparse.w, sparse.d.getElementById('manual-form'));
+  assert.equal(JSON.parse(sparse.d.getElementById('manual-json-input').value).confidence, false);
+});
