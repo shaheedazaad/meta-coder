@@ -202,6 +202,8 @@ def test_resume_skips_already_successfully_coded_pdfs(tmp_path, monkeypatch):
     manual = parse_coding_manual(MANUAL_YAML)
     project = _make_project(tmp_path)
     sheet = _make_sheet(["ok.pdf", "retry.pdf"])
+    for name in ["ok.pdf", "retry.pdf"]:
+        (project.sources_dir / name).write_bytes(b"%PDF-test")
     calls = []
 
     def fake_extract(*, pdf_path, manual, rows, api_key, model, **_kwargs):

@@ -103,3 +103,4 @@ class ExtractionResult:
     input_tokens: int | None = None
     output_tokens: int | None = None
     audit_operation_id: str | None = None
+    input_fingerprint: str | None = None
