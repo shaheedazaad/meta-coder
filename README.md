@@ -186,12 +186,15 @@ using the Python environment where you installed it instead.
 6. On the **Run** tab, pick a provider/model and parallelism/pacing, then run. Every
    coding-sheet row for one PDF is sent in a single request; the model must echo
    back the exact row IDs it was given, or that PDF is marked `needs_review` rather
-   than accepting a best-effort guess. Progress updates live; a run in progress can
+   than accepting a best-effort guess. A response the provider cut short (e.g. at
+   its output token limit) or whose JSON had to be repaired is also marked
+   `needs_review`, with its values kept for inspection. Progress updates live; a run in progress can
    be cancelled (in-flight PDFs finish, queued ones stop). Failed/needs-review PDFs
    can be retried individually or all at once without reprocessing PDFs that already
    succeeded.
 7. On the **Results** tab, download `coded_data.csv` and `evidence.csv` — same
-   shape, `evidence.csv` has the supporting page/quote for each cell — plus one
+   shape, `evidence.csv` has the supporting page/quote for each cell, and
+   `quote_check.csv` reports whether each quote was found in the PDF's text — plus one
    readable `output/coded/<pdf>.yaml` per PDF for actually reading a handful of
    coded effects and quotes rather than scanning CSV columns. Each PDF's raw
    provider response is also viewable from the Run tab. Hand-check a few rows

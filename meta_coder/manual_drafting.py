@@ -147,6 +147,9 @@ Schema rules:
 - effects: fields whose values should be coded from research articles. Do not include
   administrative/source-identification fields such as row ID, filename, citation,
   authors, year, effect locator, reviewer notes, or page number.
+- Never name an effect row_id, source_pdf, locator, authors, year, or status (in
+  any capitalization); MetaCoder reserves these. If the document codes such a
+  property of the study, use a more specific name, e.g. publication_status.
 - Each effect has a unique name, one type (string, number, integer, or boolean), a
   self-contained coding instruction in description, evidence_required, and levels.
 - Use levels only for categorical string fields. Preserve every documented category

@@ -34,9 +34,9 @@ def test_yaml_diagnostics_include_location():
 
 
 def test_yaml_error_without_location(monkeypatch):
-    def fail(_):
+    def fail(_text, Loader):
         raise yaml.YAMLError('parser failure')
-    monkeypatch.setattr(manual.yaml, 'safe_load', fail)
+    monkeypatch.setattr(manual.yaml, 'load', fail)
     with pytest.raises(manual.ManualError, match='Invalid YAML: The YAML could not be parsed'):
         manual.parse_coding_manual('text')
 
@@ -68,8 +68,9 @@ def test_invalid_editor_payload(payload, message):
 
 @pytest.mark.parametrize(('parsed', 'message'), [
     ([], 'not a JSON object'), ({}, 'missing an `effects` array'),
-    ({'effects': [None]}, 'non-empty `row_id`'),
-    ({'effects': [{'row_id': ' '}]}, 'non-empty `row_id`'),
+    ({'effects': [None]}, 'non-empty string `row_id`'),
+    ({'effects': [{'row_id': ' '}]}, 'non-empty string `row_id`'),
+    ({'effects': [{'row_id': 1}]}, 'non-empty string `row_id`'),
 ])
 def test_invalid_response_envelope(parsed, message):
     result = mechanism.validate_response(parsed, {'r1'})
@@ -82,13 +83,38 @@ def test_invalid_response_envelope(parsed, message):
     ('integer', 1, True), ('integer', 1.5, False), ('integer', True, False),
     ('boolean', True, True), ('boolean', False, True), ('boolean', 0, False), ('boolean', 'true', False),
     ('integer', None, True),
+    ('number', float('nan'), False), ('number', float('inf'), False), ('number', float('-inf'), False),
+    ('number', 10 ** 400, True),
 ])
 def test_response_values_enforce_manual_types(kind, value, valid):
-    parsed = {'effects': [{'row_id': 'r1', 'field': {'value': value, 'evidence': 'p. 1'}}]}
+    field = {'value': value, 'evidence': 'p. 1'}
+    if value is None:
+        field['missing'] = 'not_reported'
+    parsed = {'effects': [{'row_id': 'r1', 'field': field}]}
     result = mechanism.validate_response(parsed, {'r1'}, {'field': manual.FieldSpec(type=kind)})
     assert result.ok is valid
     if not valid:
         assert 'invalid field value' in result.error
+
+
+def test_parsed_nonfinite_json_numbers_are_rejected():
+    from meta_coder.extraction import parse_json_response
+    for literal in ('NaN', 'Infinity', '-Infinity'):
+        parsed, _ = parse_json_response('{"effects": [{"row_id": "r1", "x": {"value": %s}}]}' % literal)
+        result = mechanism.validate_response(parsed, {'r1'}, {'x': manual.FieldSpec(type='number', evidence_required=False)})
+        assert not result.ok and 'invalid field value' in result.error
+
+
+@pytest.mark.parametrize('returned', [' r1 ', 'r1 ', 'R1'])
+def test_row_ids_must_match_exactly_without_normalisation(returned):
+    result = mechanism.validate_response({'effects': [{'row_id': returned}]}, {'r1'})
+    assert not result.ok
+    assert result.missing_ids == {'r1'} and result.extra_ids == {returned}
+
+
+def test_numeric_row_id_never_matches_string_request():
+    result = mechanism.validate_response({'effects': [{'row_id': 1}]}, {'1'})
+    assert not result.ok and 'string `row_id`' in result.error
 
 
 @pytest.mark.parametrize('field', [{}, {'value': 1}, {'value': 1, 'evidence': 42}, {'value': 1, 'evidence': ' '}])
