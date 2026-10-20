@@ -24,29 +24,8 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Diagnose Windows audit concurrency (temporary)
-        if: runner.os == 'Windows'
-        shell: python
-        run: |
-          import subprocess
-          for target in (
-              'tests/test_provenance.py::test_parallel_operations_keep_requests_separate',
-              'tests/test_provenance.py',
-          ):
-              for iteration in range(20):
-                  print(f'{target}: run {iteration + 1}/20', flush=True)
-                  subprocess.run(
-                      ['pixi', 'run', '--locked', '-e', 'dev', 'pytest', '-s', '-q', target],
-                      check=True,
-                  )
       - run: pixi run --locked -e dev test
       - run: pixi run --locked -e dev npm test
-      - name: Verify Windows coverage (temporary)
-        if: runner.os == 'Windows'
-        run: |
-          pixi run --locked -e dev coverage
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pixi run --locked -e dev npm run coverage
   docs:
     runs-on: ubuntu-24.04
     steps:
