@@ -17,12 +17,13 @@ from .extraction import (
     ExtractionResult,
     ProviderError,
     cancellable_urlopen,
+    normalize_finish_reason,
     parse_json_response,
+    review_issues,
 )
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
-
-from .openrouter import _build_prompt
+from .prompts import build_extraction_prompt
 
 DEFAULT_MODEL = ""
 DEFAULT_TIMEOUT_SEC = 600
@@ -103,7 +104,7 @@ def _call(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     payload: dict[str, Any] = {
         "model": model,
         "messages": [
@@ -188,6 +189,7 @@ def _call(
     tokens = {
         "input_tokens": usage.get("prompt_tokens"),
         "output_tokens": usage.get("completion_tokens"),
+        "finish_reason": normalize_finish_reason(choice.get("finish_reason")),
     }
     return text, tokens
 
@@ -219,7 +221,7 @@ def extract_pdf_effects(
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = _build_prompt(manual, rows).replace("attached PDF", "article text below")
+    prompt = build_extraction_prompt(manual, rows, article="article text below")
 
     try:
         raw_text, tokens = _call(
@@ -254,15 +256,18 @@ def extract_pdf_effects(
         )
 
     result: ValidationResult = validate_response(parsed, requested_ids, manual.effects)
+    issues = review_issues(
+        repaired_response=repaired_response, finish_reason=tokens.get("finish_reason")
+    )
     duration = time.monotonic() - started
-    if not result.ok:
+    if not result.ok or issues:
         return ExtractionResult(
             source_pdf=source_pdf,
             status="needs_review",
             coded_by_row_id=result.coded_by_row_id,
             missing_ids=result.missing_ids,
             extra_ids=result.extra_ids,
-            error=result.error,
+            error=" ".join(filter(None, [*issues, result.error])),
             raw_response=raw_text,
             repaired_response=repaired_response,
             duration_sec=duration,

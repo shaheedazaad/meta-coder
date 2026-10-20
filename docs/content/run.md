@@ -11,7 +11,7 @@ Once your manual and coding sheet are ready, use **Run** to select a provider, s
 3. Choose a provider and model. Use **Manage connection** if its key or endpoint is missing.
 4. Choose **Save run settings**, then start extraction.
 
-Each request includes all coding-sheet rows for one PDF. The response must include the exact row IDs requested; an inconsistent response is marked for review rather than accepted as a partial guess.
+Each request includes all coding-sheet rows for one PDF. The response must include the exact row IDs requested; an inconsistent response is marked for review rather than accepted as a partial guess. A response that the provider cut short (for example at its output token limit or by a content filter), or whose JSON had to be repaired, is also marked for review: its values are kept but may be truncated.
 
 ## Control throughput
 

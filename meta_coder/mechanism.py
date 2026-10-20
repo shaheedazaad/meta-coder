@@ -9,9 +9,10 @@ proven correct with hand-written fake responses before spending a single API cal
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
-from .manual import CodingManual, FieldSpec
+from .manual import NOTES_FIELD_NAME, CodingManual, FieldSpec
 
 
 # Two response-schema dialects share this same builder: Gemini's `responseSchema`
@@ -39,6 +40,24 @@ JSON_SCHEMA_TYPE = {
 }
 DIALECTS = {"gemini": GEMINI_TYPE, "json_schema": JSON_SCHEMA_TYPE}
 
+# Why a field has no value. Every coded field except the built-in `notes` field
+# carries one of these in `missing` when its `value` is null, and null otherwise.
+MISSING_CODES = ("not_reported", "not_applicable", "unclear")
+
+
+def _missing_schema(type_map: dict[str, str]) -> dict[str, Any]:
+    schema: dict[str, Any] = {
+        "type": type_map["string"],
+        "description": "Why `value` is null; null when a value is given.",
+        "enum": list(MISSING_CODES),
+    }
+    if type_map is JSON_SCHEMA_TYPE:
+        schema["type"] = [type_map["string"], "null"]
+        schema["enum"].append(None)
+    else:
+        schema["nullable"] = True
+    return schema
+
 
 def _value_schema(spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
     schema: dict[str, Any] = {"type": type_map[spec.type]}
@@ -56,6 +75,9 @@ def _value_schema(spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
 def _coded_field_schema(name: str, spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
     properties: dict[str, Any] = {"value": _value_schema(spec, type_map)}
     required = ["value"]
+    if name != NOTES_FIELD_NAME:
+        properties["missing"] = _missing_schema(type_map)
+        required.append("missing")
     if spec.evidence_required:
         properties["evidence"] = {
             "type": type_map["string"],
@@ -80,8 +102,9 @@ def build_response_schema(manual: CodingManual, *, dialect: str = "gemini") -> d
     location) are deliberately excluded — they are never requested of the model
     and are rejoined from the coding sheet at collation time.
 
-    Every manual field is required in each row. `value: null` means the article
-    does not report that value; omitting the field is never valid. The JSON
+    Every manual field is required in each row. `value: null` means no value
+    could be coded, with `missing` giving the reason (see MISSING_CODES);
+    omitting the field is never valid. The JSON
     Schema dialect is closed (`additionalProperties: false`) so OpenRouter can
     enforce it with strict structured output.
     """
@@ -148,10 +171,23 @@ def _valid_field_value(value: object, spec: FieldSpec) -> bool:
     if spec.type == "string":
         return isinstance(value, str) and (not spec.levels or value in {level.value for level in spec.levels})
     if spec.type == "number":
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
+        # Python's json module accepts NaN/Infinity, which no paper reports.
+        # Ints are always finite (and huge ones would overflow math.isfinite).
+        if isinstance(value, float):
+            return math.isfinite(value)
+        return isinstance(value, int) and not isinstance(value, bool)
     if spec.type == "integer":
         return isinstance(value, int) and not isinstance(value, bool)
     return isinstance(value, bool)
+
+
+def _valid_missing_code(field: dict) -> bool:
+    """A null value needs a reason; a coded value must not carry one."""
+
+    code = field.get("missing")
+    if field["value"] is None:
+        return isinstance(code, str) and code in MISSING_CODES
+    return code is None
 
 
 def validate_response(
@@ -177,11 +213,13 @@ def validate_response(
     coded_by_row_id: dict[str, dict[str, Any]] = {}
     returned_ids: set[str] = set()
     for index, item in enumerate(effects, start=1):
-        if not isinstance(item, dict) or not str(item.get("row_id") or "").strip():
+        # row_id must be the exact requested string: a number or a padded copy
+        # is never coerced into a match.
+        row_id = item.get("row_id") if isinstance(item, dict) else None
+        if not isinstance(row_id, str) or not row_id.strip():
             return ValidationResult(
-                ok=False, error=f"effects[{index}] is missing a non-empty `row_id`."
+                ok=False, error=f"effects[{index}] is missing a non-empty string `row_id`."
             )
-        row_id = str(item["row_id"]).strip()
         if row_id in returned_ids:
             return ValidationResult(ok=False, error=f"Duplicate row_id in response: `{row_id}`.")
         returned_ids.add(row_id)
@@ -225,6 +263,12 @@ def validate_response(
                 if "value" not in field or (
                     isinstance(expected_fields, dict)
                     and not _valid_field_value(field["value"], expected_fields[name])
+                ):
+                    names.append(name)
+                elif (
+                    isinstance(expected_fields, dict)
+                    and name != NOTES_FIELD_NAME
+                    and not _valid_missing_code(field)
                 ):
                     names.append(name)
                 elif isinstance(expected_fields, dict) and expected_fields[name].evidence_required:
