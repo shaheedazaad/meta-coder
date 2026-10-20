@@ -41,7 +41,7 @@ from .mechanism import ValidationResult, build_response_schema, validate_respons
 API_BASE = "https://openrouter.ai/api/v1"
 # The model field is free text; use `list_models`/`check_model` to verify a
 # different model ID before saving it.
-DEFAULT_MODEL = "google/gemini-3.7-flash"
+DEFAULT_MODEL = "google/gemini-3.8-flash"
 DEFAULT_TIMEOUT_SEC = 600
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE_SEC = 2.0
@@ -133,9 +133,10 @@ def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list
     modalities = set((entry.get("architecture") or {}).get("input_modalities") or [])
     if "file" not in modalities:
         problems.append(
-            "This model has no native file/PDF input — OpenRouter will use its free "
-            "Cloudflare AI parser to convert the PDF to text/Markdown. Information conveyed "
-            "only visually — figures or unusually laid-out tables — may be lost."
+            "This model has no native file/PDF input — OpenRouter will send each PDF to its "
+            "default parser, the third-party Mistral OCR service, which is charged per page "
+            "on top of the model's token cost. Information conveyed only visually — figures "
+            "or unusually laid-out tables — may be lost in the conversion."
         )
     return problems
 
@@ -149,7 +150,7 @@ def _call_openrouter_content(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     payload: dict[str, Any] = {
         "model": model,
         "messages": [
@@ -221,9 +222,13 @@ def _call_openrouter_content(
     usage = body.get("usage") or {}
     if not isinstance(usage, dict):
         usage = {}
+    # OpenAI-style completion_tokens already includes any reasoning tokens
+    # (completion_tokens_details.reasoning_tokens is only a breakdown).
+    served_model = body.get("model")
     tokens = {
         "input_tokens": usage.get("prompt_tokens"),
         "output_tokens": usage.get("completion_tokens"),
+        "served_model": served_model if isinstance(served_model, str) and served_model else None,
     }
     return text, tokens
 
@@ -239,7 +244,7 @@ def _call_openrouter(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     """Structured generation with a PDF file part, kept as the extraction seam."""
 
     return _call_openrouter_content(
@@ -349,6 +354,7 @@ def extract_pdf_effects(
             duration_sec=duration,
             input_tokens=tokens.get("input_tokens"),
             output_tokens=tokens.get("output_tokens"),
+            served_model=tokens.get("served_model"),
         )
 
     return ExtractionResult(
@@ -360,4 +366,5 @@ def extract_pdf_effects(
         duration_sec=duration,
         input_tokens=tokens.get("input_tokens"),
         output_tokens=tokens.get("output_tokens"),
+        served_model=tokens.get("served_model"),
     )

@@ -7,6 +7,7 @@ import urllib.error
 from urllib.parse import urlencode
 
 import pytest
+import yaml
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
@@ -16,7 +17,7 @@ from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
 from meta_coder.extraction import ExtractionCancelled, ProviderError
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import create_project
-from meta_coder.runner import Runner, load_persisted_results
+from meta_coder.runner import Runner, audit_yaml_path, load_persisted_results, raw_json_path
 from meta_coder.settings import RunSettings, load_run_settings, save_run_settings
 from meta_coder.web import Runtime, create_app
 
@@ -26,7 +27,7 @@ REPLY = {"effects": [{"row_id": "r1", "estimate": {"value": 42, "evidence": "Pag
 
 
 def completion(value=REPLY):
-    return json.dumps({"choices": [{"message": {"content": json.dumps(value)}}],
+    return json.dumps({"model": "local/model-q4", "choices": [{"message": {"content": json.dumps(value)}}],
                        "usage": {"prompt_tokens": 12, "completion_tokens": 8}}).encode()
 
 
@@ -136,6 +137,12 @@ def test_extraction_through_runner_preserves_validation_and_usage(tmp_path, monk
     result = load_persisted_results(project)['paper.pdf']
     assert result.status == 'ok'
     assert result.input_tokens == 12 and result.output_tokens == 8
+    # The requested and provider-reported (served) model are both persisted.
+    assert result.served_model == 'local/model-q4'
+    raw = json.loads(raw_json_path(project, 'paper.pdf').read_text())
+    assert (raw['model'], raw['served_model']) == ('local/model', 'local/model-q4')
+    audit = yaml.safe_load(audit_yaml_path(project, 'paper.pdf').read_text())
+    assert (audit['provider'], audit['model'], audit['served_model']) == ('openai_compatible', 'local/model', 'local/model-q4')
     assert result.coded_by_row_id['r1']['estimate']['value'] == 42
     prompt = captured[0]['messages'][0]['content']
     assert '[Page 1]' in prompt and 'The estimate is 42.' in prompt
@@ -412,7 +419,7 @@ def test_invalid_usage_is_ignored_and_reasoning_effort_forwarded(monkeypatch):
         captured.append(json.loads(request.data))
         return json.dumps({'choices': [{'message': {'content': '{}'}}], 'usage': 'bad'}).encode()
     monkeypatch.setattr(adapter, 'cancellable_urlopen', respond)
-    assert endpoint_call(reasoning_effort='high') == ('{}', {'input_tokens': None, 'output_tokens': None})
+    assert endpoint_call(reasoning_effort='high') == ('{}', {'input_tokens': None, 'output_tokens': None, 'served_model': None})
     assert captured[0]['reasoning_effort'] == 'high'
     request = adapter._request('http://localhost/v1', api_key='')
     assert request.data is None and request.get_header('Authorization') is None

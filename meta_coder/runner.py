@@ -63,6 +63,7 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
                 "audit_operation_id": result.audit_operation_id,
                 "provider": provider,
                 "model": model,
+                "served_model": result.served_model,
                 "status": result.status,
                 "error": result.error,
                 "coded_by_row_id": result.coded_by_row_id,
@@ -100,6 +101,7 @@ def _result_from_raw_json(path: Path) -> ExtractionResult | None:
         duration_sec=data.get("duration_sec") or 0.0,
         input_tokens=data.get("input_tokens"),
         output_tokens=data.get("output_tokens"),
+        served_model=data.get("served_model"),
     )
 
 
@@ -371,7 +373,8 @@ class Runner:
                 write_raw_result(project, result, provider=provider, model=model)
                 audit_yaml_path(project, progress.source_pdf).write_text(
                     render_pdf_audit_yaml(
-                        manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result
+                        manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result,
+                        provider=provider, model=model,
                     ),
                     encoding="utf-8",
                 )

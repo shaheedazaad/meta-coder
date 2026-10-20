@@ -73,6 +73,8 @@ def render_pdf_audit_yaml(
     source_pdf: str,
     rows: list[CodingSheetRow],
     result: ExtractionResult,
+    provider: str | None = None,
+    model: str | None = None,
 ) -> str:
     """One readable YAML file per PDF, with both codes and evidence together —
     the human audit trail. Wide coded_data.csv/evidence.csv are for joining into
@@ -98,6 +100,12 @@ def render_pdf_audit_yaml(
     data: dict[str, Any] = {"source_pdf": source_pdf, "status": result.status}
     if result.audit_operation_id:
         data["audit_operation_id"] = result.audit_operation_id
+    if provider:
+        data["provider"] = provider
+    if model:
+        data["model"] = model
+    if result.served_model:
+        data["served_model"] = result.served_model
     if result.repaired_response is not None:
         data["json_repaired"] = True
     if result.error:

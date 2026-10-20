@@ -45,6 +45,7 @@ def test_missing_and_corrupt_persisted_results_are_ignored(inputs):
     path.write_text(json.dumps({'source_pdf': 'paper.pdf'}))
     result = module.load_persisted_results(project)['paper.pdf']
     assert result.status == 'error' and result.coded_by_row_id == {} and result.duration_sec == 0
+    assert result.served_model is None  # legacy records predate served_model
     shutil.rmtree(project.raw_dir)
     assert module.load_persisted_results(project) == {}
 
