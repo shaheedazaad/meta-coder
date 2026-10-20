@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from typing import Any
 
 import yaml
@@ -109,3 +110,59 @@ def render_pdf_audit_yaml(
     data["effects"] = effects
 
     return yaml.dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=100)
+
+
+# OWASP CSV-injection guidance: spreadsheet apps evaluate cells starting with
+# these characters as formulas. Tab and carriage return are always prefixed;
+# the others also after leading whitespace, which some apps ignore.
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
+_CONTROL_PREFIXES = ("\t", "\r")
+_NUMBER_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
+
+
+def spreadsheet_safe_cell(text: str) -> str:
+    """Prefix formula-like text with an apostrophe so spreadsheets show it as
+    text. Signed numbers such as `-1.25e-3` are left alone so they stay numeric."""
+
+    if text.startswith(_CONTROL_PREFIXES):
+        return "'" + text
+    stripped = text.lstrip()
+    if stripped.startswith(_FORMULA_PREFIXES) and not _NUMBER_RE.fullmatch(stripped):
+        return "'" + text
+    return text
+
+
+def spreadsheet_csv(canonical_csv: str) -> bytes:
+    """Re-encode a canonical results CSV for opening directly in Excel or
+    LibreOffice: a UTF-8 BOM so non-ASCII text displays correctly, CRLF line
+    endings, and formula-like cells (headers included) escaped. The canonical
+    files themselves are never changed — they remain the exact research data."""
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    for row in csv.reader(io.StringIO(canonical_csv, newline="")):
+        if row:  # files written on Windows before CRLF handling was fixed contain blank lines
+            writer.writerow([spreadsheet_safe_cell(cell) for cell in row])
+    return buffer.getvalue().encode("utf-8-sig")
+
+
+PROVENANCE_COLUMNS = ("row_id", "source_pdf", "provider", "model", "audit_operation_id")
+
+
+def provenance_csv(coded_csv: str, results_by_pdf: dict[str, ExtractionResult]) -> str:
+    """One row per row of `coded_data.csv`, recording the provider and model
+    that produced that PDF's persisted result and the audit operation holding
+    the full request/response. Results from mixed-provider retries are
+    reported per PDF; results saved before this was recorded have blanks."""
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(PROVENANCE_COLUMNS)
+    for row in csv.DictReader(io.StringIO(coded_csv, newline="")):
+        source_pdf = row.get("source_pdf") or ""
+        result = results_by_pdf.get(source_pdf) or ExtractionResult(source_pdf, "not_run")
+        writer.writerow([
+            row.get("row_id") or "", source_pdf,
+            result.provider or "", result.model or "", result.audit_operation_id or "",
+        ])
+    return buffer.getvalue()

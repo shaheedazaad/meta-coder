@@ -18,6 +18,8 @@ Check that each `row_id` corresponds to the intended experiment or condition, th
 | --- | --- |
 | `coded_data.csv` | Coded values arranged by effect row |
 | `evidence.csv` | Supporting page and quote information for the coded cells |
+| `provenance.csv` | Provider, model and audit operation behind each row of `coded_data.csv`; blank for results saved by earlier versions |
+| Spreadsheet copies | `coded_data.csv` and `evidence.csv` for opening in Excel or LibreOffice: text that could run as a formula (starting with `=`, `+`, `-` or `@`) begins with `'`, and accented characters display correctly. Use the plain files for analysis |
 | Per-PDF YAML | Readable coded effects and evidence for a single study |
 | Audit ZIP | Complete project export with persistent request/response history, provenance, and checksums |
 

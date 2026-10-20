@@ -74,6 +74,9 @@ def test_concurrent_run_attributes_results_to_the_correct_pdf(tmp_path, monkeypa
         assert progress.status == "ok"
 
     coded_csv = (project.output_dir / "coded_data.csv").read_text()
+    for name in ("coded_data.csv", "evidence.csv"):
+        # csv's own CRLF must not be translated again on Windows (\r\r\n = blank rows)
+        assert b"\r\r\n" not in (project.output_dir / name).read_bytes()
     for name in pdf_names:
         # each row's Condition value was set to its OWN pdf_path.name by the fake —
         # if results ever got cross-attributed under concurrency, this would fail.

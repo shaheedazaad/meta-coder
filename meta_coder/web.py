@@ -17,7 +17,7 @@ from pathlib import Path
 from urllib.parse import quote, urlencode
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup
 from starlette.background import BackgroundTask
@@ -66,11 +66,16 @@ from .projects import (
     write_manual,
 )
 from .providers import PROVIDER_LABELS, PROVIDERS, check_model, default_model, draft_coding_manual, draft_coding_sheet
+from .results import provenance_csv, spreadsheet_csv
 from .runner import Runner, load_persisted_results, raw_json_path_for_read
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .uploads import list_uploaded_pdfs, save_pdf_upload
 import yaml
+
+
+# Canonical result files under output/, keyed by their download route name.
+RESULT_CSV_FILES = {"coded": "coded_data.csv", "evidence": "evidence.csv"}
 
 
 def _embeddable_json(data: object) -> str:
@@ -1232,6 +1237,34 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if not path.is_file():
             raise HTTPException(status_code=404, detail="No results yet.")
         return FileResponse(path, media_type="text/csv", filename=f"{project.name}-evidence.csv")
+
+    def _csv_attachment(data: bytes, filename: str) -> Response:
+        # Same quoting as FileResponse: RFC 6266 filename*= for names that need escaping.
+        quoted = quote(filename)
+        disposition = f'attachment; filename="{filename}"' if quoted == filename else f"attachment; filename*=utf-8''{quoted}"
+        return Response(data, media_type="text/csv", headers={"Content-Disposition": disposition})
+
+    @app.get(f"/{token}/projects/{{project_id}}/download/spreadsheet/{{kind}}")
+    async def download_spreadsheet(project_id: str, kind: str):
+        project = runtime.project(project_id)
+        filename = RESULT_CSV_FILES.get(kind)
+        if filename is None:
+            raise HTTPException(status_code=404, detail="Unknown export.")
+        path = project.output_dir / filename
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="No results yet.")
+        data = spreadsheet_csv((await run_in_threadpool(path.read_bytes)).decode("utf-8"))
+        return _csv_attachment(data, f"{project.name}-{Path(filename).stem}-spreadsheet.csv")
+
+    @app.get(f"/{token}/projects/{{project_id}}/download/provenance")
+    async def download_provenance(project_id: str):
+        project = runtime.project(project_id)
+        path = project.output_dir / RESULT_CSV_FILES["coded"]
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="No results yet.")
+        coded_csv = (await run_in_threadpool(path.read_bytes)).decode("utf-8")
+        results = await run_in_threadpool(load_persisted_results, project)
+        return _csv_attachment(provenance_csv(coded_csv, results).encode("utf-8"), f"{project.name}-provenance.csv")
 
     @app.get(f"/{token}/projects/{{project_id}}/audit/{{filename}}")
     async def view_audit(project_id: str, filename: str):
