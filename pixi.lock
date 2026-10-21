@@ -1361,7 +1361,7 @@ packages:
   - mkdocs==1.6.1 ; extra == 'docs'
   - playwright>=1.51,<2 ; extra == 'docs-screenshots'
   - httpx>=0.28 ; extra == 'docs-screenshots'
-  requires_python: '>=3.10'
+  requires_python: '>=3.11'
 - pypi: https://files.pythonhosted.org/packages/02/36/ecc85bc96c273dc8a11273ed4782272975e6338d4a3e9228621175edf0e3/jaraco_functools-4.6.0-py3-none-any.whl
   name: jaraco-functools
   version: 4.6.0
