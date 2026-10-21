@@ -2,6 +2,8 @@
 
 MetaCoder helps you code meta-analysis studies with an LLM and review the evidence behind each value. Start with a clear effect definition, a coding manual, and a sheet describing the effects you want from each PDF.
 
+MetaCoder codes moderators and other study characteristics for each effect row of an existing coding sheet. It does not extract or compute effect sizes; your coding sheet must already list the effects you want coded.
+
 [![The MetaCoder Projects page with a demonstration project](assets/screenshots/home.png)](assets/screenshots/home.png)
 
 ## Install or update

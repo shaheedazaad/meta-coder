@@ -2,6 +2,8 @@
 
 Browser app for LLM-assisted meta-analysis moderator coding that runs on your computer.
 
+MetaCoder codes moderators and other study characteristics for each effect row of an existing coding sheet. It does not extract or compute effect sizes; your coding sheet must already list the effects you want coded.
+
 > [!TIP]
 > **New to MetaCoder?** Read the [user guide](https://shaheedazaad.github.io/meta-coder/) for installation instructions and a walkthrough of the full coding workflow.
 
@@ -30,7 +32,8 @@ Either way, this opens your browser to a local, randomly-tokened URL
 The project has two Pixi environments (`[tool.pixi.environments]` in
 `pyproject.toml`): `default` (just the app's runtime dependencies) and `dev`
 (`default` plus `pytest`). Both install `meta_coder` itself as an editable
-package (`pypi-dependencies = { path = ".", editable = true }`), so code
+package (`meta-coder = { path = ".", editable = true }` under
+`[tool.pixi.pypi-dependencies]`), so code
 changes take effect on the next request/restart — no reinstall step.
 
 ```sh
@@ -159,10 +162,11 @@ using the Python environment where you installed it instead.
    OS credential store (macOS Keychain / Windows Credential Locker / Linux Secret
    Service). After restart, keychain access is requested when you run an action
    that needs a key, never on launch. There is no separate unlock step or plaintext fallback.
-3. Write a coding manual on the project's **Coding manual** tab — a structured
-   editor, not raw YAML: `effect_definition` (what comparison counts as "the
-   effect"), and `effects` (the fields the model codes, with categories for
-   categorical ones). A starter example is pre-filled when you create a project. You
+3. Define the effect on **Define your analysis** (`effect_definition`: what
+   comparison counts as "the effect"), then write the coding manual on the
+   **Coding manual** tab — a structured editor, not raw YAML: `effects` (the
+   fields the model codes, with categories for categorical ones). Both are saved
+   in the same manual. A starter example is pre-filled when you create a project. You
    can also import an existing `manual.yml`, or drop a PDF, DOCX, RTF, or Markdown (.md) coding manual into
    the automatic generator. Its provider/model are configured globally in Settings,
    independently of extraction. The draft appears in the editor without a page reload
@@ -170,9 +174,11 @@ using the Python environment where you installed it instead.
 4. Upload the PDFs you want coded (**Source PDFs** tab).
 5. Upload a coding sheet CSV (**Coding sheet** tab): `row_id`, `source_pdf`,
    `locator`, `authors`, `year` — one row per effect/experiment/condition. A row
-   whose `source_pdf` doesn't match an uploaded file is flagged as a blocking error,
-   not silently skipped.
-   For a CSV with a different layout, use **Convert an existing coding sheet**.
+   whose `source_pdf` doesn't match an uploaded file is listed under **PDF
+   matching** but does not block a run: unmatched rows are skipped when you run
+   extraction. Other row problems (duplicate `row_id`, missing authors/year)
+   must be fixed before running.
+   For a CSV with a different layout, use **AI conversion**.
    Add optional notes about its columns and intended effect rows, choose the CSV,
    and click **Convert to a draft**. Conversion uses the saved coding manual and
    the provider/model configured for manual drafting. Review the preview and
@@ -182,19 +188,20 @@ using the Python environment where you installed it instead.
    filled in before saving; unmatched PDFs can be identified afterward.
    CSVs must be UTF-8, with at most 2,000 source rows and 500,000 characters.
    Already formatted CSVs can still be uploaded directly under the separate
-   **Upload a CSV already in the required format** option.
+   **Upload formatted CSV** option.
 6. On the **Run** tab, pick a provider/model and parallelism/pacing, then run. Every
    coding-sheet row for one PDF is sent in a single request; the model must echo
    back the exact row IDs it was given, or that PDF is marked `needs_review` rather
    than accepting a best-effort guess. Progress updates live; a run in progress can
-   be cancelled (in-flight PDFs finish, queued ones stop). Failed/needs-review PDFs
+   be cancelled (queued PDFs stop; in-flight requests are interrupted and those PDFs
+   marked cancelled; already-coded PDFs are kept). Failed/needs-review PDFs
    can be retried individually or all at once without reprocessing PDFs that already
    succeeded.
 7. On the **Results** tab, download `coded_data.csv` and `evidence.csv` — same
    shape, `evidence.csv` has the supporting page/quote for each cell — plus one
    readable `output/coded/<pdf>.yaml` per PDF for actually reading a handful of
    coded effects and quotes rather than scanning CSV columns. Each PDF's raw
-   provider response is also viewable from the Run tab. Hand-check a few rows
+   provider response is also viewable from the Results tab (**view raw output**). Hand-check a few rows
    against evidence before trusting the results.
 
 ## Audit and reproducibility
@@ -203,7 +210,8 @@ using the Python environment where you installed it instead.
 `audit/` history. Each extraction or AI drafting action records app/source and
 dependency versions, UTC timestamps, input snapshots, exact credential-free
 request bodies, full provider response envelopes, model revision/fingerprint
-when returned, validation outcomes, and every HTTP retry. Run records preserve
+when returned, validation outcomes, and each HTTP exchange, including any
+automatic retries. Run records preserve
 CSV exports and connect per-PDF attempts. The ZIP includes current run settings
 and an `export_manifest.json` with SHA-256 checksums.
 
@@ -255,8 +263,8 @@ mechanism (build the response schema, hard-reject on any ID mismatch) with
 hand-written fake responses, with no API call involved.
 `tests/test_runner_concurrency.py` proves concurrent runs attribute results to the
 right PDF, the request pacer's delay is global not per-worker, a retry of a subset
-of PDFs doesn't blank out other PDFs' prior results, and cancellation stops queued
-work without killing an in-flight request.
+of PDFs doesn't blank out other PDFs' prior results, and cancellation skips queued
+PDFs while keeping completed results.
 
 ## Frontend
 
@@ -276,7 +284,8 @@ own provider/model selection in Settings.
 
 Save an API key under **OpenAI-compatible** if the server requires authentication;
 local servers can run without one. Keys use the same OS credential store on your computer as the
-other providers. Unlock a saved key before running. When switching endpoints,
+other providers and, as with them, a saved key is read from the store when you
+run an action that needs it. When switching endpoints,
 replace or remove the old key as appropriate.
 
 The default output mode is **Strict JSON schema**. For servers that do not support
