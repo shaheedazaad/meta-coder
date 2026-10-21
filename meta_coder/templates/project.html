@@ -995,6 +995,10 @@
                   <a href="/{{ token }}/projects/{{ project.project_id }}/raw/{{ pdf.raw_filename }}"
                      target="_blank" class="u-xs" style="color:var(--primary)">view raw output (YAML)</a>
                   {% endif %}
+                  {% if pdf.audit_available %}
+                  <a href="/{{ token }}/projects/{{ project.project_id }}/audit/{{ pdf.audit_filename }}"
+                     target="_blank" class="u-xs" style="color:var(--primary)">view coded effects (YAML)</a>
+                  {% endif %}
                   {% if pdf.retryable and not is_running %}
                   <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/run/retry">
                     <input type="hidden" name="source_pdf" value="{{ pdf.source_pdf }}">
