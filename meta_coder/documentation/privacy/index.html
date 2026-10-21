@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A practical guide to coding studies with MetaCoder.">
+  <title>Privacy and data sharing · MetaCoder Guide</title>
+  <script src="../theme.js"></script>
+  <link rel="stylesheet" href="../assets/vendor/basecoat.min.css">
+  <link rel="stylesheet" href="../assets/app.css">
+  <link rel="stylesheet" href="../docs.css">
+</head>
+<body>
+  <a class="u-visually-hidden-focusable" href="#main">Skip to content</a>
+  <header class="app-bar">
+    <a class="app-bar-brand" href=".."><span class="app-bar-mark" aria-hidden="true">M</span>MetaCoder <span class="docs-brand-label">Guide</span></a>
+    <span class="app-bar-spacer"></span>
+    <a class="btn" data-variant="ghost" data-size="sm" id="back-to-app" hidden>Back to app</a>
+    <label class="u-visually-hidden" for="docs-theme">Theme</label>
+    <select id="docs-theme" class="select" aria-label="Theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+  </header>
+  <div class="docs-layout">
+    <aside class="docs-sidebar">
+      <details id="docs-navigation" open>
+        <summary>In this guide</summary>
+        <nav aria-label="Documentation">
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="./" aria-current="page"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+        </nav>
+      </details>
+      <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
+    </aside>
+    <main id="main" class="docs-article">
+      <p class="docs-eyebrow">METACODER / USER GUIDE</p>
+      <h1 id="privacy-and-data-sharing">Privacy and data sharing<a class="headerlink" href="#privacy-and-data-sharing" title="Permanent link">&para;</a></h1>
+<p>MetaCoder runs on your computer, but every AI action sends research documents to the provider you choose. Check what that provider may do with them before you upload unpublished, confidential, or personal material.</p>
+<p>This page describes what MetaCoder sends and summarises provider terms as checked on 10 October 2026. Terms change; read the linked pages yourself, and ask your institution's data protection, ethics, or legal advisers where needed. This page is not legal advice.</p>
+<h2 id="what-leaves-your-computer">What leaves your computer<a class="headerlink" href="#what-leaves-your-computer" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Sent to</th>
+<th>Content sent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Extraction with Gemini</td>
+<td>Google's Gemini API (<code>generativelanguage.googleapis.com</code>)</td>
+<td>The complete study PDF, plus instructions, your effect definition, coding manual fields, and the row IDs and locators for that PDF</td>
+</tr>
+<tr>
+<td>Extraction with OpenRouter</td>
+<td>OpenRouter (<code>openrouter.ai</code>), which forwards the request to a model provider</td>
+<td>The complete study PDF, plus the same instructions and coding details</td>
+</tr>
+<tr>
+<td>Extraction with an OpenAI-compatible endpoint</td>
+<td>The API base URL you entered</td>
+<td>Text extracted from the PDF on your computer, with page numbers, plus the same instructions and coding details. The PDF file itself is not sent</td>
+</tr>
+<tr>
+<td>AI manual drafting</td>
+<td>Your drafting provider</td>
+<td>Text extracted on your computer from the uploaded manual document</td>
+</tr>
+<tr>
+<td>Coding sheet conversion</td>
+<td>Your drafting provider</td>
+<td>The uploaded CSV content, your saved manual, your notes, and the names of uploaded PDFs</td>
+</tr>
+<tr>
+<td>Model checks</td>
+<td>The selected provider</td>
+<td>A request for model details; no documents</td>
+</tr>
+<tr>
+<td>Update checks</td>
+<td>GitHub</td>
+<td>A request for the latest release number; no documents or keys</td>
+</tr>
+</tbody>
+</table>
+<p>Your API key is sent only to the provider it belongs to, to authorise requests. Nothing is sent to the MetaCoder developers.</p>
+<h2 id="what-is-stored-on-your-computer">What is stored on your computer<a class="headerlink" href="#what-is-stored-on-your-computer" title="Permanent link">&para;</a></h2>
+<p>Projects are saved in the app's data folder (see <a href="../projects/#data-locations">Data locations</a>). A project contains your manual, coding sheet, source PDFs, results, and an <code>audit/</code> folder. The <a href="../auditing/">audit history</a> keeps copies of the inputs and the full request sent to the provider, including the encoded PDF or extracted text, and the provider's response.</p>
+<p>API keys are kept in your operating system's credential store, not in project files or exports. Project and audit ZIP exports do contain your documents, so share them with the same care as the PDFs themselves.</p>
+<h2 id="google-gemini">Google Gemini<a class="headerlink" href="#google-gemini" title="Permanent link">&para;</a></h2>
+<p>Google's <a href="https://ai.google.dev/gemini-api/terms">Gemini API Additional Terms of Service</a> (last modified 28 April 2026) distinguish unpaid and paid use:</p>
+<ul>
+<li><strong>Unpaid Services</strong>, including the unpaid quota of the Gemini API: Google uses submitted content and responses "to provide, improve, and develop Google products and services and machine learning technologies". Human reviewers may read and annotate inputs and outputs, after Google disconnects them from your account and API key. The terms state: "Do not submit sensitive, confidential, or personal information to the Unpaid Services."</li>
+<li><strong>Paid Services</strong>: Google "doesn't use your prompts (including associated system instructions, cached content, and files such as images, videos, or documents) or responses to improve our products". Prompts and responses are logged "for a limited period of time" for detecting policy violations and any required legal or regulatory disclosures.</li>
+<li>The Gemini API counts as a paid service "only when accessing the API through a Cloud Project associated with an active billing account".</li>
+<li>For users in the European Economic Area, Switzerland, or the United Kingdom, the terms say the paid-service data terms apply to all services, including unpaid quota.</li>
+</ul>
+<p>Whether your requests are paid or unpaid depends on the Google Cloud project behind your API key, not on any MetaCoder setting. MetaCoder's default Gemini <strong>Service tier</strong> is <code>flex</code>, a cheaper, slower option. The <a href="https://ai.google.dev/gemini-api/docs/pricing">pricing page</a> marks Flex as unavailable on the free tier for most models, but choosing <code>flex</code> does not itself make a key paid. To use paid terms, enable billing for the project that owns your key in Google AI Studio or Google Cloud, and check the <strong>Used to improve our products</strong> row on the pricing page.</p>
+<h2 id="openrouter">OpenRouter<a class="headerlink" href="#openrouter" title="Permanent link">&para;</a></h2>
+<p>OpenRouter passes your request to a third-party model provider, so two sets of terms apply.</p>
+<ul>
+<li><strong>OpenRouter itself</strong>: its <a href="https://openrouter.ai/docs/guides/privacy/data-collection">data collection page</a> states that it does not store your prompts or responses unless you opt in to logging. One opt-in lets OpenRouter use inputs and outputs in exchange for a discount; leave it off for research documents.</li>
+<li><strong>The model provider</strong>: policies differ by provider. In your <a href="https://openrouter.ai/settings/privacy">OpenRouter privacy settings</a> you can exclude providers that may store inputs for training, and you can require <a href="https://openrouter.ai/docs/guides/features/zdr">Zero Data Retention (ZDR)</a> endpoints. OpenRouter says that where it cannot establish a provider's policy it assumes the endpoint "both retains and trains on data". MetaCoder does not send per-request routing preferences, so your account settings decide which providers are eligible.</li>
+<li><strong>PDF handling</strong>: if a model accepts files directly, OpenRouter passes the PDF to it. If not, OpenRouter converts the PDF first. Its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a> names the parsing engines it uses; at the time of checking, the default for models without native file input was a third-party OCR service charged per page. MetaCoder warns when you select a model without native file input.</li>
+</ul>
+<h2 id="openai-compatible-endpoints">OpenAI-compatible endpoints<a class="headerlink" href="#openai-compatible-endpoints" title="Permanent link">&para;</a></h2>
+<p>Data handling depends entirely on the endpoint. A local server such as Ollama or LM Studio on <code>http://localhost</code> keeps the extracted text on your computer. A university-hosted service or commercial API is governed by its own terms and your institution's agreement. Ask the service owner whether inputs are logged, retained, or used for training.</p>
+<h2 id="practical-guidance">Practical guidance<a class="headerlink" href="#practical-guidance" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Ethics approval and consent.</strong> Most meta-analyses code published articles, but check your protocol or ethics approval if you code unpublished manuscripts, grey literature, data shared by authors, or documents containing participant information.</li>
+<li><strong>Unpublished or confidential manuscripts.</strong> Material shared under confidentiality, such as reviewer copies or author-supplied reports, should only go to a service whose terms you and the owner accept. Prefer paid Gemini access, OpenRouter with ZDR, or a local endpoint.</li>
+<li><strong>Copyrighted articles.</strong> Uploading licensed PDFs to a third-party service may be restricted by your library's licence terms. Ask your library if you are unsure.</li>
+<li><strong>Avoid the unpaid Gemini tier</strong> for anything you would not publish, unless the EEA, Swiss, or UK terms apply to you.</li>
+<li><strong>Record your choice.</strong> Note the provider, model, and service tier in your methods section; see <a href="../validation/#report-your-methods">Validating the coding</a>.</li>
+</ul>
+      <nav class="docs-pagination" aria-label="Adjacent pages">
+        <a href="../settings/"><small>Previous</small>Connections and settings ←</a>
+        <a href="../analysis/"><small>Next</small>Define your analysis →</a>
+      </nav>
+    </main>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#what-leaves-your-computer">What leaves your computer</a><a href="#what-is-stored-on-your-computer">What is stored on your computer</a><a href="#google-gemini">Google Gemini</a><a href="#openrouter">OpenRouter</a><a href="#openai-compatible-endpoints">OpenAI-compatible endpoints</a><a href="#practical-guidance">Practical guidance</a></nav></aside>
+  </div>
+</body>
+</html>

@@ -6,7 +6,7 @@ Open **Settings** in the app header to configure provider connections and the mo
 
 ## Connect a provider
 
-Expand a provider under **Provider configuration**, enter its API key, then save. Keys are stored in your computer's operating system credential store. After restarting the app, access is requested when an action needs the key, rather than on launch.
+Expand a provider under **Provider configuration**, enter its API key, then save. Before choosing a provider, read [Privacy and data sharing](privacy.md): data use differs between providers and, for Gemini, between free and paid access. Keys are stored in your computer's operating system credential store. After restarting the app, access is requested when an action needs the key, rather than on launch.
 
 | Provider | Connection | Study PDF handling |
 | --- | --- | --- |
