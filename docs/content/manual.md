@@ -10,6 +10,8 @@ Open **Coding manual** and choose **Manual editing**. Give each field a clear na
 
 Descriptions should be relative to your [effect definition](analysis.md). For instance, a publication-status field could allow “Published” and “Unpublished,” while a numerical field could record the number of participants contributing to that effect.
 
+Field names must be unique, ignoring capitalization and surrounding spaces. MetaCoder already adds `row_id`, `source_pdf`, `locator`, `authors`, `year`, and `status` to every export, so a field cannot use one of those names in any capitalization — use a more specific name such as `publication_year` or `publication_status`.
+
 Choose **Validate and save** when the fields and effect definition are ready. Fix any validation messages before continuing.
 
 ## Draft from a document
@@ -37,6 +39,8 @@ effects:
       - value: Unpublished
         description: Thesis, preprint, or other unpublished report.
 ```
+
+Category values are kept exactly as written, so `yes`, `no`, `01`, and `1.50` stay as those labels. Only `true` and `false` are read as true/false settings (for example `evidence_required: false`). A key that appears twice in the same place, such as two fields with the same name, is reported as an error rather than silently overwritten.
 
 ## Changing a saved manual
 
