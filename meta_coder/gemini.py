@@ -14,6 +14,8 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -96,6 +98,51 @@ def check_model(model: str, *, api_key: str, timeout_sec: int = 20) -> list[str]
     return []
 
 
+MAX_ATTEMPTS = 3
+RETRY_BACKOFF_BASE_SEC = 2.0
+MAX_RETRY_AFTER_SEC = 30.0
+RETRYABLE_HTTP_STATUS = {429, 500, 502, 503, 504}
+
+
+def _retry_after_sec(headers: Any) -> float | None:
+    """Seconds requested by a Retry-After header (delay-seconds or HTTP-date)."""
+    value = str((headers or {}).get("Retry-After") or "").strip()
+    if value.isascii() and value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:  # "-0000" dates parse as naive; HTTP-dates are always GMT
+        when = when.replace(tzinfo=timezone.utc)
+    return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
+
+
+def _gemini_transport(request, *, timeout_sec, cancel_event):
+    """Send one Gemini request, retrying transient HTTP errors a bounded number of times.
+
+    Every attempt goes through `audited_transport`, so each failed exchange stays in
+    the audit history. Network errors and permanent HTTP errors are not retried.
+    """
+    event = cancel_event or threading.Event()
+    for attempt in range(MAX_ATTEMPTS):
+        if event.is_set():
+            raise ExtractionCancelled("Extraction cancelled by user.")
+        try:
+            return audited_transport(cancellable_urlopen, request, timeout=timeout_sec, cancel_event=event)
+        except urllib.error.HTTPError as exc:
+            if exc.code not in RETRYABLE_HTTP_STATUS or attempt == MAX_ATTEMPTS - 1:
+                raise
+            retry_after = _retry_after_sec(exc.headers)
+            if retry_after is not None and retry_after > MAX_RETRY_AFTER_SEC:
+                raise  # Do not retry sooner than the server asked; report the error instead.
+            delay = max(RETRY_BACKOFF_BASE_SEC * 2 ** attempt, retry_after or 0.0)
+            exc.close()  # Release the discarded error response before waiting.
+            if event.wait(delay):
+                raise ExtractionCancelled("Extraction cancelled by user.") from exc
+    raise AssertionError("unreachable")  # pragma: no cover - the loop returns or raises
+
+
 def _call_gemini_parts(
     *,
     model: str,
@@ -131,9 +178,7 @@ def _call_gemini_parts(
         method="POST",
     )
     try:
-        raw_body = audited_transport(cancellable_urlopen,
-            request, timeout=timeout_sec, cancel_event=cancel_event or threading.Event()
-        )
+        raw_body = _gemini_transport(request, timeout_sec=timeout_sec, cancel_event=cancel_event)
         raw_response = raw_body.decode("utf-8", errors="replace")
         try:
             body = json.loads(raw_response)
