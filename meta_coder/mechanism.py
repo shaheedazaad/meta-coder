@@ -9,6 +9,7 @@ proven correct with hand-written fake responses before spending a single API cal
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Any
 
 from .manual import CodingManual, FieldSpec
@@ -148,7 +149,11 @@ def _valid_field_value(value: object, spec: FieldSpec) -> bool:
     if spec.type == "string":
         return isinstance(value, str) and (not spec.levels or value in {level.value for level in spec.levels})
     if spec.type == "number":
-        return isinstance(value, (int, float)) and not isinstance(value, bool)
+        # Python's json module accepts NaN/Infinity, which no paper reports.
+        # Ints are always finite (and huge ones would overflow math.isfinite).
+        if isinstance(value, float):
+            return math.isfinite(value)
+        return isinstance(value, int) and not isinstance(value, bool)
     if spec.type == "integer":
         return isinstance(value, int) and not isinstance(value, bool)
     return isinstance(value, bool)
@@ -177,11 +182,13 @@ def validate_response(
     coded_by_row_id: dict[str, dict[str, Any]] = {}
     returned_ids: set[str] = set()
     for index, item in enumerate(effects, start=1):
-        if not isinstance(item, dict) or not str(item.get("row_id") or "").strip():
+        # row_id must be the exact requested string: a number or a padded copy
+        # is never coerced into a match.
+        row_id = item.get("row_id") if isinstance(item, dict) else None
+        if not isinstance(row_id, str) or not row_id.strip():
             return ValidationResult(
-                ok=False, error=f"effects[{index}] is missing a non-empty `row_id`."
+                ok=False, error=f"effects[{index}] is missing a non-empty string `row_id`."
             )
-        row_id = str(item["row_id"]).strip()
         if row_id in returned_ids:
             return ValidationResult(ok=False, error=f"Duplicate row_id in response: `{row_id}`.")
         returned_ids.add(row_id)
