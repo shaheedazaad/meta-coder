@@ -64,6 +64,7 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
                 "audit_operation_id": result.audit_operation_id,
                 "provider": provider,
                 "model": model,
+                "served_model": result.served_model,
                 "prompt_version": PROMPT_VERSION,
                 "status": result.status,
                 "error": result.error,
@@ -101,6 +102,7 @@ def _result_from_raw_json(path: Path) -> ExtractionResult | None:
         duration_sec=data.get("duration_sec") or 0.0,
         input_tokens=data.get("input_tokens"),
         output_tokens=data.get("output_tokens"),
+        served_model=data.get("served_model"),
     )
 
 
@@ -377,7 +379,8 @@ class Runner:
                 write_raw_result(project, result, provider=provider, model=model)
                 atomic_write(audit_yaml_path(project, progress.source_pdf),
                     render_pdf_audit_yaml(
-                        manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result
+                        manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result,
+                        provider=provider, model=model,
                     ).encode("utf-8"),
                 )
             except Exception as exc:  # noqa: BLE001 - one PDF's failure (e.g. a

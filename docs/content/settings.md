@@ -14,6 +14,8 @@ Expand a provider under **Provider configuration**, enter its API key, then save
 | OpenRouter | Save an OpenRouter API key | PDF input through the provider |
 | OpenAI-compatible | Save the API base URL and a key if required | Text extracted on your computer, with page numbers |
 
+If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. MetaCoder warns about this when you save such a model in a project's Run settings. Information shown only in figures or unusual table layouts may be lost.
+
 For an OpenAI-compatible endpoint, include the API prefix such as `/v1`, without `/chat/completions`. Enter the exact model ID in the relevant model field. When changing endpoints, replace or remove the old key too.
 
 Choose a JSON output mode supported by the endpoint: **Strict JSON schema**, **JSON object**, or **Prompt only**. Responses are validated in every mode. Scanned pages and figures may need OCR or a provider with native PDF support.
