@@ -1,3 +1,4 @@
+import pytest
 import yaml
 
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
@@ -97,3 +98,19 @@ def test_collate_renders_null_as_not_reported():
     coded_rows, _ = collate_results(manual=manual, coding_sheet=sheet, results_by_pdf={"paper.pdf": result})
     assert coded_rows[0]["Condition"] == "Not Reported"
     assert coded_rows[0]["ResponseTimeMs"] == "Not Reported"
+
+
+@pytest.mark.parametrize('field', ['malformed', 7, [1], True])
+def test_malformed_review_fields_do_not_break_exports(field):
+    from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
+    from meta_coder.extraction import ExtractionResult
+    from meta_coder.manual import parse_coding_manual
+    from meta_coder.results import collate_results, render_pdf_audit_yaml
+    manual = parse_coding_manual('effect_definition: comparison\neffects:\n  estimate: {type: number}\n')
+    rows = [CodingSheetRow('r1', 'p.pdf', '')]
+    result = ExtractionResult('p.pdf', 'needs_review', coded_by_row_id={'r1': {'estimate': field}}, raw_response='original malformed response')
+    coded, evidence = collate_results(manual=manual, coding_sheet=CodingSheet(rows, []), results_by_pdf={'p.pdf': result})
+    assert coded[0]['estimate'] == '' and evidence[0]['estimate'] == ''
+    audit = render_pdf_audit_yaml(manual=manual, source_pdf='p.pdf', rows=rows, result=result)
+    assert 'needs_review' in audit
+    assert result.coded_by_row_id['r1']['estimate'] == field

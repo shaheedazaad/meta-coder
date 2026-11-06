@@ -2,7 +2,7 @@
 name = "meta-coder"
 version = "0.1.0"
 description = "Local browser app for LLM-assisted meta-analysis moderator coding"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
@@ -44,7 +44,7 @@ channels = ["conda-forge"]
 platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
 
 [tool.pixi.dependencies]
-python = ">=3.10,<3.13"
+python = ">=3.11,<3.13"
 
 [tool.pixi.pypi-dependencies]
 meta-coder = { path = ".", editable = true }

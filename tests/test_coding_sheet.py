@@ -1,3 +1,4 @@
+import pytest
 import csv
 import io
 
@@ -114,3 +115,31 @@ def test_missing_and_blank_sheet_files_are_empty(tmp_path):
     path.write_text(' \n')
     sheet = read_coding_sheet(path, uploaded_filenames=set())
     assert sheet.rows == [] and sheet.issues == []
+
+
+@pytest.mark.parametrize('text', [
+    '\ufeff row_id ,source_pdf,locator,authors,year\nr1,p.pdf,,Müller,2020\n',
+])
+def test_bom_and_normalized_headers(text):
+    sheet = parse_coding_sheet_csv(text, uploaded_filenames={'p.pdf'})
+    assert sheet.is_valid
+    assert sheet.rows[0].authors == 'Müller'
+
+
+@pytest.mark.parametrize('text', [
+    'row_id,row_id,source_pdf,locator,authors,year\nr1,r2,p.pdf,,Smith,2020\n',
+    'row_id,source_pdf,locator,authors,year\nr1,p.pdf,,Smith,2020,extra\n',
+    'row_id,source_pdf,locator,authors,year\nr1,p.pdf,,Smith\n',
+    'row_id,source_pdf,locator,authors,year\nr1,p.pdf,"unclosed,Smith,2020\n',
+])
+def test_malformed_sheet_structure_rejected(text):
+    sheet = parse_coding_sheet_csv(text, uploaded_filenames={'p.pdf'})
+    assert sheet.sheet_issues
+    assert not sheet.rows
+
+
+def test_disk_sheet_rejects_invalid_utf8(tmp_path):
+    from meta_coder.coding_sheet import read_coding_sheet
+    path = tmp_path / 'sheet.csv'
+    path.write_bytes(b'\xff')
+    assert 'UTF-8' in read_coding_sheet(path, uploaded_filenames=set()).sheet_issues[0].message

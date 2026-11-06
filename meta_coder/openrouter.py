@@ -36,49 +36,17 @@ from .extraction import (
 import threading
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
+from .prompts import build_extraction_prompt
 
 
 API_BASE = "https://openrouter.ai/api/v1"
 # The model field is free text; use `list_models`/`check_model` to verify a
 # different model ID before saving it.
-DEFAULT_MODEL = "google/gemini-3.7-flash"
+DEFAULT_MODEL = "google/gemini-3.8-flash"
 DEFAULT_TIMEOUT_SEC = 600
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE_SEC = 2.0
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
-
-BASELINE_RULES = """You are a research assistant coding effects for a meta-analysis.
-
-Rules:
-1. Only use information present in the article. No outside knowledge, no inference
-   or best-guessing, unless a field's description explicitly says otherwise.
-2. If the article does not report a value for a field, set "value" to null and
-   say "Not reported" in "evidence" rather than guessing. A missing field is invalid.
-3. Code values must follow the exact formatting the field description specifies
-   (units, decimal places, category label text).
-4. "evidence" must be concise but specific: include a page number and/or a short
-   quotation, not a vague paraphrase.
-5. For a categorical field, report exactly one level unless its description states
-   that multiple levels are valid.
-6. Every object in "effects" MUST include a "row_id" that exactly matches one of the
-   requested row IDs below. Never invent, rename, or omit a row_id. Return exactly
-   one object per requested row, no more, no fewer."""
-
-
-def _build_prompt(manual: CodingManual, rows: list[CodingSheetRow]) -> str:
-    row_lines = "\n".join(
-        f"- row_id: {row.row_id}\n  locator: {row.locator or '(none)'}" for row in rows
-    )
-    return (
-        f"{BASELINE_RULES}\n\n"
-        f"Effect definition for this meta-analysis:\n{manual.effect_definition}\n\n"
-        f"Code the following {len(rows)} row(s) from the attached PDF. Each row is one "
-        "study/experiment/condition; use its locator to find the right one. A row with no "
-        "locator means this manuscript has only one effect of interest: identify and code it. "
-        "If it is not clear which effect that is, say so in the row's `notes` field rather "
-        "than guessing:\n"
-        f"{row_lines}"
-    )
 
 
 def _redact(text: str, api_key: str) -> str:
@@ -133,9 +101,10 @@ def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list
     modalities = set((entry.get("architecture") or {}).get("input_modalities") or [])
     if "file" not in modalities:
         problems.append(
-            "This model has no native file/PDF input — OpenRouter will use its free "
-            "Cloudflare AI parser to convert the PDF to text/Markdown. Information conveyed "
-            "only visually — figures or unusually laid-out tables — may be lost."
+            "This model has no native file/PDF input — OpenRouter will send each PDF to its "
+            "default parser, the third-party Mistral OCR service, which is charged per page "
+            "on top of the model's token cost. Information conveyed only visually — figures "
+            "or unusually laid-out tables — may be lost in the conversion."
         )
     return problems
 
@@ -149,7 +118,7 @@ def _call_openrouter_content(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     payload: dict[str, Any] = {
         "model": model,
         "messages": [
@@ -221,9 +190,13 @@ def _call_openrouter_content(
     usage = body.get("usage") or {}
     if not isinstance(usage, dict):
         usage = {}
+    # OpenAI-style completion_tokens already includes any reasoning tokens
+    # (completion_tokens_details.reasoning_tokens is only a breakdown).
+    served_model = body.get("model")
     tokens = {
         "input_tokens": usage.get("prompt_tokens"),
         "output_tokens": usage.get("completion_tokens"),
+        "served_model": served_model if isinstance(served_model, str) and served_model else None,
     }
     return text, tokens
 
@@ -239,7 +212,7 @@ def _call_openrouter(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, int | None]]:
+) -> tuple[str, dict[str, Any]]:
     """Structured generation with a PDF file part, kept as the extraction seam."""
 
     return _call_openrouter_content(
@@ -300,7 +273,7 @@ def extract_pdf_effects(
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = _build_prompt(manual, rows)
+    prompt = build_extraction_prompt(manual, rows)
 
     try:
         raw_text, tokens = _call_openrouter(
@@ -349,6 +322,7 @@ def extract_pdf_effects(
             duration_sec=duration,
             input_tokens=tokens.get("input_tokens"),
             output_tokens=tokens.get("output_tokens"),
+            served_model=tokens.get("served_model"),
         )
 
     return ExtractionResult(
@@ -360,4 +334,5 @@ def extract_pdf_effects(
         duration_sec=duration,
         input_tokens=tokens.get("input_tokens"),
         output_tokens=tokens.get("output_tokens"),
+        served_model=tokens.get("served_model"),
     )
