@@ -12,7 +12,7 @@ Providers charge per token, a unit of text roughly the size of a short word. Inp
 - **Output size.** More rows, more fields, and longer evidence quotes increase output tokens.
 - **Reasoning.** Models that "think" before answering are billed for those reasoning tokens as output. A higher **Reasoning effort** setting usually increases cost.
 - **Service tier.** For Gemini, the `flex` service tier (MetaCoder's default) costs less than `standard` but may respond more slowly.
-- **Retries and re-runs.** OpenRouter and OpenAI-compatible requests are retried automatically after temporary errors; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.
+- **Retries and re-runs.** Requests to every provider are retried automatically, up to three attempts, after temporary errors such as rate limits or server overload; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.
 - **Drafting.** AI manual drafting and coding sheet conversion are separate, usually small, requests.
 
 OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs).
