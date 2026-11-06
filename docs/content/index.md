@@ -2,6 +2,8 @@
 
 MetaCoder helps you code meta-analysis studies with an LLM and review the evidence behind each value. Start with a clear effect definition, a coding manual, and a sheet describing the effects you want from each PDF.
 
+MetaCoder codes moderators and other study characteristics for each effect row of an existing coding sheet. It does not extract or compute effect sizes; your coding sheet must already list the effects you want coded.
+
 [![The MetaCoder Projects page with a demonstration project](assets/screenshots/home.png)](assets/screenshots/home.png)
 
 ## Install or update
@@ -52,11 +54,12 @@ MetaCoder checks for updates when you open a page, at most once every six hours.
 6. [Upload source PDFs](sources.md), then [review PDF matches](matching.md).
 7. [Run extraction](run.md) with your selected provider and model.
 8. [Review results and export](results.md), checking coded values against their supporting evidence.
+9. [Validate the coding](validation.md) against human coding on a sample of studies.
 
 > Screenshots throughout this guide show a fictional demonstration project. They do not represent research findings or a live provider run.
 
 ## Where your work lives
 
-Projects and non-secret preferences are stored on your computer. API keys are stored separately in your computer's built-in secure storage for passwords and other credentials. AI actions send the relevant documents or extracted text to the provider you choose; storing projects on your computer does not make those requests offline.
+Projects and non-secret preferences are stored on your computer. API keys are stored separately in your computer's built-in secure storage for passwords and other credentials. AI actions send the relevant documents or extracted text to the provider you choose; storing projects on your computer does not make those requests offline. See [Privacy and data sharing](privacy.md) for what each provider receives and how it may use it.
 
 Use [Project settings](projects.md) to export a ZIP backup. The light, dark, or system theme preference is shared between the app and its bundled guide.

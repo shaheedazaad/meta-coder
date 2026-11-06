@@ -20,13 +20,16 @@ markdown_extensions:
 nav:
   - Getting started: index.md
   - Connections and settings: settings.md
+  - Privacy and data sharing: privacy.md
   - Define your analysis: analysis.md
   - Coding manual: manual.md
   - Coding sheet: coding-sheet.md
   - Source PDFs: sources.md
   - PDF matching: matching.md
   - Run extraction: run.md
+  - Cost: costs.md
   - Review and export: results.md
   - Audit and reproducibility: auditing.md
+  - Validating the coding: validation.md
   - Project settings: projects.md
   - Troubleshooting: troubleshooting.md
