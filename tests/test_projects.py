@@ -165,3 +165,9 @@ def test_equivalent_incomplete_manual_and_unreadable_recovery(tmp_path):
     project.manual_path.write_text('invalid')
     projects.write_manual(project, manual)
     assert project.manual_path.read_text().startswith('name:')
+
+
+def test_archive_excludes_temporary_output(tmp_path):
+    project = create_project('Archive', root=tmp_path)
+    (project.output_dir / 'partial.tmp').write_text('unfinished')
+    assert not any(name.endswith('.tmp') for _, name in project_archive_files(project))

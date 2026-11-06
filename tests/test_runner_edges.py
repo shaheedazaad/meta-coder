@@ -196,3 +196,14 @@ def test_provider_and_error_record_persistence_failure_remain_visible(inputs, mo
     assert state.pdfs[0].status == 'error'
     assert 'provider failure' in state.pdfs[0].error
     assert state.processed == 1 and state.status == 'complete'
+
+
+def test_audit_finalization_failure_is_visible(inputs, monkeypatch):
+    monkeypatch.setattr(module, 'extract_pdf_effects', Mock(return_value=ExtractionResult('paper.pdf', 'ok')))
+    audit = Mock()
+    audit.id = "test-run"
+    audit.finish.side_effect = OSError('audit disk full')
+    state = run_sync(inputs, monkeypatch, state={'audit_run': audit})
+    assert state.status == 'failed'
+    assert state.error == 'Could not finalize audit history: audit disk full'
+    assert module.load_persisted_results(inputs[0])['paper.pdf'].status == 'ok'
