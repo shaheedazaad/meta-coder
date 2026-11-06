@@ -19,6 +19,12 @@ from .manual import CodingManual
 BASE_COLUMNS = ("row_id", "source_pdf", "locator", "authors", "year", "status")
 
 
+def _field_mapping(coded: dict, field_name: str) -> dict:
+    """Malformed model cells stay in raw JSON, but cannot break exports."""
+    value = coded.get(field_name)
+    return value if isinstance(value, dict) else {}
+
+
 def collate_results(
     *,
     manual: CodingManual,
@@ -46,7 +52,7 @@ def collate_results(
         coded_row = dict(base)
         evidence_row = dict(base)
         for field_name in effect_columns:
-            field_value = coded.get(field_name) or {}
+            field_value = _field_mapping(coded, field_name)
             value = field_value.get("value", "")
             coded_row[field_name] = "Not Reported" if value is None else str(value)
             evidence_row[field_name] = str(field_value.get("evidence", ""))
@@ -73,6 +79,8 @@ def render_pdf_audit_yaml(
     source_pdf: str,
     rows: list[CodingSheetRow],
     result: ExtractionResult,
+    provider: str | None = None,
+    model: str | None = None,
 ) -> str:
     """One readable YAML file per PDF, with both codes and evidence together —
     the human audit trail. Wide coded_data.csv/evidence.csv are for joining into
@@ -88,8 +96,8 @@ def render_pdf_audit_yaml(
         else:
             entry["fields"] = {
                 field_name: {
-                    "value": (coded.get(field_name) or {}).get("value"),
-                    "evidence": (coded.get(field_name) or {}).get("evidence"),
+                    "value": _field_mapping(coded, field_name).get("value"),
+                    "evidence": _field_mapping(coded, field_name).get("evidence"),
                 }
                 for field_name in manual.effects
             }
@@ -98,6 +106,12 @@ def render_pdf_audit_yaml(
     data: dict[str, Any] = {"source_pdf": source_pdf, "status": result.status}
     if result.audit_operation_id:
         data["audit_operation_id"] = result.audit_operation_id
+    if provider:
+        data["provider"] = provider
+    if model:
+        data["model"] = model
+    if result.served_model:
+        data["served_model"] = result.served_model
     if result.repaired_response is not None:
         data["json_repaired"] = True
     if result.error:

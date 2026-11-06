@@ -19,10 +19,11 @@ from pathlib import Path
 from typing import Any
 
 from .coding_sheet import CodingSheet
-from .extraction import ExtractionResult
+from .extraction import ExtractionResult, redact_secret
 from .fingerprints import InputChecker
 from .manual import CodingManual
 from .projects import Project
+from .prompts import PROMPT_VERSION
 from .provenance import AuditOperation, atomic_write, audited_call, json_bytes
 from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
 from .results import collate_results, render_pdf_audit_yaml, rows_to_csv
@@ -81,6 +82,8 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
             "audit_operation_id": result.audit_operation_id,
             "provider": provider,
             "model": model,
+            "served_model": result.served_model,
+            "prompt_version": PROMPT_VERSION,
             "status": result.status,
             "error": result.error,
             "coded_by_row_id": result.coded_by_row_id,
@@ -122,6 +125,7 @@ def _result_from_raw_json(path: Path) -> ExtractionResult | None:
         duration_sec=data.get("duration_sec") or 0.0,
         input_tokens=data.get("input_tokens"),
         output_tokens=data.get("output_tokens"),
+        served_model=data.get("served_model"),
     )
 
 
@@ -255,9 +259,10 @@ class Runner:
                 self._states.pop(project_id, None)
 
     def cancel(self, project_id: str) -> None:
-        """Cooperative cancellation: flips a flag `process_one` checks before
-        starting each PDF. A PDF already mid-request runs to completion rather
-        than being killed — the "next safe checkpoint" plan.md A7 calls for."""
+        """Stop queued PDFs from starting and interrupt in-flight requests:
+        `cancellable_urlopen` abandons a request once `cancel_event` is set,
+        and that PDF is recorded as cancelled. The provider may still finish
+        (and bill) a request it has already received."""
 
         state = self._states.get(project_id)
         if state and state.status == "running":
@@ -320,7 +325,8 @@ class Runner:
             started_at=time.time(),
         )
         state.audit_run = AuditOperation(project, "extraction_run", {
-            "provider": provider, "model": model, "parallel_requests": parallel_requests,
+            "provider": provider, "model": model, "prompt_version": PROMPT_VERSION,
+            "parallel_requests": parallel_requests,
             "request_delay_sec": request_delay_sec, "timeout_sec": request_timeout_sec,
             "service_tier": service_tier, "reasoning_effort": reasoning_effort,
             "base_url": base_url, "response_format": response_format,
@@ -402,6 +408,8 @@ class Runner:
             progress.status = "running"
             pdf_path = project.sources_dir / progress.source_pdf
             rows = coding_sheet.rows_for_pdf(progress.source_pdf)
+            result = None
+            storage_error = None
             # Fingerprinted before the request reads the PDF: if the file is
             # replaced meanwhile, the result can only be marked stale, never
             # passed off as current.
@@ -415,7 +423,8 @@ class Runner:
                 result = audited_call(
                     project, "extraction", extract_pdf_effects,
                     audit_inputs={"run_coding_sheet.json": json_bytes(coding_sheet)},
-                    audit_settings={"parallel_requests": parallel_requests, "request_delay_sec": request_delay_sec,
+                    audit_settings={"prompt_version": PROMPT_VERSION,
+                                    "parallel_requests": parallel_requests, "request_delay_sec": request_delay_sec,
                                     "run_id": state.audit_run.id if state.audit_run else None},
                     provider=provider,
                     pdf_path=pdf_path,
@@ -434,31 +443,37 @@ class Runner:
                 with results_lock:
                     selected = not keeps_success(results_by_pdf.get(progress.source_pdf), result)
                 if selected:
-                    audit_yaml_path(project, progress.source_pdf).write_text(
+                    atomic_write(audit_yaml_path(project, progress.source_pdf),
                         render_pdf_audit_yaml(
-                            manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result
-                        ),
-                        encoding="utf-8",
+                            manual=manual, source_pdf=progress.source_pdf, rows=rows, result=result,
+                            provider=provider, model=model,
+                        ).encode("utf-8"),
                     )
             except Exception as exc:  # noqa: BLE001 - one PDF's failure (e.g. a
                 # disk write error) must not abort the whole run and lose every
                 # other already-completed PDF's results — see collate below.
-                result = ExtractionResult(
-                    source_pdf=progress.source_pdf, status="error", error=f"Unexpected error: {exc}",
-                    input_fingerprint=fingerprint,
-                )
-                try:
-                    write_raw_result(project, result, provider=provider, model=model)
-                except OSError:
-                    # The original failure still appears in this run's state;
-                    # a storage failure simply cannot survive a restart.
-                    pass
+                # Exception text can echo request details; results and
+                # progress are persisted and exported, so drop the key.
+                message = redact_secret(str(exc), api_key)
+                if result is None:
+                    result = ExtractionResult(
+                        source_pdf=progress.source_pdf, status="error", error=f"Unexpected error: {message}",
+                        input_fingerprint=fingerprint,
+                    )
+                    try:
+                        write_raw_result(project, result, provider=provider, model=model)
+                    except OSError:
+                        pass
+                else:
+                    # Keep the extracted data even if publishing its raw/YAML
+                    # files fails. Report that failure separately in progress.
+                    storage_error = f"Could not save extraction output: {message}"
 
             with results_lock:
                 if not keeps_success(results_by_pdf.get(progress.source_pdf), result):
                     results_by_pdf[progress.source_pdf] = result
-                progress.status = result.status
-                progress.error = result.error
+                progress.status = "error" if storage_error else result.status
+                progress.error = storage_error or result.error
                 progress.missing_ids = sorted(result.missing_ids)
                 progress.extra_ids = sorted(result.extra_ids)
                 progress.input_tokens = result.input_tokens
@@ -478,12 +493,8 @@ class Runner:
             coded_rows, evidence_rows = collate_results(
                 manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf
             )
-            (project.output_dir / "coded_data.csv").write_text(
-                rows_to_csv(coded_rows, manual), encoding="utf-8"
-            )
-            (project.output_dir / "evidence.csv").write_text(
-                rows_to_csv(evidence_rows, manual), encoding="utf-8"
-            )
+            atomic_write(project.output_dir / "coded_data.csv", rows_to_csv(coded_rows, manual).encode("utf-8"))
+            atomic_write(project.output_dir / "evidence.csv", rows_to_csv(evidence_rows, manual).encode("utf-8"))
             if state.audit_run:
                 for name in ("coded_data.csv", "evidence.csv"):
                     state.audit_run.input(name, (project.output_dir / name).read_bytes())
@@ -491,7 +502,7 @@ class Runner:
             terminal_status = "cancelled" if state.cancel_requested else "complete"
         except Exception as exc:  # noqa: BLE001 - surface any failure to the UI
             terminal_status = "failed"
-            state.error = str(exc)
+            state.error = redact_secret(str(exc), api_key)
         finally:
             state.finished_at = time.time()
             if state.audit_run:

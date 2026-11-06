@@ -27,10 +27,10 @@ from starlette.staticfiles import StaticFiles
 
 from .updates import UpdateChecker
 from . import credentials
-from .provenance import audited_call, export_manifest, json_bytes
+from .provenance import atomic_write, audited_call, export_manifest, json_bytes
 from .app_settings import AppSettings, endpoint_options, load_app_settings, save_app_settings
 from .openai_compatible import normalize_base_url
-from .coding_sheet import coding_sheet_template_csv, read_coding_sheet
+from .coding_sheet import coding_sheet_template_csv, parse_coding_sheet_csv, read_coding_sheet
 from .coding_sheet_drafting import CodingSheetDraftError, read_source_csv, validate_sheet_csv
 from .pdf_matching import (
     PdfScanner,
@@ -43,7 +43,7 @@ from .pdf_matching import (
     suggest_matches_from_score_cache,
     unmatched_paper_ids,
 )
-from .extraction import ProviderError
+from .extraction import ProviderError, redact_secret
 from .manual import (
     ManualError,
     manual_from_editor_payload,
@@ -123,6 +123,7 @@ GROBID_SETTINGS_ENABLED = False
 
 
 RETRYABLE_STATUSES = {"error", "needs_review", "cancelled", STALE_STATUS}
+RUN_ACTIVE_DETAIL = "Cancel or wait for the active run first."
 
 
 def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozenset()) -> list[dict]:
@@ -248,7 +249,10 @@ class Runtime:
         }
 
     def project(self, project_id: str) -> Project:
-        return get_project(project_id, root=self.projects_root)
+        try:
+            return get_project(project_id, root=self.projects_root)
+        except ProjectError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     def api_key(self, provider: str) -> str | None:
         return self._session_keys.get(provider)
@@ -526,8 +530,7 @@ def _project_view(
     failed_result_count = sum(row["status"] == "error" for row in run_rows_all)
     stale_result_count = sum(result.status == STALE_STATUS for result in persisted_results.values())
     can_retry = bool(
-        run_state
-        and not is_running
+        not is_running
         and api_key_set
         and run_settings.model.strip()
         and manual is not None
@@ -595,6 +598,7 @@ def _project_view(
         "manual_generator_setup_error": runtime.provider_setup_error(generator_provider, app_settings.manual_generator_model),
         "manual_generator_saved_key_available": runtime.has_saved_key(generator_provider),
         "run_rows": run_rows_page,
+        "run_rows_all": run_rows_all,
         "run_row_count": len(run_rows_all),
         "run_sort": run_sort,
         "run_dir": run_dir,
@@ -615,6 +619,19 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     runtime = Runtime(projects_root=projects_root)
     app.state.runtime = runtime
     updates = UpdateChecker()
+
+    def _reject_if_busy(
+        project_id: str, detail: str = RUN_ACTIVE_DETAIL, *, include_pdf_scan: bool = False
+    ) -> None:
+        """409 for a change to a project's inputs or output while a run is
+        active or cancelling. Its workers keep coding from the manual and
+        coding sheet they started with and write into output/ until they stop,
+        so an edit now would be mixed with, or overwritten by, stale results."""
+
+        if runtime.runner.is_running(project_id):
+            raise HTTPException(status_code=409, detail=detail)
+        if include_pdf_scan and runtime.pdf_scanner.is_running(project_id):
+            raise HTTPException(status_code=409, detail="Wait for the PDF scan to finish first.")
 
     @app.get(f"/{token}/updates")
     def update_status():
@@ -676,16 +693,16 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             project = runtime.project(project_id)
         except ProjectError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
-        if runtime.runner.is_running(project_id):
-            raise HTTPException(status_code=409, detail="Cancel or wait for the active run first.")
+        # An active PDF scan would recreate the deleted folder when it saves
+        # its signal cache.
+        _reject_if_busy(project_id, include_pdf_scan=True)
         delete_project(project)
         return RedirectResponse(f"/{token}/", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/clear-output")
     async def clear_output_route(project_id: str):
         project = runtime.project(project_id)
-        if runtime.runner.is_running(project_id):
-            raise HTTPException(status_code=409, detail="Cancel or wait for the active run first.")
+        _reject_if_busy(project_id)
         clear_output(project)
         runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=manage", status_code=303)
@@ -709,27 +726,32 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=manage", status_code=303)
 
     @app.get(f"/{token}/projects/{{project_id}}/download/zip")
-    async def download_project_zip(project_id: str):
+    def download_project_zip(project_id: str):
         project = runtime.project(project_id)
         files = project_archive_files(project)
         handle = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
         tmp_path = Path(handle.name)
         handle.close()
-        with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as archive:
-            checksums = {}
-            for abs_path, arcname in files:
-                digest = hashlib.sha256()
-                size = 0
-                with abs_path.open("rb") as source, archive.open(arcname, "w", force_zip64=True) as destination:
-                    while chunk := source.read(1024 * 1024):
-                        destination.write(chunk)
-                        digest.update(chunk)
-                        size += len(chunk)
-                checksums[arcname] = {"sha256": digest.hexdigest(), "bytes": size}
-            settings_content = json_bytes(load_run_settings(project))
-            archive.writestr("run_settings.json", settings_content)
-            checksums["run_settings.json"] = {"sha256": hashlib.sha256(settings_content).hexdigest(), "bytes": len(settings_content)}
-            archive.writestr("export_manifest.json", json_bytes(export_manifest(project, checksums)))
+        try:
+            with zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as archive:
+                checksums = {}
+                for abs_path, arcname in files:
+                    digest = hashlib.sha256()
+                    size = 0
+                    with abs_path.open("rb") as source, archive.open(arcname, "w", force_zip64=True) as destination:
+                        while chunk := source.read(1024 * 1024):
+                            destination.write(chunk)
+                            digest.update(chunk)
+                            size += len(chunk)
+                    checksums[arcname] = {"sha256": digest.hexdigest(), "bytes": size}
+                settings_content = json_bytes(load_run_settings(project))
+                archive.writestr("run_settings.json", settings_content)
+                checksums["run_settings.json"] = {"sha256": hashlib.sha256(settings_content).hexdigest(), "bytes": len(settings_content)}
+                archive.writestr("export_manifest.json", json_bytes(export_manifest(project, checksums)))
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
+
         return FileResponse(
             tmp_path,
             media_type="application/zip",
@@ -891,7 +913,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             reasoning_effort=reasoning_effort,
         ).clamped()
         setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
-        problems = [setup_error] if setup_error else check_model(
+        problems = [setup_error] if setup_error else await run_in_threadpool(check_model,
             settings.provider, settings.model, api_key=runtime.api_key(settings.provider) or "",
             **({"base_url": load_app_settings().openai_base_url} if settings.provider == "openai_compatible" else {})
         )
@@ -926,6 +948,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             context["manual_error"] = str(exc)
             context["manual_editor_json"] = _embeddable_json(payload)
             return TEMPLATES.TemplateResponse(request, "project.html", context, status_code=400)
+        _reject_if_busy(project_id)
         write_manual(project, manual)
         runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
@@ -933,6 +956,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     @app.post(f"/{token}/projects/{{project_id}}/manual/reset")
     async def reset_manual(project_id: str):
         project = runtime.project(project_id)
+        _reject_if_busy(project_id)
         reset_manual_to_default(project)
         runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
@@ -944,9 +968,17 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         # structured editor. Still never hand-edited as text after this: any
         # further change goes through save_manual like everything else.
         project = runtime.project(project_id)
-        raw = await file.read()
+        limit = load_app_settings().upload_size_cap_bytes
+        raw = await file.read(limit + 1)
+        if len(raw) > limit:
+            raise HTTPException(status_code=413, detail="The manual exceeds the upload limit.")
+        _reject_if_busy(project_id)
         try:
-            manual = parse_coding_manual(raw.decode("utf-8", errors="replace"))
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Save the manual as UTF-8 and try again.") from exc
+        try:
+            manual = parse_coding_manual(text)
         except ManualError as exc:
             return RedirectResponse(
                 f"/{token}/projects/{project_id}?error={quote(str(exc))}", status_code=303
@@ -985,9 +1017,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 **endpoint_options(provider, settings),
             )
         except ManualDraftError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=400)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=400)
         except ProviderError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=502)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=502)
 
         return JSONResponse(
             {
@@ -1002,8 +1034,23 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet")
     async def upload_coding_sheet(project_id: str, file: UploadFile = File(...)):
         project = runtime.project(project_id)
-        raw = await file.read()
-        project.coding_sheet_path.write_text(raw.decode("utf-8", errors="replace"), encoding="utf-8")
+        limit = load_app_settings().upload_size_cap_bytes
+        raw = await file.read(limit + 1)
+        if len(raw) > limit:
+            raise HTTPException(status_code=413, detail="The coding sheet exceeds the upload limit.")
+        try:
+            text = raw.decode("utf-8-sig")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=400, detail="Save the CSV as UTF-8 and try again.") from exc
+        sheet = parse_coding_sheet_csv(text, uploaded_filenames={p.name for p in list_uploaded_pdfs(project.sources_dir)})
+        if sheet.sheet_issues:
+            raise HTTPException(status_code=400, detail="; ".join(issue.message for issue in sheet.sheet_issues))
+        _reject_if_busy(project_id, "Wait for the active run to finish before replacing the sheet.")
+        previous = project.coding_sheet_path.read_text(encoding="utf-8") if project.coding_sheet_path.exists() else ""
+        if text != previous:
+            atomic_write(project.coding_sheet_path, text.encode("utf-8"))
+            clear_output(project)
+            runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/draft", response_class=JSONResponse)
@@ -1031,9 +1078,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 **endpoint_options(provider, settings),
             )
         except (CodingSheetDraftError, ManualError) as exc:
-            return JSONResponse({"error": str(exc)}, status_code=400)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=400)
         except ProviderError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=502)
+            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=502)
         return JSONResponse(draft)
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/draft/save", response_class=JSONResponse)
@@ -1049,12 +1096,14 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if csv_text != previous:
             project.coding_sheet_path.write_text(csv_text, encoding="utf-8")
             clear_output(project)
+            runtime.runner.discard_finished_state(project_id)
         return JSONResponse({"redirect": f"/{token}/projects/{project_id}?tab=coding-sheet"})
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/match-pdfs")
     async def match_coding_sheet_pdfs(request: Request, project_id: str):
         project = runtime.project(project_id)
         form = await request.form()
+        _reject_if_busy(project_id)
         paper_keys = form.getlist("paper_key")
         filenames = form.getlist("filename")
         uploaded_filenames = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
@@ -1073,6 +1122,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/unmatch-pdf")
     async def unmatch_coding_sheet_pdf(project_id: str, source_pdf: str = Form(...)):
         project = runtime.project(project_id)
+        _reject_if_busy(project_id)
         uploaded_filenames = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
         if source_pdf in uploaded_filenames and project.coding_sheet_path.is_file():
             apply_source_pdf_matches(project.coding_sheet_path, {source_pdf: ""})
@@ -1107,15 +1157,17 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     @app.post(f"/{token}/projects/{{project_id}}/uploads/delete")
     async def delete_pdf(project_id: str, filename: str = Form(...)):
         project = runtime.project(project_id)
+        _reject_if_busy(project_id)
         safe = Path(filename).name
         target = project.sources_dir / safe
         if target.is_file() and target.suffix.lower() == ".pdf":
             target.unlink()
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
-    @app.post(f"/{token}/projects/{{project_id}}/run")
-    async def start_run(project_id: str):
-        project = runtime.project(project_id)
+    def _runnable_view(project: Project) -> dict:
+        """A fresh view of the project's inputs, validated for a full run."""
+
+        _reject_if_busy(project.project_id, "A run is already in progress.")
         view = _project_view(runtime, project)
         settings = view["run_settings"]
         if not view["can_run"]:
@@ -1135,42 +1187,15 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 reasons.append("the coding sheet has no matched rows")
             elif not view["pending_pdf_count"]:
                 reasons.append("all matched PDFs were already coded")
-            if runtime.runner.is_running(project_id):
-                reasons.append("a run is already in progress")
             raise HTTPException(status_code=400, detail="Cannot run: " + "; ".join(reasons) + ".")
+        return view
 
-        setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
-        if setup_error:
-            raise HTTPException(status_code=400, detail=setup_error)
-        runtime.runner.start(
-            project=project,
-            manual=view["manual"],
-            coding_sheet=view["coding_sheet"],
-            api_key=runtime.api_key(settings.provider) or "",
-            **endpoint_options(settings.provider),
-            provider=settings.provider,
-            model=settings.model,
-            parallel_requests=settings.parallel_requests,
-            request_delay_sec=settings.request_delay_sec,
-            request_timeout_sec=settings.request_timeout_sec,
-            service_tier=settings.service_tier,
-            reasoning_effort=settings.reasoning_effort,
-        )
-        return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
+    def _retryable_view(project: Project, source_pdf: list[str]) -> tuple[dict, list[str]]:
+        """A fresh view of the project's inputs plus the PDFs a retry targets."""
 
-    @app.post(f"/{token}/projects/{{project_id}}/run/cancel")
-    async def cancel_run(project_id: str):
-        runtime.project(project_id)
-        runtime.runner.cancel(project_id)
-        return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
-
-    @app.post(f"/{token}/projects/{{project_id}}/run/retry")
-    async def retry_run(project_id: str, source_pdf: list[str] = Form([])):
-        project = runtime.project(project_id)
+        _reject_if_busy(project.project_id, "A run is already in progress.")
         view = _project_view(runtime, project)
         settings = view["run_settings"]
-        if runtime.runner.is_running(project_id):
-            raise HTTPException(status_code=409, detail="A run is already in progress.")
         if settings.provider == "openai_compatible" and (not runtime.provider_ready(settings.provider) or not settings.model.strip()):
             raise HTTPException(status_code=400, detail="Configure the OpenAI-compatible base URL and model.")
         if not runtime.provider_ready(settings.provider):
@@ -1187,36 +1212,69 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if source_pdf:
             targets = source_pdf
         else:
-            # A bare "retry all failed" click means every failed/needs_review/
-            # cancelled PDF from the last run, not just whichever page of the
-            # (paginated) run table happens to be showing.
-            prior_state = runtime.runner.state(project_id)
-            targets = (
-                [pdf.source_pdf for pdf in prior_state.pdfs if pdf.status in RETRYABLE_STATUSES]
-                if prior_state
-                else []
-            )
+            eligible = {row.source_pdf for row in view["coding_sheet"].rows}
+            targets = [row["source_pdf"] for row in view["run_rows_all"]
+                       if row["retryable"] and row["source_pdf"] in eligible]
+
         if not targets:
             raise HTTPException(status_code=400, detail="Nothing to retry.")
+        return view, targets
 
+    async def _start_run(project: Project, validate) -> None:
+        """Validate, load the provider key, then validate again and start.
+
+        Loading a saved key runs in a worker thread, so other requests — a
+        second click on Run, or an edit to the manual or coding sheet — can be
+        handled while this one waits. Re-reading and re-validating the inputs
+        afterwards, with no further await before `runner.start`, means the run
+        either starts from the inputs as they are now or is rejected; it never
+        codes a snapshot taken before an edit, and a request that lost the
+        race gets a 409 instead of the runner's "already running" error."""
+
+        view, only_pdfs = validate()
+        settings = view["run_settings"]
         setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
         if setup_error:
             raise HTTPException(status_code=400, detail=setup_error)
-        runtime.runner.start(
-            project=project,
-            manual=view["manual"],
-            coding_sheet=view["coding_sheet"],
-            api_key=runtime.api_key(settings.provider) or "",
-            **endpoint_options(settings.provider),
-            provider=settings.provider,
-            model=settings.model,
-            parallel_requests=settings.parallel_requests,
-            request_delay_sec=settings.request_delay_sec,
-            request_timeout_sec=settings.request_timeout_sec,
-            service_tier=settings.service_tier,
-            reasoning_effort=settings.reasoning_effort,
-            only_pdfs=targets,
-        )
+        view, only_pdfs = validate()
+        if view["run_settings"] != settings:
+            raise HTTPException(status_code=409, detail="The run settings changed while the run was starting. Try again.")
+        try:
+            runtime.runner.start(
+                project=project,
+                manual=view["manual"],
+                coding_sheet=view["coding_sheet"],
+                api_key=runtime.api_key(settings.provider) or "",
+                **endpoint_options(settings.provider),
+                provider=settings.provider,
+                model=settings.model,
+                parallel_requests=settings.parallel_requests,
+                request_delay_sec=settings.request_delay_sec,
+                request_timeout_sec=settings.request_timeout_sec,
+                service_tier=settings.service_tier,
+                reasoning_effort=settings.reasoning_effort,
+                only_pdfs=only_pdfs,
+            )
+        except RuntimeError as exc:
+            # The runner's own guards: already running, or nothing to code.
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.post(f"/{token}/projects/{{project_id}}/run")
+    async def start_run(project_id: str):
+        project = runtime.project(project_id)
+        await _start_run(project, lambda: (_runnable_view(project), None))
+        return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
+
+    @app.post(f"/{token}/projects/{{project_id}}/run/cancel")
+    async def cancel_run(project_id: str):
+        runtime.project(project_id)
+        runtime.runner.cancel(project_id)
+        return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
+
+    @app.post(f"/{token}/projects/{{project_id}}/run/retry")
+    async def retry_run(project_id: str, source_pdf: list[str] = Form([])):
+        project = runtime.project(project_id)
+        await _start_run(project, lambda: _retryable_view(project, source_pdf))
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
 
     @app.get(f"/{token}/projects/{{project_id}}/status")

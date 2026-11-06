@@ -10,7 +10,7 @@ import pytest
 
 from meta_coder import gemini, openrouter
 from meta_coder.coding_sheet import CodingSheetRow
-from meta_coder.extraction import ExtractionCancelled, ProviderError
+from meta_coder.extraction import ExtractionCancelled, ProviderError, redact_secret
 from meta_coder.manual import parse_coding_manual
 
 
@@ -33,7 +33,9 @@ def test_gemini_model_validation_encodes_url_and_checks_capability(monkeypatch):
     request = Mock(return_value=Response({'supportedGenerationMethods': ['generateContent']}))
     monkeypatch.setattr(gemini.urllib.request, 'urlopen', request)
     assert gemini.check_model(' model/name ', api_key='a&b', timeout_sec=3) == []
-    assert request.call_args.args[0].endswith('/models/model%2Fname?key=a%26b')
+    sent = request.call_args.args[0]
+    assert sent.full_url.endswith('/models/model%2Fname')
+    assert sent.get_header('X-goog-api-key') == 'a&b'
     assert request.call_args.kwargs == {'timeout': 3}
     request.return_value = Response({'supportedGenerationMethods': ['embedContent']})
     assert 'does not support' in gemini.check_model('m', api_key='key')[0]
@@ -41,6 +43,25 @@ def test_gemini_model_validation_encodes_url_and_checks_capability(monkeypatch):
     assert gemini.check_model('m', api_key='key') == []
     assert 'API key' in gemini.check_model('m', api_key='')[0]
     assert 'model name' in gemini.check_model(' ', api_key='key')[0]
+
+
+def test_gemini_key_is_sent_as_header_never_in_url(monkeypatch):
+    key = 'synthetic-key/+&'
+    request = Mock(return_value=wire({'candidates': [{'content': {'parts': [{'text': '{}'}]}}]}))
+    monkeypatch.setattr(gemini, 'cancellable_urlopen', request)
+    gemini.generate_structured_text(prompt='x', response_schema={}, api_key=key, model='gemini flash')
+    check = Mock(return_value=Response({}))
+    monkeypatch.setattr(gemini.urllib.request, 'urlopen', check)
+    assert gemini.check_model('gemini flash', api_key=key) == []
+    for sent in (request.call_args.args[0], check.call_args.args[0]):
+        assert sent.full_url.split('/models/')[1].startswith('gemini%20flash')
+        assert 'synthetic-key' not in sent.full_url and 'key=' not in sent.full_url
+        assert sent.get_header('X-goog-api-key') == key
+
+
+def test_redact_secret_covers_raw_and_url_encoded_forms():
+    assert redact_secret('a k/y b k%2Fy', 'k/y') == 'a [redacted] b [redacted]'
+    assert redact_secret('unchanged', '') == 'unchanged'
 
 
 @pytest.mark.parametrize('error', [HTTPError('url', 404, 'missing', {}, None), URLError('secret unavailable')])
@@ -59,7 +80,11 @@ def test_openrouter_model_catalog_and_capability_checks(monkeypatch):
     assert openrouter.check_model('good') == []
     assert 'not found' in openrouter.check_model('missing')[0]
     model['architecture'] = {}
-    assert 'no native file' in openrouter.check_model('good')[0]
+    warning = openrouter.check_model('good')[0]
+    assert 'no native file' in warning
+    # OpenRouter's default fallback parser is the paid, third-party Mistral OCR engine.
+    assert 'Mistral OCR' in warning and 'per page' in warning and 'third-party' in warning
+    assert 'Cloudflare' not in warning and 'free' not in warning
     request.side_effect = lambda *a, **k: Response({})
     assert openrouter.list_models() == []
     request.side_effect = URLError('offline')
@@ -69,10 +94,10 @@ def test_openrouter_model_catalog_and_capability_checks(monkeypatch):
 
 
 def test_gemini_pdf_wire_payload_and_usage(monkeypatch):
-    request = Mock(return_value=wire({'candidates': [{'content': {'parts': [{'text': 'a'}, {'inline_data': {}}, {'text': 'b'}]}}], 'usageMetadata': {'promptTokenCount': 10, 'candidatesTokenCount': 2}}))
+    request = Mock(return_value=wire({'candidates': [{'content': {'parts': [{'text': 'a'}, {'inline_data': {}}, {'text': 'b'}]}}], 'usageMetadata': {'promptTokenCount': 10, 'candidatesTokenCount': 2}, 'modelVersion': 'gemini-3.8-flash'}))
     monkeypatch.setattr(gemini, 'cancellable_urlopen', request)
     event = threading.Event()
-    assert gemini._call_gemini(model='m', api_key='secret', prompt='input', pdf_bytes=b'%PDF', response_schema={'type': 'OBJECT'}, service_tier='standard', timeout_sec=12, cancel_event=event) == ('ab', {'input_tokens': 10, 'output_tokens': 2})
+    assert gemini._call_gemini(model='m', api_key='secret', prompt='input', pdf_bytes=b'%PDF', response_schema={'type': 'OBJECT'}, service_tier='standard', timeout_sec=12, cancel_event=event) == ('ab', {'input_tokens': 10, 'output_tokens': 2, 'served_model': 'gemini-3.8-flash'})
     payload = json.loads(request.call_args.args[0].data)
     assert payload['contents'][0]['parts'][1]['inline_data'] == {'mime_type': 'application/pdf', 'data': base64.b64encode(b'%PDF').decode()}
     assert payload['service_tier'] == 'standard'
@@ -128,9 +153,9 @@ def test_openrouter_retries_with_exponential_backoff_and_preserves_request(monke
     event = Mock()
     event.is_set.return_value = False
     event.wait.return_value = False
-    requests = Mock(side_effect=[HTTPError('url', 503, 'busy', {}, io.BytesIO(b'busy')), URLError('offline'), wire({'choices': [{'message': {'content': '{}'}}], 'usage': {'prompt_tokens': 5, 'completion_tokens': 3}})])
+    requests = Mock(side_effect=[HTTPError('url', 503, 'busy', {}, io.BytesIO(b'busy')), URLError('offline'), wire({'model': 'google/gemini-3.8-flash', 'choices': [{'message': {'content': '{}'}}], 'usage': {'prompt_tokens': 5, 'completion_tokens': 3, 'completion_tokens_details': {'reasoning_tokens': 2}}})])
     monkeypatch.setattr(openrouter, 'cancellable_urlopen', requests)
-    assert call(openrouter, reasoning_effort='high', cancel_event=event) == ('{}', {'input_tokens': 5, 'output_tokens': 3})
+    assert call(openrouter, reasoning_effort='high', cancel_event=event) == ('{}', {'input_tokens': 5, 'output_tokens': 3, 'served_model': 'google/gemini-3.8-flash'})
     assert [args.args[0] for args in event.wait.call_args_list] == [2, 4]
     assert requests.call_count == 3
     bodies = [json.loads(args.args[0].data) for args in requests.call_args_list]
@@ -156,7 +181,7 @@ def test_openrouter_retry_exhaustion_and_cancellation(monkeypatch):
 
 def test_openrouter_nonobject_usage_is_ignored(monkeypatch):
     monkeypatch.setattr(openrouter, 'cancellable_urlopen', Mock(return_value=wire({'choices': [{'message': {'content': '{}'}}], 'usage': 'bad'})))
-    assert call(openrouter) == ('{}', {'input_tokens': None, 'output_tokens': None})
+    assert call(openrouter) == ('{}', {'input_tokens': None, 'output_tokens': None, 'served_model': None})
 
 
 @pytest.fixture
@@ -174,7 +199,7 @@ def test_extraction_outcomes_preserve_evidence(monkeypatch, adapter, extraction_
     raw = json.dumps({'effects': [item] if status != 'needs_review' else []})
     if status == 'repaired':
         raw = raw[:-1] + ',}'
-    transport = Mock(return_value=(raw, {'input_tokens': 11, 'output_tokens': 4}))
+    transport = Mock(return_value=(raw, {'input_tokens': 11, 'output_tokens': 4, 'served_model': 'served-1'}))
     if status in ('error', 'cancelled'):
         cls = ProviderError if status == 'error' else ExtractionCancelled
         transport.side_effect = cls('failure', raw_response='wire response')
@@ -193,7 +218,7 @@ def test_extraction_outcomes_preserve_evidence(monkeypatch, adapter, extraction_
     else:
         assert result.raw_response == raw
     if expected in ('ok', 'needs_review'):
-        assert (result.input_tokens, result.output_tokens) == (11, 4)
+        assert (result.input_tokens, result.output_tokens, result.served_model) == (11, 4, 'served-1')
     if expected == 'ok':
         assert result.coded_by_row_id['r1']['estimate'] == item['estimate']
     if status == 'needs_review':
@@ -226,7 +251,7 @@ def test_gemini_invalid_parts_collection_retains_raw_response(monkeypatch):
     assert json.loads(error.value.raw_response) == body
 
 
-@pytest.mark.parametrize('usage', ['bad', {'promptTokenCount': True}, {'candidatesTokenCount': 'five'}])
+@pytest.mark.parametrize('usage', ['bad', {'promptTokenCount': True}, {'candidatesTokenCount': 'five'}, {'thoughtsTokenCount': 1.5}])
 def test_gemini_invalid_usage_retains_raw_response(monkeypatch, usage):
     body = {'candidates': [{'content': {'parts': [{'text': '{}'}]}}], 'usageMetadata': usage}
     monkeypatch.setattr(gemini, 'cancellable_urlopen', Mock(return_value=wire(body)))
@@ -246,3 +271,17 @@ def test_openrouter_pdf_payload_encodes_native_file(monkeypatch):
     openrouter._call_openrouter(model='m', api_key='key', prompt='code', pdf_bytes=b'%PDF', filename='paper.pdf', response_schema={})
     content = json.loads(request.call_args.args[0].data)['messages'][0]['content']
     assert content == [{'type': 'text', 'text': 'code'}, {'type': 'file', 'file': {'filename': 'paper.pdf', 'file_data': 'data:application/pdf;base64,' + base64.b64encode(b'%PDF').decode()}}]
+
+
+@pytest.mark.parametrize(('usage', 'output'), [
+    ({'candidatesTokenCount': 40, 'thoughtsTokenCount': 900}, 940),
+    ({'candidatesTokenCount': 40}, 40),
+    ({'thoughtsTokenCount': 900}, 900),
+    ({'promptTokenCount': 7}, None),
+])
+def test_gemini_output_tokens_include_billed_thinking(monkeypatch, usage, output):
+    body = {'candidates': [{'content': {'parts': [{'text': '{}'}]}}], 'usageMetadata': usage, 'modelVersion': 7}
+    monkeypatch.setattr(gemini, 'cancellable_urlopen', Mock(return_value=wire(body)))
+    _text, tokens = call(gemini)
+    assert tokens['output_tokens'] == output
+    assert tokens['served_model'] is None  # non-string modelVersion is not trusted

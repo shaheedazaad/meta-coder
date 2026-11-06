@@ -81,7 +81,8 @@ if ($LASTEXITCODE -ne 0) { throw "Locked environment installation failed." }
 # --- 7. Launcher shim --------------------------------------------------------
 $ManifestPath = Join-Path $InstallDir "pyproject.toml"
 $PixiPath = (Get-Command pixi).Source
-Set-Content -Path $Launcher -Value "@echo off`r`n`"$PixiPath`" run --locked --manifest-path `"$ManifestPath`" start %*"
+# The REM marker line lets uninstall.ps1 recognise launchers it may remove.
+Set-Content -Path $Launcher -Value "@echo off`r`nREM meta-coder launcher`r`n`"$PixiPath`" run --locked --manifest-path `"$ManifestPath`" start %*"
 
 # --- 8. Drop stale versions — "re-running the installer updates in place" --
 Get-ChildItem -Path $AppRoot -Directory | Where-Object { $_.Name -ne $Version } | Remove-Item -Recurse -Force

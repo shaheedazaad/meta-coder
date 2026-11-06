@@ -84,8 +84,10 @@ fi
 pixi install --manifest-path "$install_dir/pyproject.toml" --locked
 
 # --- 7. Launcher shim ------------------------------------------------------
+# The marker line lets uninstall.sh recognise launchers it may remove.
 cat > "$launcher" <<EOF
 #!/usr/bin/env bash
+# meta-coder launcher
 exec "$(command -v pixi)" run --locked --manifest-path "$install_dir/pyproject.toml" start "\$@"
 EOF
 chmod +x "$launcher"
