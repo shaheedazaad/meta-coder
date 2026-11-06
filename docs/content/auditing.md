@@ -22,7 +22,7 @@ AI manual drafting and coding-sheet conversion are recorded even if you discard 
 
 Wait for AI actions to finish, then download the audit ZIP and save it with your research materials. You do not need to run code or install additional software to keep this record. Export another copy after later changes or retries if you want to preserve those too.
 
-For everyday checking, use the [Results page](results.md) to review coded values, supporting evidence, and the original AI responses. The ZIP also contains detailed records that a collaborator or technical reviewer can use to investigate how a result was produced.
+For everyday checking, use the [Results page](results.md) to review coded values, supporting evidence, and the original AI responses. [Validating the coding](validation.md#report-your-methods) lists what to report from these records in a methods section. The ZIP also contains detailed records that a collaborator or technical reviewer can use to investigate how a result was produced.
 
 The file named `export_manifest.json` lists the exported files and their checksums. A checksum is a value calculated from a file's contents; a reviewer can use it to check whether that file has changed. It is not a digital signature or independent proof of when the work was performed.
 
