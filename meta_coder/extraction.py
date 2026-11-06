@@ -115,6 +115,8 @@ class ExtractionResult:
     output_tokens: int | None = None
     audit_operation_id: str | None = None
     input_fingerprint: str | None = None
+    provider: str | None = None
+    model: str | None = None
     # Model the provider reports as having served the response; may differ from
     # the requested model when the provider routes an alias or deprecated ID.
     served_model: str | None = None

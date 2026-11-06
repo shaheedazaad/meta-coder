@@ -44,7 +44,7 @@
 <li><strong>Output size.</strong> More rows, more fields, and longer evidence quotes increase output tokens.</li>
 <li><strong>Reasoning.</strong> Models that "think" before answering are billed for those reasoning tokens as output. A higher <strong>Reasoning effort</strong> setting usually increases cost.</li>
 <li><strong>Service tier.</strong> For Gemini, the <code>flex</code> service tier (MetaCoder's default) costs less than <code>standard</code> but may respond more slowly.</li>
-<li><strong>Retries and re-runs.</strong> OpenRouter and OpenAI-compatible requests are retried automatically after temporary errors; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.</li>
+<li><strong>Retries and re-runs.</strong> Requests to every provider are retried automatically, up to three attempts, after temporary errors such as rate limits or server overload; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.</li>
 <li><strong>Drafting.</strong> AI manual drafting and coding sheet conversion are separate, usually small, requests.</li>
 </ul>
 <p>OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a>.</p>

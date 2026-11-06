@@ -115,6 +115,8 @@ def _result_from_raw_json(path: Path) -> ExtractionResult | None:
         source_pdf=data["source_pdf"],
         input_fingerprint=data.get("input_fingerprint"),
         audit_operation_id=data.get("audit_operation_id"),
+        provider=data.get("provider"),
+        model=data.get("model"),
         status=data.get("status") or "error",
         coded_by_row_id=data.get("coded_by_row_id") or {},
         missing_ids=set(data.get("missing_ids") or []),
@@ -437,6 +439,7 @@ class Runner:
                     cancel_event=state.cancel_event,
                 )
                 result.input_fingerprint = fingerprint
+                result.provider, result.model = provider, model
                 write_raw_result(project, result, provider=provider, model=model)
                 # The per-PDF YAML follows the result collated below; a kept
                 # success keeps the YAML written when it was coded.
@@ -459,6 +462,7 @@ class Runner:
                     result = ExtractionResult(
                         source_pdf=progress.source_pdf, status="error", error=f"Unexpected error: {message}",
                         input_fingerprint=fingerprint,
+                        provider=provider, model=model,
                     )
                     try:
                         write_raw_result(project, result, provider=provider, model=model)
