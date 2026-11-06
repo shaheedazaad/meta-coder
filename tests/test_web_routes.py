@@ -424,7 +424,7 @@ def test_manual_import_accepts_utf8_bom(site):
     raw = '\ufeffeffect_definition: comparison\neffects:\n  label: {description: Müller}\n'.encode()
     response = client.post(url(project, '/manual/import'), files={'file': ('manual.yml', raw)})
     assert response.status_code == 303
-    assert 'Müller' in project.manual_path.read_text()
+    assert 'Müller' in project.manual_path.read_text(encoding='utf-8')
 
 
 def test_model_check_runs_outside_request_event_loop(site, monkeypatch):
