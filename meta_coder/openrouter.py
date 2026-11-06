@@ -310,7 +310,9 @@ def extract_pdf_effects(
             duration_sec=time.monotonic() - started,
         )
 
-    result: ValidationResult = validate_response(parsed, requested_ids, manual.effects)
+    result: ValidationResult = validate_response(
+        parsed, requested_ids, manual.effects, confidence=manual.confidence
+    )
     issues = review_issues(
         repaired_response=repaired_response, finish_reason=tokens.get("finish_reason")
     )

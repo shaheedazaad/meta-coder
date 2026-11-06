@@ -17,7 +17,7 @@ from .manual import CodingManual
 # wording, the codebook rendering below, and the response schema built by
 # mechanism.build_response_schema. Bump it whenever any of those change in a way
 # that could change what a model returns, so stored results can be told apart.
-PROMPT_VERSION = "2"
+PROMPT_VERSION = "3"
 
 BASELINE_RULES = """You are a research assistant coding effects for a meta-analysis.
 
@@ -36,6 +36,16 @@ Rules:
 6. Every object in "effects" MUST include a "row_id" that exactly matches one of the
    requested row IDs below. Never invent, rename, or omit a row_id. Return exactly
    one object per requested row, no more, no fewer."""
+
+
+# Added to the rules only when the manual sets `confidence: true`.
+CONFIDENCE_RULE = """7. For every field except `notes`, set "confidence" to how sure you are that the
+   coded value is correct (for a null value: that the article does not report it):
+   - "high": the article states it explicitly and unambiguously.
+   - "medium": it takes some interpretation, or combining information from
+     different places in the article.
+   - "low": it is inferred or approximate, or the article is ambiguous or
+     inconsistent about it."""
 
 
 def _indent(text: str, prefix: str) -> str:
@@ -76,8 +86,9 @@ def build_extraction_prompt(
     row_lines = "\n".join(
         f"- row_id: {row.row_id}\n  locator: {row.locator or '(none)'}" for row in rows
     )
+    rules = f"{BASELINE_RULES}\n{CONFIDENCE_RULE}" if manual.confidence else BASELINE_RULES
     return (
-        f"{BASELINE_RULES}\n\n"
+        f"{rules}\n\n"
         f"Effect definition for this meta-analysis:\n{manual.effect_definition}\n\n"
         f"{render_codebook(manual)}\n\n"
         f"Code the following {len(rows)} row(s) from the {article}. Each row is one "

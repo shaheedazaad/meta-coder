@@ -79,6 +79,8 @@ class CodingManual:
     effect_definition: str
     effects: dict[str, FieldSpec]
     raw_text: str = ""
+    # Ask the model how confident it is in each coded field (see mechanism.py).
+    confidence: bool = False
 
     @property
     def is_complete(self) -> bool:
@@ -225,6 +227,12 @@ def _build_manual_from_raw(
     name = str(raw.get("name") or "untitled_meta_analysis").strip()
     description = raw.get("description")
 
+    confidence = raw.get("confidence", False)
+    if confidence is None:
+        confidence = False
+    if not isinstance(confidence, bool):
+        raise ManualError("`confidence` must be true or false.")
+
     effects = _parse_section(raw.get("effects"), "effects", allow_empty=False)
 
     # Force this onto every manual, discarding whatever the caller supplied for
@@ -239,6 +247,7 @@ def _build_manual_from_raw(
         effect_definition=effect_definition,
         effects=effects,
         raw_text=raw_text,
+        confidence=confidence,
     )
 
 
@@ -338,6 +347,7 @@ def manual_from_editor_payload(payload: object) -> CodingManual:
         "name": payload.get("name"),
         "description": payload.get("description"),
         "effect_definition": payload.get("effect_definition"),
+        "confidence": payload.get("confidence"),
         "effects": _payload_list_to_mapping(payload.get("effects") or [], "effects"),
     }
     return _build_manual_from_raw(raw)
@@ -358,6 +368,7 @@ def manual_to_editor_payload(manual: CodingManual) -> dict[str, Any]:
         "name": manual.name,
         "description": manual.description or "",
         "effect_definition": manual.effect_definition,
+        "confidence": manual.confidence,
         "effects": [_field_to_payload(name, spec) for name, spec in manual.effects.items()],
     }
 
@@ -386,6 +397,8 @@ def manual_to_yaml_text(manual: CodingManual) -> str:
     if manual.description:
         data["description"] = manual.description
     data["effect_definition"] = manual.effect_definition
+    if manual.confidence:
+        data["confidence"] = True
     data["effects"] = {name: field_dict(spec) for name, spec in manual.effects.items()}
 
     return yaml.dump(data, sort_keys=False, allow_unicode=True, default_flow_style=False, width=100)

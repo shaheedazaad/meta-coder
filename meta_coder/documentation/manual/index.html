@@ -41,6 +41,31 @@
 <p>Descriptions should be relative to your <a href="../analysis/">effect definition</a>. For instance, a publication-status field could allow “Published” and “Unpublished,” while a numerical field could record the number of participants contributing to that effect.</p>
 <p>Every extraction request sends the model the analysis description, the effect definition, each field’s name, type and description, and each level with its description. Write them as instructions another coder could follow. Level descriptions matter most when level values are short codes such as <code>1</code> and <code>2</code>. The model must choose exactly one level per field; if several seem to apply, it picks the best fit and explains in the <code>notes</code> field.</p>
 <p>Field names must be unique, ignoring capitalization and surrounding spaces. MetaCoder already adds <code>row_id</code>, <code>source_pdf</code>, <code>locator</code>, <code>authors</code>, <code>year</code>, and <code>status</code> to every export, so a field cannot use one of those names in any capitalization — use a more specific name such as <code>publication_year</code> or <code>publication_status</code>. MetaCoder also adds its own <code>notes</code> field to every manual, so don't define one yourself, under any capitalization.</p>
+<h3 id="confidence-ratings">Confidence ratings<a class="headerlink" href="#confidence-ratings" title="Permanent link">&para;</a></h3>
+<p>Tick <strong>Ask the model how confident it is in each coded value</strong> (under the effect definition on <strong>Define your analysis</strong>) to get a rating of high, medium or low for every field. In YAML, add <code>confidence: true</code> at the top level, next to <code>name</code>. It is off unless you turn it on. Switching it on or off is a <a href="#changing-a-saved-manual">change to the manual</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Rating</th>
+<th>What the model is told it means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>high</td>
+<td>The article states the value explicitly and unambiguously.</td>
+</tr>
+<tr>
+<td>medium</td>
+<td>The value takes some interpretation, or combining information from different places in the article.</td>
+</tr>
+<tr>
+<td>low</td>
+<td>The value is inferred or approximate, or the article is ambiguous or inconsistent about it.</td>
+</tr>
+</tbody>
+</table>
+<p>The ratings are <a href="../results/#confidence-ratings">exported in their own file</a>. They are the model's own judgement, not calibrated probabilities: use them to decide which cells to check first, not as a measure of accuracy. Turning ratings on makes each response slightly longer. An AI-drafted manual starts with ratings off, so tick the box again after drafting if you want them.</p>
 <p>Choose <strong>Validate and save</strong> when the fields and effect definition are ready. Fix any validation messages before continuing.</p>
 <h2 id="draft-from-a-document">Draft from a document<a class="headerlink" href="#draft-from-a-document" title="Permanent link">&para;</a></h2>
 <p>Choose <strong>AI draft from document</strong> and provide a PDF, DOCX, RTF, or Markdown manual. Drafting uses the global <a href="../settings/">drafting provider and model</a>, independently of extraction settings.</p>

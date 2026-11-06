@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import math
 from typing import Any
 
-from .manual import CodingManual, FieldSpec
+from .manual import NOTES_FIELD_NAME, CodingManual, FieldSpec
 
 
 # Two response-schema dialects share this same builder: Gemini's `responseSchema`
@@ -54,9 +54,23 @@ def _value_schema(spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
     return schema
 
 
-def _coded_field_schema(name: str, spec: FieldSpec, type_map: dict[str, str]) -> dict[str, Any]:
+# The model's own confidence in a coded field, requested only when the manual
+# sets `confidence: true`. Never asked of the built-in `notes` field.
+CONFIDENCE_LEVELS = ("high", "medium", "low")
+
+
+def _coded_field_schema(
+    name: str, spec: FieldSpec, type_map: dict[str, str], *, confidence: bool = False
+) -> dict[str, Any]:
     properties: dict[str, Any] = {"value": _value_schema(spec, type_map)}
     required = ["value"]
+    if confidence and name != NOTES_FIELD_NAME:
+        properties["confidence"] = {
+            "type": type_map["string"],
+            "description": "How confident you are in this field's value.",
+            "enum": list(CONFIDENCE_LEVELS),
+        }
+        required.append("confidence")
     if spec.evidence_required:
         properties["evidence"] = {
             "type": type_map["string"],
@@ -105,7 +119,9 @@ def build_response_schema(manual: CodingManual, *, dialect: str = "gemini") -> d
     }
     required = ["row_id"]
     for name, spec in manual.effects.items():
-        effect_properties[name] = _coded_field_schema(name, spec, type_map)
+        effect_properties[name] = _coded_field_schema(
+            name, spec, type_map, confidence=manual.confidence
+        )
         required.append(name)
 
     item_schema: dict[str, Any] = {
@@ -163,6 +179,8 @@ def validate_response(
     parsed: object,
     requested_row_ids: set[str],
     expected_fields: dict[str, FieldSpec] | set[str] | None = None,
+    *,
+    confidence: bool = False,
 ) -> ValidationResult:
     """Hard-validate a parsed response against the coding-sheet rows that were
     requested for one PDF.
@@ -170,7 +188,9 @@ def validate_response(
     Deliberately does NOT trust positional alignment: the returned row_id set must
     equal the requested set exactly, or the whole PDF is flagged needs_review. A
     mismatch is never partially accepted. When `expected_fields` is supplied,
-    every returned row must also include every manual field.
+    every returned row must also include every manual field. `confidence` is
+    the manual's setting: when true, every field except `notes` must carry one
+    of CONFIDENCE_LEVELS.
     """
 
     if not isinstance(parsed, dict):
@@ -232,6 +252,12 @@ def validate_response(
                 if "value" not in field or (
                     isinstance(expected_fields, dict)
                     and not _valid_field_value(field["value"], expected_fields[name])
+                ):
+                    names.append(name)
+                elif (
+                    confidence
+                    and name != NOTES_FIELD_NAME
+                    and field.get("confidence") not in CONFIDENCE_LEVELS
                 ):
                     names.append(name)
                 elif isinstance(expected_fields, dict) and expected_fields[name].evidence_required:

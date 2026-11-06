@@ -40,6 +40,9 @@
 <h2 id="review-each-study">Review each study<a class="headerlink" href="#review-each-study" title="Permanent link">&para;</a></h2>
 <p>The results table reports each PDF's status and available usage information. Output token counts include any thinking or reasoning tokens the provider bills as output. An <strong>outdated</strong> status means the inputs changed after the PDF was coded; the CSV files keep the last run's values until you <a href="../run/#cancel-and-retry">run extraction</a> again. Open the raw response (<strong>view raw output (YAML)</strong> in the Detail column) when you need to understand a provider error or a response that needs review. Readable per-PDF YAML records make it easier to inspect coded effects and supporting quotations: open one with <strong>view coded effects (YAML)</strong> in the same column. The link appears once the PDF has been processed, and the file is also saved in the project's <code>output/coded/</code> folder.</p>
 <p>Check that each <code>row_id</code> corresponds to the intended experiment or condition, that categories follow your manual, and that cited pages and quotations support the values. For a systematic check against human coding, see <a href="../validation/">Validating the coding</a>. The token columns help you <a href="../costs/#estimate-before-a-full-run">estimate cost</a>.</p>
+<h2 id="confidence-ratings">Confidence ratings<a class="headerlink" href="#confidence-ratings" title="Permanent link">&para;</a></h2>
+<p>If the manual <a href="../manual/#confidence-ratings">asks for confidence ratings</a>, <strong>Results</strong> offers <code>confidence.csv</code>. It has the same rows and columns as <code>coded_data.csv</code>, with each coded cell replaced by <code>high</code>, <code>medium</code> or <code>low</code>. For a value that is not reported, the rating says how sure the model is that the article really does not report it. The <code>notes</code> column is blank, as are rows that have not been coded. Each field's rating also appears in the per-PDF YAML.</p>
+<p>The Detail column of the results table counts each PDF's <strong>low-confidence cells</strong>. Start your checks there. A low rating does not change a PDF's status or cause it to be recoded.</p>
 <h2 id="download-the-data">Download the data<a class="headerlink" href="#download-the-data" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -58,12 +61,16 @@
 <td>Supporting page and quote information for the coded cells</td>
 </tr>
 <tr>
+<td><code>confidence.csv</code></td>
+<td>The model's confidence in each coded cell, when the manual asks for it</td>
+</tr>
+<tr>
 <td><code>provenance.csv</code></td>
 <td>Provider, model and audit operation behind each row of <code>coded_data.csv</code>; blank for results saved by earlier versions</td>
 </tr>
 <tr>
 <td>Spreadsheet copies</td>
-<td><code>coded_data.csv</code> and <code>evidence.csv</code> for opening in Excel or LibreOffice: text that could run as a formula (starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code>) begins with <code>'</code>, and accented characters display correctly. Use the plain files for analysis</td>
+<td><code>coded_data.csv</code>, <code>evidence.csv</code> and (when present) <code>confidence.csv</code> for opening in Excel or LibreOffice: text that could run as a formula (starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code>) begins with <code>'</code>, and accented characters display correctly. Use the plain files for analysis</td>
 </tr>
 <tr>
 <td>Per-PDF YAML</td>
@@ -84,7 +91,7 @@
         <a href="../auditing/"><small>Next</small>Audit and reproducibility →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#review-each-study">Review each study</a><a href="#download-the-data">Download the data</a><a href="#preserve-a-run">Preserve a run</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#review-each-study">Review each study</a><a href="#confidence-ratings">Confidence ratings</a><a href="#download-the-data">Download the data</a><a href="#preserve-a-run">Preserve a run</a></nav></aside>
   </div>
 </body>
 </html>

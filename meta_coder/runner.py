@@ -26,7 +26,7 @@ from .projects import Project
 from .prompts import PROMPT_VERSION
 from .provenance import AuditOperation, atomic_write, audited_call, json_bytes
 from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
-from .results import collate_results, render_pdf_audit_yaml, rows_to_csv
+from .results import CONFIDENCE_CSV, collate_field_key, collate_results, low_confidence_cells, render_pdf_audit_yaml, rows_to_csv
 
 
 _SAFE_STEM_RE = re.compile(r"[^A-Za-z0-9._-]+")
@@ -199,6 +199,7 @@ class PdfProgress:
     input_tokens: int | None = None
     output_tokens: int | None = None
     json_repaired: bool = False
+    low_confidence: int = 0
 
 
 @dataclass
@@ -230,6 +231,7 @@ class RunState:
                     "input_tokens": p.input_tokens,
                     "output_tokens": p.output_tokens,
                     "json_repaired": p.json_repaired,
+                    "low_confidence": p.low_confidence,
                 }
                 for p in self.pdfs
             ],
@@ -483,6 +485,7 @@ class Runner:
                 progress.input_tokens = result.input_tokens
                 progress.output_tokens = result.output_tokens
                 progress.json_repaired = result.repaired_response is not None
+                progress.low_confidence = low_confidence_cells(result.coded_by_row_id)
                 state.processed += 1
 
         try:
@@ -499,8 +502,19 @@ class Runner:
             )
             atomic_write(project.output_dir / "coded_data.csv", rows_to_csv(coded_rows, manual).encode("utf-8"))
             atomic_write(project.output_dir / "evidence.csv", rows_to_csv(evidence_rows, manual).encode("utf-8"))
+            output_names = ["coded_data.csv", "evidence.csv"]
+            confidence_csv = project.output_dir / CONFIDENCE_CSV
+            if manual.confidence:
+                confidence_rows = collate_field_key(
+                    "confidence", manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf
+                )
+                atomic_write(confidence_csv, rows_to_csv(confidence_rows, manual).encode("utf-8"))
+                output_names.append(CONFIDENCE_CSV)
+            else:
+                # Ratings from an earlier manual would no longer match coded_data.csv.
+                confidence_csv.unlink(missing_ok=True)
             if state.audit_run:
-                for name in ("coded_data.csv", "evidence.csv"):
+                for name in output_names:
                     state.audit_run.input(name, (project.output_dir / name).read_bytes())
                 state.audit_run.input("final_results.json", json_bytes(results_by_pdf))
             terminal_status = "cancelled" if state.cancel_requested else "complete"

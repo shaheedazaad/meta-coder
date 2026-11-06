@@ -299,7 +299,7 @@ test('failed sheet conversion releases controls and preserves server-disabled bu
 for (const kind of ['run', 'pdf-scan']) {
   test(`${kind} polling handles progress, transient errors, and terminal refresh with unsaved edits`, async t => {
     let timers;
-    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'] }, { source_pdf: 'off-page.pdf' }] };
+    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
     let fail = false;
     const { w, d } = setup(t, 'project', w => {
       timers = fakeTimers(w);
@@ -315,7 +315,7 @@ for (const kind of ['run', 'pdf-scan']) {
       assert.match(d.querySelector('[data-run-status-cell]').textContent, /ok · repaired/);
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '12');
       assert.equal(d.querySelector('[data-run-output-tokens]').textContent, '4');
-      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3/);
+      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 low-confidence cells: 2/);
       current = { status: 'cancelling', total: 0, processed: 0, pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
       assert.equal(timers.run(), 1500);
       await flush();
@@ -746,4 +746,30 @@ test('sheet conversion preserves edits made while the request is pending', async
   assert.equal(d.getElementById('sheet-draft-csv').value, 'my edited csv');
   assert.equal(w.projectEdits.dirty(), true);
   assert.equal(d.getElementById('sheet-draft-form').getAttribute('aria-busy'), 'false');
+});
+
+test('manual confidence checkbox reflects the editor data and submits its setting', t => {
+  const { w, d } = setup(t, 'project', w => {
+    w.document.getElementById('manual-editor-data').textContent = JSON.stringify({ effects: [], confidence: true });
+  });
+  const checkbox = d.getElementById('manual-confidence');
+  assert.equal(checkbox.checked, true);
+  const form = d.getElementById('manual-form');
+  form.addEventListener('submit', e => e.preventDefault());
+  checkbox.checked = false;
+  checkbox.dispatchEvent(new w.Event('change', { bubbles: true }));
+  submit(w, form);
+  assert.equal(JSON.parse(d.getElementById('manual-json-input').value).confidence, false);
+  checkbox.checked = true;
+  checkbox.dispatchEvent(new w.Event('change', { bubbles: true }));
+  submit(w, form);
+  assert.equal(JSON.parse(d.getElementById('manual-json-input').value).confidence, true);
+
+  const sparse = setup(t, 'project', w => {
+    w.document.getElementById('manual-editor-data').textContent = JSON.stringify({ effects: [] });
+  });
+  assert.equal(sparse.d.getElementById('manual-confidence').checked, false);
+  sparse.d.getElementById('manual-form').addEventListener('submit', e => e.preventDefault());
+  submit(sparse.w, sparse.d.getElementById('manual-form'));
+  assert.equal(JSON.parse(sparse.d.getElementById('manual-json-input').value).confidence, false);
 });
