@@ -14,7 +14,7 @@ import yaml
 
 from .coding_sheet import CodingSheet, CodingSheetRow
 from .extraction import ExtractionResult
-from .manual import BASE_COLUMNS, CodingManual
+from .manual import BASE_COLUMNS, NOTES_FIELD_NAME, CodingManual
 
 
 # Written next to coded_data.csv only when the manual asks for confidence
@@ -39,18 +39,29 @@ def _base_row(row: CodingSheetRow, status: str) -> dict[str, str]:
     }
 
 
-def low_confidence_cells(coded_by_row_id: object) -> int:
-    """How many coded cells the model rated `low` confidence: the ones a person
-    should check first. Never affects a PDF's status."""
+def rated_fields(manual: CodingManual | None) -> list[str]:
+    """The fields the model rates when the manual asks for confidence: every
+    field except the built-in `notes`. Ratings anywhere else were not asked
+    for and are never exported or counted."""
+
+    if manual is None or not manual.confidence:
+        return []
+    return [name for name in manual.effects if name != NOTES_FIELD_NAME]
+
+
+def low_confidence_cells(coded_by_row_id: object, *, row_ids: list[str], fields: list[str]) -> int:
+    """How many of the requested rows' rated cells the model rated `low`
+    confidence: the ones a person should check first. Never affects a PDF's
+    status."""
 
     if not isinstance(coded_by_row_id, dict):
         return 0
-    return sum(
-        isinstance(cell, dict) and cell.get("confidence") == "low"
-        for coded in coded_by_row_id.values()
-        if isinstance(coded, dict)
-        for cell in coded.values()
-    )
+    count = 0
+    for row_id in row_ids:
+        coded = coded_by_row_id.get(row_id)
+        if isinstance(coded, dict):
+            count += sum(_field_mapping(coded, name).get("confidence") == "low" for name in fields)
+    return count
 
 
 def collate_results(
@@ -93,7 +104,8 @@ def collate_field_key(
 ) -> list[dict[str, str]]:
     """Rows of a file shaped like coded_data.csv whose cells hold one other key
     of each coded field, such as its `confidence`. Cells without that key —
-    the `notes` field, rows not coded yet, older results — are blank."""
+    rows not coded yet, older results — are blank, and so is `notes`, which
+    is never asked for one."""
 
     rows: list[dict[str, str]] = []
     for row in coding_sheet.rows:
@@ -101,15 +113,15 @@ def collate_field_key(
         coded = (result.coded_by_row_id.get(row.row_id) if result else None) or {}
         out = _base_row(row, result.status if result else "not_run")
         for field_name in manual.effects:
-            cell = _field_mapping(coded, field_name).get(key)
+            cell = None if field_name == NOTES_FIELD_NAME else _field_mapping(coded, field_name).get(key)
             out[field_name] = "" if cell is None else str(cell)
         rows.append(out)
     return rows
 
 
-def _audit_field(field_value: dict) -> dict[str, Any]:
+def _audit_field(field_value: dict, *, rated: bool) -> dict[str, Any]:
     entry: dict[str, Any] = {"value": field_value.get("value")}
-    if "confidence" in field_value:
+    if rated and "confidence" in field_value:
         entry["confidence"] = field_value["confidence"]
     entry["evidence"] = field_value.get("evidence")
     return entry
@@ -139,6 +151,7 @@ def render_pdf_audit_yaml(
     the user's own spreadsheet; this is for actually reading and checking one
     PDF's output, which is awkward to do across dozens of CSV columns."""
 
+    rated = set(rated_fields(manual))
     effects: dict[str, Any] = {}
     for row in rows:
         coded = result.coded_by_row_id.get(row.row_id)
@@ -147,7 +160,7 @@ def render_pdf_audit_yaml(
             entry["status"] = "not returned by the model"
         else:
             entry["fields"] = {
-                field_name: _audit_field(_field_mapping(coded, field_name))
+                field_name: _audit_field(_field_mapping(coded, field_name), rated=field_name in rated)
                 for field_name in manual.effects
             }
         effects[row.row_id] = entry

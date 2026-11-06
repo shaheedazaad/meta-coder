@@ -28,7 +28,7 @@ from meta_coder.manual import (
 from meta_coder.mechanism import CONFIDENCE_LEVELS, build_response_schema, validate_response
 from meta_coder.projects import Project, create_project, write_manual
 from meta_coder.prompts import BASELINE_RULES, CONFIDENCE_RULE, PROMPT_VERSION, build_extraction_prompt
-from meta_coder.results import collate_field_key, low_confidence_cells, render_pdf_audit_yaml
+from meta_coder.results import collate_field_key, low_confidence_cells, rated_fields, render_pdf_audit_yaml
 from meta_coder.runner import Runner
 
 
@@ -291,24 +291,33 @@ def test_prompt_version_has_moved_to_at_least_three():
 # low_confidence_cells
 
 
-def test_low_confidence_cells_counts_only_low_ratings():
+def test_low_confidence_cells_counts_low_ratings_on_requested_rows_and_rated_fields():
     coded = {
         "r1": {
             "a": {"value": 1, "confidence": "low"},                         # counted
-            "b": {"value": 2, "confidence": "medium"},                      # not counted
-            "c": {"value": 3, "confidence": "high"},                        # not counted
-            "d": {"value": 4},                                              # no rating
-            "e": "malformed cell",                                          # ignored
+            "b": {"value": 2, "confidence": "medium"},                      # not low
+            "c": {"value": 3},                                              # no rating
+            "d": "malformed cell",                                          # ignored
+            "notes": {"value": "x", "confidence": "low"},                   # not a rated field
         },
         "r2": {"a": {"value": None, "confidence": "low"}},                  # counted
         "r3": "malformed row",                                              # ignored
+        "extra": {"a": {"value": 1, "confidence": "low"}},                  # not a sheet row
     }
-    assert low_confidence_cells(coded) == 2
+    fields = ["a", "b", "c", "d"]
+    assert low_confidence_cells(coded, row_ids=["r1", "r2", "r3"], fields=fields) == 2
+    assert low_confidence_cells(coded, row_ids=["r1", "r2"], fields=[]) == 0
 
 
 def test_low_confidence_cells_ignores_malformed_results():
-    assert low_confidence_cells(None) == 0
-    assert low_confidence_cells([]) == 0
+    assert low_confidence_cells(None, row_ids=["r1"], fields=["a"]) == 0
+    assert low_confidence_cells([], row_ids=["r1"], fields=["a"]) == 0
+
+
+def test_rated_fields_are_every_field_but_notes_and_only_when_asked():
+    assert rated_fields(_manual(True)) == ["Condition", "estimate"]
+    assert rated_fields(_manual()) == []
+    assert rated_fields(None) == []
 
 
 # Per-PDF audit YAML
@@ -319,7 +328,7 @@ def test_audit_yaml_shows_confidence_only_for_cells_that_have_it():
     result = ExtractionResult(source_pdf="paper.pdf", status="ok", coded_by_row_id={"r1": {
         "Condition": {"value": "A", "evidence": "p1", "confidence": "high"},
         "estimate": {"value": 1.5, "evidence": "p2", "confidence": "low"},
-        "notes": {"value": None},
+        "notes": {"value": None, "confidence": "low"},  # unsolicited: not shown
     }})
     text = render_pdf_audit_yaml(manual=manual, source_pdf="paper.pdf", rows=[_row()], result=result)
     fields = yaml.safe_load(text)["effects"]["r1"]["fields"]
@@ -351,7 +360,7 @@ def test_collate_field_key_fills_cells_with_the_key_and_blanks_the_rest():
         "r1": {
             "Condition": {"value": "A", "evidence": "p1", "confidence": "high"},
             "estimate": {"value": None, "evidence": "p2"},  # no key -> blank
-            "notes": {"value": "", "evidence": ""},                              # no key -> blank
+            "notes": {"value": "", "evidence": "", "confidence": "low"},         # never rated -> blank
         },
         # r2 missing from the model's output entirely: status from result, blank cells
     })}
@@ -470,7 +479,7 @@ def test_download_confidence_serves_the_file_or_404s(site):
     assert missing.json()['detail'] == 'No confidence ratings yet.'
 
     project.output_dir.mkdir(parents=True, exist_ok=True)
-    (project.output_dir / 'confidence.csv').write_text('row_id,Condition\nr1,high\n', encoding='utf-8')
+    (project.output_dir / 'confidence.csv').write_bytes(b'row_id,Condition\nr1,high\n')
     response = client.get(url)
     assert response.status_code == 200
     assert response.headers['content-type'].startswith('text/csv')
@@ -530,7 +539,11 @@ def test_results_table_shows_low_confidence_count_for_saved_and_live_results(sit
     client, project, runtime = site
     write_manual(project, _manual(True))
     coded = {"r1": {"Condition": {"value": "A", "evidence": "p1", "confidence": "low"},
-                    "estimate": {"value": 1.5, "evidence": "p2", "confidence": "low"}}}
+                    "estimate": {"value": 1.5, "evidence": "p2", "confidence": "low"},
+                    "notes": {"value": "", "confidence": "low"}},
+             "extra": {"estimate": {"value": 1, "confidence": "low"}}}
+    project.coding_sheet_path.write_text('row_id,source_pdf,locator,authors,year\nr1,paper.pdf,,Smith,2020\n', encoding='utf-8')
+    (project.sources_dir / 'paper.pdf').write_bytes(b'%PDF')
     write_raw_result(project, ExtractionResult("paper.pdf", "ok", coded_by_row_id=coded), provider='gemini', model='m')
     url = f'/test/projects/{project.project_id}?tab=results'
     assert 'low-confidence cells: 2' in client.get(url).text

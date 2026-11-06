@@ -76,7 +76,7 @@ from .runner import (
     load_persisted_results,
     raw_json_path_for_read,
 )
-from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, spreadsheet_csv
+from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .uploads import list_uploaded_pdfs, save_pdf_upload
@@ -132,13 +132,14 @@ RETRYABLE_STATUSES = {"error", "needs_review", "cancelled", STALE_STATUS}
 RUN_ACTIVE_DETAIL = "Cancel or wait for the active run first."
 
 
-def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozenset()) -> list[dict]:
+def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozenset(), rated=()) -> list[dict]:
     """One row per processed article, joined with its paper-identification columns.
 
     ``results`` may be the in-memory progress entries during a run or persisted
     extraction results after a restart. Both represent the same result fields.
     ``kept_success`` names PDFs whose latest attempt failed while an earlier
-    successful result for the same inputs is still used.
+    successful result for the same inputs is still used. ``rated`` names the
+    fields whose low confidence ratings are counted (see results.rated_fields).
     """
 
     first_row_by_pdf = {}
@@ -174,7 +175,11 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
                 # Live progress carries the count; a persisted result is counted here.
                 "low_confidence": pdf.low_confidence
                 if hasattr(pdf, "low_confidence")
-                else low_confidence_cells(pdf.coded_by_row_id),
+                else low_confidence_cells(
+                    pdf.coded_by_row_id,
+                    row_ids=[row.row_id for row in coding_sheet.rows_for_pdf(pdf.source_pdf)],
+                    fields=list(rated),
+                ),
                 # Saved before input fingerprints were recorded.
                 "unverified": pdf.status == "ok" and getattr(pdf, "input_fingerprint", "") is None,
             }
@@ -537,7 +542,7 @@ def _project_view(
             progress.source_pdf: progress for progress in run_state.pdfs
             if is_running or getattr(table_results.get(progress.source_pdf), "status", None) != STALE_STATUS
         })
-    run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project, kept_success)
+    run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project, kept_success, rated_fields(manual))
     run_rows_sorted = _sort_run_rows(run_rows_all, run_sort, run_dir)
     run_rows_page, run_page, run_total_pages = _paginate(run_rows_sorted, run_page)
     failed_result_count = sum(row["status"] == "error" for row in run_rows_all)

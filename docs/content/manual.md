@@ -16,7 +16,7 @@ Field names must be unique, ignoring capitalization and surrounding spaces. Meta
 
 ### Confidence ratings
 
-Tick **Ask the model how confident it is in each coded value** (under the effect definition on **Define your analysis**) to get a rating of high, medium or low for every field. In YAML, add `confidence: true` at the top level, next to `name`. It is off unless you turn it on. Switching it on or off is a [change to the manual](#changing-a-saved-manual).
+Tick **Ask the model how confident it is in each coded value** (under the effect definition on **Define your analysis**) to get a rating of high, medium or low for every field except the built-in `notes`. In YAML, add `confidence: true` at the top level, next to `name`. It is off unless you turn it on. Switching it on or off is a [change to the manual](#changing-a-saved-manual).
 
 | Rating | What the model is told it means |
 | --- | --- |
