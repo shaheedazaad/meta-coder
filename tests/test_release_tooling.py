@@ -1,6 +1,7 @@
 """Exercise the real builder against a committed fixture, including offline help."""
 import hashlib
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -35,6 +36,10 @@ def test_release_bundle_uses_selected_commit_and_includes_docs(tmp_path):
         assert prefix + 'pixi.lock' in archive.getnames()
         assert b'UNCOMMITTED' not in archive.extractfile(prefix + 'scripts/install.sh').read()
     assert 'UNCOMMITTED' not in (dist / 'install.sh').read_text()
+    for name in ('uninstall.sh', 'uninstall.ps1'):
+        assert (dist / name).read_bytes() == (ROOT / 'scripts' / name).read_bytes()
+    assert {'install.sh', 'install.ps1', 'uninstall.sh', 'uninstall.ps1', 'latest.txt'} < {
+        line.split('  ')[1] for line in (dist / 'SHA256SUMS').read_text().splitlines()}
     for line in (dist / 'SHA256SUMS').read_text().splitlines():
         digest, name = line.split('  ')
         assert hashlib.sha256((dist / name).read_bytes()).hexdigest() == digest
@@ -90,3 +95,138 @@ else: shutil.copyfile({str(bundle)!r}, out)
         launcher = (home / '.local/bin/meta-coder').read_text()
         assert str(pixi) in launcher
         assert '--locked' in launcher
+
+
+def _data_root(home):
+    return home / ('Library/Application Support/Meta-Coder' if sys.platform == 'darwin' else '.local/share/meta-coder')
+
+
+def _script_env(home, bin_dir=None):
+    env = {key: value for key, value in os.environ.items() if not key.startswith('META_CODER_') and key != 'XDG_DATA_HOME'}
+    env['HOME'] = str(home)
+    if bin_dir:
+        env['PATH'] = str(bin_dir) + os.pathsep + os.environ['PATH']
+    return env
+
+
+def _uninstall(home):
+    # Piped on stdin, as with the documented `curl ... | bash`.
+    return subprocess.run(['bash'], input=(ROOT / 'scripts/uninstall.sh').read_text(), env=_script_env(home),
+                          capture_output=True, text=True, check=True).stdout
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='Unix uninstaller')
+def test_uninstaller_removes_launcher_written_by_installer(tmp_path):
+    bin_dir = tmp_path / 'fake bin'
+    bin_dir.mkdir()
+    bundle = tmp_path / 'bundle.tar.gz'
+    with tarfile.open(bundle, 'w:gz') as archive:
+        archive.add(ROOT / 'pyproject.toml', 'meta-coder-1.2.3/pyproject.toml')
+    (bin_dir / 'curl').write_text(f'''#!{sys.executable}
+import shutil, sys
+args = sys.argv[1:]
+if args[1].endswith('/latest.txt'): print('1.2.3')
+else: shutil.copyfile({str(bundle)!r}, args[args.index('-o') + 1])
+''')
+    (bin_dir / 'pixi').write_text('#!/bin/sh\nexit 0\n')
+    for tool in bin_dir.iterdir():
+        tool.chmod(0o755)
+    home = tmp_path / 'home with spaces'
+    home.mkdir()
+    subprocess.run(['bash', str(ROOT / 'scripts/install.sh')], env=_script_env(home, bin_dir),
+                   capture_output=True, text=True, check=True)
+    launcher = home / '.local/bin/meta-coder'
+    assert '# meta-coder launcher' in launcher.read_text().splitlines()
+    project = _data_root(home) / 'projects/keep.txt'
+    project.parent.mkdir()
+    project.write_text('keep me')
+
+    assert 'Keeping launcher' not in _uninstall(home)
+    assert not launcher.exists()
+    assert not (_data_root(home) / 'app').exists()
+    assert project.read_text() == 'keep me'
+    # Re-running after a complete uninstall is a harmless no-op.
+    assert 'Keeping launcher' not in _uninstall(home)
+    assert project.read_text() == 'keep me'
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='Unix uninstaller')
+@pytest.mark.parametrize(('body', 'removed'), [
+    # Written by install.sh before the marker line existed.
+    ('exec "/opt/pixi bin/pixi" run --locked --manifest-path "{app}/1.2.3/pyproject.toml" start "$@"', True),
+    # A marked launcher may change how it runs the app.
+    ('# meta-coder launcher\nPIXI=pixi\n"$PIXI" run --manifest-path "{app}/1.2.3/pyproject.toml" start', True),
+    ('exec /usr/bin/python3 -m meta_coder "$@"', False),
+    ('# meta-coder launcher\nexec /usr/bin/python3 -m meta_coder "$@"', False),
+    ('exec pixi run --manifest-path "/elsewhere/meta-coder/app/1.2.3/pyproject.toml" start "$@"', False),
+    ('# exec pixi run --manifest-path "{app}/1.2.3/pyproject.toml" start', False),
+])
+def test_uninstaller_recognises_only_its_own_launchers(tmp_path, body, removed):
+    home = tmp_path / 'home with spaces'
+    app_root = _data_root(home) / 'app'
+    (app_root / '1.2.3').mkdir(parents=True)
+    launcher = home / '.local/bin/meta-coder'
+    launcher.parent.mkdir(parents=True)
+    launcher.write_text('#!/usr/bin/env bash\n' + body.replace('{app}', str(app_root)) + '\n')
+
+    output = _uninstall(home)
+    assert launcher.exists() is not removed
+    assert ('Keeping launcher' in output) is not removed
+    assert not app_root.exists()
+
+
+def test_windows_launcher_matches_what_the_uninstaller_recognises():
+    # No PowerShell in CI: check statically that the launcher install.ps1 writes
+    # carries the marker and the run line shape uninstall.ps1 looks for.
+    install = (ROOT / 'scripts/install.ps1').read_text()
+    uninstall = (ROOT / 'scripts/uninstall.ps1').read_text()
+    written = re.search(r'Set-Content -Path \$Launcher -Value "(.*)"$', install, re.M).group(1)
+    lines = written.replace('`"', '"').split('`r`n')
+    assert lines[:2] == ['@echo off', 'REM meta-coder launcher']
+    assert '-ceq "REM meta-coder launcher"' in uninstall
+    assert '--manifest-path "$ManifestPath"' in lines[2]
+    assert 'Contains("--manifest-path `"$AppRoot\\")' in uninstall
+    run_line = re.search(r"\$_ -match '(.*)'", uninstall).group(1)
+    assert re.match(run_line, lines[2].replace('$PixiPath', r'C:\Users\A B\pixi.exe'))
+
+
+def _installer_launcher(pixi, manifest):
+    # The launcher text install.ps1's Set-Content line writes, filled in.
+    install = (ROOT / 'scripts/install.ps1').read_text()
+    written = re.search(r'Set-Content -Path \$Launcher -Value "(.*)"$', install, re.M).group(1)
+    return written.replace('`"', '"').replace('`r`n', '\r\n').replace('$PixiPath', pixi).replace('$ManifestPath', manifest)
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows uninstaller')
+@pytest.mark.parametrize(('body', 'removed'), [
+    ('installer', True),
+    # Written by install.ps1 before the marker line existed.
+    ('@echo off\r\n"C:\\pixi dir\\pixi.exe" run --locked --manifest-path "{app}\\1.2.3\\pyproject.toml" start %*', True),
+    ('@echo off\r\n"C:\\Python\\python.exe" -m meta_coder %*', False),
+    ('@echo off\r\nREM meta-coder launcher\r\n"C:\\pixi.exe" run --manifest-path "C:\\elsewhere\\app\\1.2.3\\pyproject.toml" start', False),
+    ('@echo off\r\nREM "C:\\pixi.exe" run --manifest-path "{app}\\1.2.3\\pyproject.toml" start', False),
+])
+def test_windows_uninstaller_recognises_only_its_own_launchers(tmp_path, body, removed):
+    local = tmp_path / 'local app data'
+    data_root = local / 'Meta-Coder'
+    app_root = data_root / 'app'
+    (app_root / '1.2.3').mkdir(parents=True)
+    project = data_root / 'projects/keep.txt'
+    project.parent.mkdir()
+    project.write_text('keep me')
+    if body == 'installer':
+        body = _installer_launcher(r'C:\Users\A B\pixi.exe', str(app_root / '1.2.3' / 'pyproject.toml'))
+    launcher = data_root / 'bin/meta-coder.cmd'
+    launcher.parent.mkdir()
+    launcher.write_bytes(body.replace('{app}', str(app_root)).encode() + b'\r\n')
+    env = {**os.environ, 'LOCALAPPDATA': str(local)}
+    # Run as the documented `irm ... | iex` does: the script text through Invoke-Expression.
+    script = str(ROOT / 'scripts/uninstall.ps1').replace("'", "''")
+    command = f"Get-Content -Raw -LiteralPath '{script}' | Invoke-Expression"
+    for _ in range(2):  # a second run after uninstalling is a harmless no-op
+        output = subprocess.run(['powershell', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
+                                env=env, capture_output=True, text=True, check=True).stdout
+        assert launcher.exists() is not removed
+        assert ('Keeping launcher' in output) is not removed
+        assert not app_root.exists()
+        assert project.read_text() == 'keep me'

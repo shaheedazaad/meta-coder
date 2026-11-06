@@ -11,6 +11,7 @@ import queue
 import threading
 import json
 from typing import Any
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
 
@@ -22,6 +23,16 @@ class ProviderError(RuntimeError):
 
 class ExtractionCancelled(ProviderError):
     """Raised when a provider request is interrupted by the user."""
+
+
+def redact_secret(text: str, secret: str) -> str:
+    """Remove an API key, raw or URL-encoded, from text shown or persisted."""
+
+    if not secret:
+        return text
+    for value in (secret, quote(secret, safe="")):
+        text = text.replace(value, "[redacted]")
+    return text
 
 
 def parse_json_response(raw_text: str) -> tuple[object, str | None]:
