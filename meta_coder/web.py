@@ -70,6 +70,7 @@ from .fingerprints import STALE_STATUS, InputChecker
 from .runner import (
     Runner,
     attempt_json_path,
+    audit_yaml_path,
     keeps_success,
     load_latest_attempts,
     load_persisted_results,
@@ -145,6 +146,7 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
         raw_path = attempt_json_path(project, pdf.source_pdf)
         if not raw_path.is_file():
             raw_path = raw_json_path_for_read(project, pdf.source_pdf)
+        audit_path = audit_yaml_path(project, pdf.source_pdf)
         rows.append(
             {
                 "source_pdf": pdf.source_pdf,
@@ -160,6 +162,8 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
                 or getattr(pdf, "repaired_response", None) is not None,
                 "raw_available": raw_path.is_file(),
                 "raw_filename": raw_path.name,
+                "audit_available": audit_path.is_file(),
+                "audit_filename": audit_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
                 "kept_success": pdf.source_pdf in kept_success,
                 # Saved before input fingerprints were recorded.
