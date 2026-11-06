@@ -31,9 +31,20 @@ project's [MIT License](LICENSE).
 
 ### Run from source
 
+macOS / Linux:
+
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
+pip install -e .
+python -m meta_coder
+```
+
+Windows (PowerShell):
+
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -e .
 python -m meta_coder
 ```
@@ -175,7 +186,7 @@ Regenerate the ten screenshots using an isolated fictional project (no API calls
 or real credentials), with installed Google Chrome:
 
 ```sh
-pip install -e ".[docs-screenshots]"
+pip install -e ".[docs,docs-screenshots]"
 python scripts/capture_docs.py
 python -m mkdocs build --strict
 ```
