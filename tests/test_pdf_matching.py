@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from meta_coder.pdf_matching import (
     PdfScanner,
+    _cache_source,
     apply_source_pdf_matches,
     cached_signal,
     grobid_signal,
@@ -95,7 +96,7 @@ def test_pairwise_match_scores_persist_when_inputs_are_unchanged(tmp_path):
     pdf_path = project.sources_dir / "orphan.pdf"
     pdf_path.write_bytes(b"%PDF-1.4\n")
     signal_cache = {
-        pdf_path.name: {"mtime": int(pdf_path.stat().st_mtime), "size": pdf_path.stat().st_size, "tokens": "smith 2020", "year": "2020", "source": "local"}
+        pdf_path.name: {"mtime": int(pdf_path.stat().st_mtime), "size": pdf_path.stat().st_size, "tokens": "smith 2020", "year": "2020", "source": _cache_source("")}
     }
     score_cache = {}
     suggestions, changed = suggest_matches_from_score_cache(
@@ -120,7 +121,7 @@ def test_pairwise_match_scores_recompute_only_for_changed_inputs(tmp_path):
     pdf_path = project.sources_dir / "orphan.pdf"
     pdf_path.write_bytes(b"%PDF-1.4\n")
     signal_cache = {
-        pdf_path.name: {"mtime": int(pdf_path.stat().st_mtime), "size": pdf_path.stat().st_size, "tokens": "smith 2020", "year": "2020", "source": "local"}
+        pdf_path.name: {"mtime": int(pdf_path.stat().st_mtime), "size": pdf_path.stat().st_size, "tokens": "smith 2020", "year": "2020", "source": _cache_source("")}
     }
     score_cache = {}
     suggest_matches_from_score_cache([paper], [pdf_path], signal_cache=signal_cache, score_cache=score_cache)
