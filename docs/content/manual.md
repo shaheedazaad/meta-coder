@@ -12,6 +12,8 @@ Descriptions should be relative to your [effect definition](analysis.md). For in
 
 Every extraction request sends the model the analysis description, the effect definition, each field’s name, type and description, and each level with its description. Write them as instructions another coder could follow. Level descriptions matter most when level values are short codes such as `1` and `2`. The model must choose exactly one level per field; if several seem to apply, it picks the best fit and explains in the `notes` field.
 
+Field names must be unique, ignoring capitalization and surrounding spaces. MetaCoder already adds `row_id`, `source_pdf`, `locator`, `authors`, `year`, and `status` to every export, so a field cannot use one of those names in any capitalization — use a more specific name such as `publication_year` or `publication_status`. MetaCoder also adds its own `notes` field to every manual, so don't define one yourself, under any capitalization.
+
 Choose **Validate and save** when the fields and effect definition are ready. Fix any validation messages before continuing.
 
 ## Draft from a document
@@ -39,6 +41,8 @@ effects:
       - value: Unpublished
         description: Thesis, preprint, or other unpublished report.
 ```
+
+Category values are read as text, not converted to numbers or true/false, so `yes`, `no`, `01`, and `1.50` stay as those labels (leading and trailing spaces are trimmed). Only `true` and `false` are read as true/false settings (for example `evidence_required: false`). A key that appears twice in the same place, such as two fields with the same name, is reported as an error rather than silently overwritten.
 
 ## Changing a saved manual
 

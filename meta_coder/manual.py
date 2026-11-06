@@ -9,6 +9,7 @@ effect location — see coding_sheet.py) are a fixed schema, not manual-configur
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,15 @@ import yaml
 
 
 SUPPORTED_TYPES = {"string", "number", "integer", "boolean"}
+
+# Columns MetaCoder itself writes at the start of every coded_data.csv /
+# evidence.csv row (see results.py); `row_id` is also the key of each coded
+# effect in the model's response schema (see mechanism.py). A manual field with
+# one of these names would overwrite that column or response key, so they're
+# rejected — case-insensitively, since `Year` next to `year` in a spreadsheet
+# header is just as confusing (and some tools, e.g. SPSS, ignore case).
+BASE_COLUMNS = ("row_id", "source_pdf", "locator", "authors", "year", "status")
+_RESERVED_NAME_SUGGESTIONS = {"year": "publication_year", "status": "publication_status"}
 
 # Every manual gets this effect field forced onto it — see `_build_manual_from_raw`,
 # which injects it after parsing and discards whatever the caller supplied for it.
@@ -101,7 +111,19 @@ def _parse_levels(raw: object, field_name: str) -> list[Level]:
             raise ManualError(
                 f"effects.{field_name}.levels[{index}] must be a mapping with a `value` key."
             )
-        value = str(entry["value"]).strip()
+        raw_value = entry["value"]
+        if raw_value is None:
+            # Unquoted `value:` / `value: null` in YAML — reject rather than
+            # turning it into a level called "None".
+            raise ManualError(
+                f"effects.{field_name}.levels[{index}].value cannot be empty "
+                "(put quotes around it if the level is literally called `null`)."
+            )
+        if isinstance(raw_value, bool):
+            # Only `true`/`false` resolve to booleans (see _ManualLoader); keep
+            # that spelling rather than Python's `True`/`False`.
+            raw_value = "true" if raw_value else "false"
+        value = str(raw_value).strip()
         if not value:
             raise ManualError(f"effects.{field_name}.levels[{index}].value cannot be empty.")
         if value in seen:
@@ -150,10 +172,33 @@ def _parse_section(raw: object, section: str, *, allow_empty: bool) -> dict[str,
     if not mapping and not allow_empty:
         raise ManualError(f"`{section}` must contain at least one field.")
     out: dict[str, FieldSpec] = {}
+    seen: dict[str, str] = {}
     for name, spec in mapping.items():
         field_name = str(name or "").strip()
         if not field_name:
             raise ManualError(f"Every field in `{section}` must be named.")
+        key = field_name.casefold()
+        if key in BASE_COLUMNS:
+            suggestion = _RESERVED_NAME_SUGGESTIONS.get(key, f"study_{key}")
+            raise ManualError(
+                f"{section}.{field_name}: `{field_name}` is reserved for a column MetaCoder "
+                f"adds to every export ({', '.join(BASE_COLUMNS)}). Rename the field, "
+                f"e.g. to `{suggestion}`."
+            )
+        if key == NOTES_FIELD_NAME and field_name != NOTES_FIELD_NAME:
+            # Exact `notes` is silently replaced by the built-in field (see
+            # _build_manual_from_raw); a case variant would sit beside it.
+            raise ManualError(
+                f"{section}.{field_name}: `{field_name}` clashes with the built-in "
+                f"`{NOTES_FIELD_NAME}` field, which MetaCoder adds automatically. Remove "
+                "this field or give it a more specific name."
+            )
+        if key in seen:
+            raise ManualError(
+                f"`{section}` has fields named both `{seen[key]}` and `{field_name}`; "
+                "field names must differ by more than spaces or capitalization."
+            )
+        seen[key] = field_name
         out[field_name] = _parse_field(field_name, spec, section)
     return out
 
@@ -162,7 +207,7 @@ def _build_manual_from_raw(
     raw: object, *, raw_text: str = "", require_effect_definition: bool = True
 ) -> CodingManual:
     """Shared validation core: `raw` is the plain dict/list structure produced by
-    either yaml.safe_load (text path) or json.loads (structured-editor path) — both
+    either _ManualLoader (text path) or json.loads (structured-editor path) — both
     parse into the same basic Python types, so one validator serves both.
     """
 
@@ -197,9 +242,51 @@ def _build_manual_from_raw(
     )
 
 
+class _ManualLoader(yaml.SafeLoader):
+    """SafeLoader tuned for coding manuals, without touching PyYAML's globals.
+
+    - Duplicate mapping keys are an error (PyYAML silently keeps the last one,
+      which would quietly drop a field, level, or instruction).
+    - Only `true`/`false` are booleans (YAML 1.2 style), so category labels
+      such as `yes`/`no`/`on`/`off` stay strings.
+    - No implicit int/float/timestamp resolution: nothing in a manual is
+      numeric, so unquoted `01` or `1.50` keep their exact text instead of
+      becoming `1` / `1.5`. `null`, `~` and empty values still mean "no value".
+    """
+
+    def construct_mapping(self, node, deep=False):
+        seen: set[object] = set()
+        for key_node, _value_node in node.value:
+            # Merge keys (`<<: *anchor`) and complex keys are left to PyYAML.
+            if not isinstance(key_node, yaml.ScalarNode) or key_node.tag == "tag:yaml.org,2002:merge":
+                continue
+            key = self.construct_object(key_node, deep=True)
+            if key in seen:
+                raise yaml.constructor.ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    f"duplicate key `{key}` (each key may appear only once)",
+                    key_node.start_mark,
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
+
+
+_KEPT_YAML_RESOLVERS = {"tag:yaml.org,2002:null", "tag:yaml.org,2002:merge"}
+# Assigning a fresh dict on the subclass leaves SafeLoader's own resolvers intact.
+_ManualLoader.yaml_implicit_resolvers = {
+    first: kept
+    for first, resolvers in yaml.SafeLoader.yaml_implicit_resolvers.items()
+    if (kept := [(tag, regexp) for tag, regexp in resolvers if tag in _KEPT_YAML_RESOLVERS])
+}
+_ManualLoader.add_implicit_resolver(
+    "tag:yaml.org,2002:bool", re.compile(r"^(?:true|True|TRUE|false|False|FALSE)$"), list("tTfF")
+)
+
+
 def parse_coding_manual(text: str, *, require_effect_definition: bool = True) -> CodingManual:
     try:
-        raw = yaml.safe_load(text) or {}
+        raw = yaml.load(text, Loader=_ManualLoader) or {}
     except yaml.YAMLError as exc:
         mark = getattr(exc, "problem_mark", None)
         problem = str(getattr(exc, "problem", "") or "The YAML could not be parsed.")
@@ -277,7 +364,10 @@ def manual_to_editor_payload(manual: CodingManual) -> dict[str, Any]:
 
 def manual_to_yaml_text(manual: CodingManual) -> str:
     """Serialize a CodingManual to YAML for on-disk storage, via PyYAML (not a
-    hand-rolled emitter) so quoting/escaping is always correct."""
+    hand-rolled emitter) so quoting/escaping is always correct. The default
+    dumper quotes any string YAML 1.1 would read as another type (`yes`, `01`,
+    `1.50`, `null`) — a superset of what _ManualLoader resolves — so every
+    value re-imports unchanged."""
 
     def field_dict(spec: FieldSpec) -> dict[str, Any]:
         out: dict[str, Any] = {"type": spec.type}

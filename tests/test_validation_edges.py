@@ -34,9 +34,9 @@ def test_yaml_diagnostics_include_location():
 
 
 def test_yaml_error_without_location(monkeypatch):
-    def fail(_):
+    def fail(_text, Loader):
         raise yaml.YAMLError('parser failure')
-    monkeypatch.setattr(manual.yaml, 'safe_load', fail)
+    monkeypatch.setattr(manual.yaml, 'load', fail)
     with pytest.raises(manual.ManualError, match='Invalid YAML: The YAML could not be parsed'):
         manual.parse_coding_manual('text')
 
