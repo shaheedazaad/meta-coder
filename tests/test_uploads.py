@@ -12,7 +12,7 @@ from meta_coder.uploads import (
 @pytest.mark.parametrize(('name', 'expected'), [
     ('../../paper.pdf', 'paper.pdf'),
     ('C:\\fakepath\\paper.PDF', 'paper.PDF'),
-    ('páper?.pdf', 'p_per_.pdf'),
+    ('páper?.pdf', 'páper_.pdf'),
     (' .paper.pdf ', 'paper.pdf'),
     ('x' * 200 + '.pdf', 'x' * 160 + '.pdf'),
 ])
@@ -80,3 +80,23 @@ def test_existing_partial_upload_is_not_deleted_by_a_competing_upload(tmp_path):
         save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-new'))
     assert partial.read_bytes() == b'another upload owns this file'
     assert not (tmp_path / 'paper.pdf').exists()
+
+
+@pytest.mark.parametrize(('name', 'expected'), [
+    ('Müller 2020.pdf', 'Müller 2020.pdf'),
+    ('研究.pdf', '研究.pdf'),
+    ('e\u0301.pdf', 'é.pdf'),
+    ('Smith (2020) & Lee.pdf', 'Smith (2020) & Lee.pdf'),
+    ('CON.pdf', '_CON.pdf'),
+    ('lpt1.PDF', '_lpt1.PDF'),
+    ('nul.extra.pdf', '_nul.extra.pdf'),
+    ('control\x01.pdf', 'control_.pdf'),
+])
+def test_unicode_and_portable_names(name, expected):
+    assert safe_pdf_name(name) == expected
+
+
+def test_multibyte_filename_fits_portable_byte_limit(tmp_path):
+    name = safe_pdf_name('研' * 170 + '.pdf')
+    assert len(name.encode('utf-8')) <= 180
+    assert save_pdf_upload(tmp_path, name, io.BytesIO(b'%PDF')).name == name

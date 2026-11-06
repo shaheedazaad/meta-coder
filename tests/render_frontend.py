@@ -23,7 +23,11 @@ def render():
             app = web.create_app(token='test', projects_root=root)
             with TestClient(app, base_url='http://localhost') as client:
                 pages = {'project': f'/test/projects/{project.project_id}', 'home': '/test/', 'settings': '/test/settings'}
-                return {name: {'url': 'http://localhost' + path, 'html': client.get(path).text} for name, path in pages.items()}
+                fixtures = {name: {'url': 'http://localhost' + path, 'html': client.get(path).text} for name, path in pages.items()}
+                rejected = client.post(pages['project'] + '/manual', data={'manual_json': json.dumps({'name': 'rejected', 'effect_definition': '', 'effects': []})})
+                assert rejected.status_code == 400
+                fixtures['rejected'] = {'url': fixtures['project']['url'], 'html': rejected.text}
+                return fixtures
 
 
 if __name__ == '__main__':

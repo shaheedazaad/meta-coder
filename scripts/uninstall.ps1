@@ -1,5 +1,7 @@
 # Uninstall a release installed by install.ps1. User data and Pixi are kept.
-# Usage: .\scripts\uninstall.ps1
+# Usage:
+#   irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.ps1 | iex
+# or, from a source checkout: .\scripts\uninstall.ps1
 [CmdletBinding()]
 param()
 
@@ -13,9 +15,19 @@ $AppRoot = Join-Path $DataRoot "app"
 $BinDir = Join-Path $DataRoot "bin"
 $Launcher = Join-Path $BinDir "meta-coder.cmd"
 
+# A launcher is ours if it runs a manifest under $AppRoot, either behind
+# install.ps1's REM marker line or as the `"<pixi.exe>" run ...` line written
+# before the marker existed. Anything else is left alone.
+function Test-OwnLauncher([string]$Path) {
+    $Lines = @(Get-Content -LiteralPath $Path)
+    $AppLines = @($Lines | Where-Object { $_.Contains("--manifest-path `"$AppRoot\") })
+    if ($AppLines.Count -eq 0) { return $false }
+    if ($Lines -ceq "REM meta-coder launcher") { return $true }
+    return [bool]($AppLines | Where-Object { $_ -match '^"[^"]+" run ' })
+}
+
 if (Test-Path -LiteralPath $Launcher -PathType Leaf) {
-    $Content = Get-Content -LiteralPath $Launcher -Raw
-    if ($Content -and $Content.Contains("pixi run --manifest-path `"$AppRoot\")) {
+    if (Test-OwnLauncher $Launcher) {
         Remove-Item -LiteralPath $Launcher -Force
     } else {
         Write-Host "Keeping launcher not recognized as this release installation: $Launcher"
