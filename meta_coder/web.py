@@ -76,7 +76,7 @@ from .runner import (
     load_persisted_results,
     raw_json_path_for_read,
 )
-from .results import provenance_csv, spreadsheet_csv
+from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .uploads import list_uploaded_pdfs, save_pdf_upload
@@ -84,7 +84,7 @@ import yaml
 
 
 # Canonical result files under output/, keyed by their download route name.
-RESULT_CSV_FILES = {"coded": "coded_data.csv", "evidence": "evidence.csv"}
+RESULT_CSV_FILES = {"coded": "coded_data.csv", "evidence": "evidence.csv", "confidence": CONFIDENCE_CSV}
 
 
 def _embeddable_json(data: object) -> str:
@@ -132,13 +132,14 @@ RETRYABLE_STATUSES = {"error", "needs_review", "cancelled", STALE_STATUS}
 RUN_ACTIVE_DETAIL = "Cancel or wait for the active run first."
 
 
-def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozenset()) -> list[dict]:
+def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozenset(), rated=()) -> list[dict]:
     """One row per processed article, joined with its paper-identification columns.
 
     ``results`` may be the in-memory progress entries during a run or persisted
     extraction results after a restart. Both represent the same result fields.
     ``kept_success`` names PDFs whose latest attempt failed while an earlier
-    successful result for the same inputs is still used.
+    successful result for the same inputs is still used. ``rated`` names the
+    fields whose low confidence ratings are counted (see results.rated_fields).
     """
 
     first_row_by_pdf = {}
@@ -171,6 +172,14 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
                 "audit_filename": audit_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
                 "kept_success": pdf.source_pdf in kept_success,
+                # Live progress carries the count; a persisted result is counted here.
+                "low_confidence": pdf.low_confidence
+                if hasattr(pdf, "low_confidence")
+                else low_confidence_cells(
+                    pdf.coded_by_row_id,
+                    row_ids=[row.row_id for row in coding_sheet.rows_for_pdf(pdf.source_pdf)],
+                    fields=list(rated),
+                ),
                 # Saved before input fingerprints were recorded.
                 "unverified": pdf.status == "ok" and getattr(pdf, "input_fingerprint", "") is None,
             }
@@ -533,7 +542,7 @@ def _project_view(
             progress.source_pdf: progress for progress in run_state.pdfs
             if is_running or getattr(table_results.get(progress.source_pdf), "status", None) != STALE_STATUS
         })
-    run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project, kept_success)
+    run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project, kept_success, rated_fields(manual))
     run_rows_sorted = _sort_run_rows(run_rows_all, run_sort, run_dir)
     run_rows_page, run_page, run_total_pages = _paginate(run_rows_sorted, run_page)
     failed_result_count = sum(row["status"] == "error" for row in run_rows_all)
@@ -599,6 +608,7 @@ def _project_view(
         "reasoning_efforts": REASONING_EFFORTS,
         "has_results": bool(run_state) or bool(completed_articles) or (coded_csv.is_file() and evidence_csv.is_file()),
         "result_files_available": coded_csv.is_file() and evidence_csv.is_file(),
+        "confidence_file_available": (project.output_dir / CONFIDENCE_CSV).is_file(),
         "audit_files": audit_files,
         "run_settings": run_settings,
         "manual_generator_provider": generator_provider,
@@ -1333,6 +1343,14 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if not path.is_file():
             raise HTTPException(status_code=404, detail="No results yet.")
         return FileResponse(path, media_type="text/csv", filename=f"{project.name}-evidence.csv")
+
+    @app.get(f"/{token}/projects/{{project_id}}/download/confidence")
+    async def download_confidence(project_id: str):
+        project = runtime.project(project_id)
+        path = project.output_dir / CONFIDENCE_CSV
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="No confidence ratings yet.")
+        return FileResponse(path, media_type="text/csv", filename=f"{project.name}-confidence.csv")
 
     def _csv_attachment(data: bytes, filename: str) -> Response:
         # Same quoting as FileResponse: RFC 6266 filename*= for names that need escaping.

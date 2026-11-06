@@ -14,13 +14,54 @@ import yaml
 
 from .coding_sheet import CodingSheet, CodingSheetRow
 from .extraction import ExtractionResult
-from .manual import BASE_COLUMNS, CodingManual
+from .manual import BASE_COLUMNS, NOTES_FIELD_NAME, CodingManual
+
+
+# Written next to coded_data.csv only when the manual asks for confidence
+# ratings: same rows and columns, each coded cell holding its rating.
+CONFIDENCE_CSV = "confidence.csv"
 
 
 def _field_mapping(coded: dict, field_name: str) -> dict:
     """Malformed model cells stay in raw JSON, but cannot break exports."""
     value = coded.get(field_name)
     return value if isinstance(value, dict) else {}
+
+
+def _base_row(row: CodingSheetRow, status: str) -> dict[str, str]:
+    return {
+        "row_id": row.row_id,
+        "source_pdf": row.source_pdf,
+        "locator": row.locator,
+        "authors": row.authors,
+        "year": row.year,
+        "status": status,
+    }
+
+
+def rated_fields(manual: CodingManual | None) -> list[str]:
+    """The fields the model rates when the manual asks for confidence: every
+    field except the built-in `notes`. Ratings anywhere else were not asked
+    for and are never exported or counted."""
+
+    if manual is None or not manual.confidence:
+        return []
+    return [name for name in manual.effects if name != NOTES_FIELD_NAME]
+
+
+def low_confidence_cells(coded_by_row_id: object, *, row_ids: list[str], fields: list[str]) -> int:
+    """How many of the requested rows' rated cells the model rated `low`
+    confidence: the ones a person should check first. Never affects a PDF's
+    status."""
+
+    if not isinstance(coded_by_row_id, dict):
+        return 0
+    count = 0
+    for row_id in row_ids:
+        coded = coded_by_row_id.get(row_id)
+        if isinstance(coded, dict):
+            count += sum(_field_mapping(coded, name).get("confidence") == "low" for name in fields)
+    return count
 
 
 def collate_results(
@@ -38,14 +79,7 @@ def collate_results(
         status = result.status if result else "not_run"
         coded = (result.coded_by_row_id.get(row.row_id) if result else None) or {}
 
-        base = {
-            "row_id": row.row_id,
-            "source_pdf": row.source_pdf,
-            "locator": row.locator,
-            "authors": row.authors,
-            "year": row.year,
-            "status": status,
-        }
+        base = _base_row(row, status)
 
         coded_row = dict(base)
         evidence_row = dict(base)
@@ -59,6 +93,38 @@ def collate_results(
         evidence_rows.append(evidence_row)
 
     return coded_rows, evidence_rows
+
+
+def collate_field_key(
+    key: str,
+    *,
+    manual: CodingManual,
+    coding_sheet: CodingSheet,
+    results_by_pdf: dict[str, ExtractionResult],
+) -> list[dict[str, str]]:
+    """Rows of a file shaped like coded_data.csv whose cells hold one other key
+    of each coded field, such as its `confidence`. Cells without that key —
+    rows not coded yet, older results — are blank, and so is `notes`, which
+    is never asked for one."""
+
+    rows: list[dict[str, str]] = []
+    for row in coding_sheet.rows:
+        result = results_by_pdf.get(row.source_pdf)
+        coded = (result.coded_by_row_id.get(row.row_id) if result else None) or {}
+        out = _base_row(row, result.status if result else "not_run")
+        for field_name in manual.effects:
+            cell = None if field_name == NOTES_FIELD_NAME else _field_mapping(coded, field_name).get(key)
+            out[field_name] = "" if cell is None else str(cell)
+        rows.append(out)
+    return rows
+
+
+def _audit_field(field_value: dict, *, rated: bool) -> dict[str, Any]:
+    entry: dict[str, Any] = {"value": field_value.get("value")}
+    if rated and "confidence" in field_value:
+        entry["confidence"] = field_value["confidence"]
+    entry["evidence"] = field_value.get("evidence")
+    return entry
 
 
 def rows_to_csv(rows: list[dict[str, str]], manual: CodingManual) -> str:
@@ -85,6 +151,7 @@ def render_pdf_audit_yaml(
     the user's own spreadsheet; this is for actually reading and checking one
     PDF's output, which is awkward to do across dozens of CSV columns."""
 
+    rated = set(rated_fields(manual))
     effects: dict[str, Any] = {}
     for row in rows:
         coded = result.coded_by_row_id.get(row.row_id)
@@ -93,10 +160,7 @@ def render_pdf_audit_yaml(
             entry["status"] = "not returned by the model"
         else:
             entry["fields"] = {
-                field_name: {
-                    "value": _field_mapping(coded, field_name).get("value"),
-                    "evidence": _field_mapping(coded, field_name).get("evidence"),
-                }
+                field_name: _audit_field(_field_mapping(coded, field_name), rated=field_name in rated)
                 for field_name in manual.effects
             }
         effects[row.row_id] = entry
