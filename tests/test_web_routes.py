@@ -383,7 +383,7 @@ def test_results_table_links_per_pdf_yaml_only_when_written(site):
     assert 'view raw output (YAML)' in page
     assert link not in page and 'view coded effects (YAML)' not in page
     audit_path.parent.mkdir(parents=True, exist_ok=True)
-    audit_path.write_text('source_pdf: paper.pdf\n', encoding='utf-8')
+    audit_path.write_bytes(b'source_pdf: paper.pdf\n')
     page = client.get(url(project, '?tab=results')).text
     assert f'href="{link}"' in page and 'view coded effects (YAML)' in page
     response = client.get(link)
