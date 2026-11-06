@@ -698,10 +698,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
 
     @app.post(f"/{token}/projects/{{project_id}}/delete")
     async def delete_project_route(project_id: str):
-        try:
-            project = runtime.project(project_id)
-        except ProjectError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        project = runtime.project(project_id)
         # An active PDF scan would recreate the deleted folder when it saves
         # its signal cache.
         _reject_if_busy(project_id, include_pdf_scan=True)
@@ -785,10 +782,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         sources_page: int = 1,
         sheet_page: int = 1,
     ):
-        try:
-            project = runtime.project(project_id)
-        except ProjectError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        project = runtime.project(project_id)
         # `tab` lets a redirect (e.g. a Manage-tab action's error) jump the sidebar
         # straight to a specific tab; `error` with no explicit `tab` historically
         # only ever came from a redirected PDF-upload failure, so it still defaults

@@ -427,3 +427,11 @@ def test_draft_errors_echoing_the_key_are_redacted(project, monkeypatch):
                                        files={'file': (filename, b'citation\nSmith 2024')})
                 assert response.status_code == status
                 assert response.json()['error'] == 'failed with [redacted]'
+
+
+def test_json_bytes_supports_sets_paths_and_rejects_unknown_objects():
+    from pathlib import Path
+    from meta_coder.provenance import json_bytes
+    assert json.loads(json_bytes({'ids': {'b', 'a'}, 'path': Path('paper.pdf')})) == {'ids': ['a', 'b'], 'path': 'paper.pdf'}
+    with pytest.raises(TypeError, match='Unsupported audit value'):
+        json_bytes(object())
