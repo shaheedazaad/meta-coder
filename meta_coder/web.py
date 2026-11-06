@@ -66,8 +66,17 @@ from .projects import (
     write_manual,
 )
 from .providers import PROVIDER_LABELS, PROVIDERS, check_model, default_model, draft_coding_manual, draft_coding_sheet
+from .fingerprints import STALE_STATUS, InputChecker
+from .runner import (
+    Runner,
+    attempt_json_path,
+    audit_yaml_path,
+    keeps_success,
+    load_latest_attempts,
+    load_persisted_results,
+    raw_json_path_for_read,
+)
 from .results import provenance_csv, spreadsheet_csv
-from .runner import Runner, audit_yaml_path, load_persisted_results, raw_json_path_for_read
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .uploads import list_uploaded_pdfs, save_pdf_upload
@@ -119,15 +128,17 @@ RUN_SORT_COLUMNS = {"source_pdf", "authors", "year", "status", "input_tokens", "
 GROBID_SETTINGS_ENABLED = False
 
 
-RETRYABLE_STATUSES = {"error", "needs_review", "cancelled"}
+RETRYABLE_STATUSES = {"error", "needs_review", "cancelled", STALE_STATUS}
 RUN_ACTIVE_DETAIL = "Cancel or wait for the active run first."
 
 
-def _run_table_rows(results, coding_sheet, project: Project) -> list[dict]:
+def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozenset()) -> list[dict]:
     """One row per processed article, joined with its paper-identification columns.
 
     ``results`` may be the in-memory progress entries during a run or persisted
     extraction results after a restart. Both represent the same result fields.
+    ``kept_success`` names PDFs whose latest attempt failed while an earlier
+    successful result for the same inputs is still used.
     """
 
     first_row_by_pdf = {}
@@ -137,7 +148,9 @@ def _run_table_rows(results, coding_sheet, project: Project) -> list[dict]:
     rows = []
     for pdf in results:
         sheet_row = first_row_by_pdf.get(pdf.source_pdf)
-        raw_path = raw_json_path_for_read(project, pdf.source_pdf)
+        raw_path = attempt_json_path(project, pdf.source_pdf)
+        if not raw_path.is_file():
+            raw_path = raw_json_path_for_read(project, pdf.source_pdf)
         audit_path = audit_yaml_path(project, pdf.source_pdf)
         rows.append(
             {
@@ -157,6 +170,9 @@ def _run_table_rows(results, coding_sheet, project: Project) -> list[dict]:
                 "audit_available": audit_path.is_file(),
                 "audit_filename": audit_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
+                "kept_success": pdf.source_pdf in kept_success,
+                # Saved before input fingerprints were recorded.
+                "unverified": pdf.status == "ok" and getattr(pdf, "input_fingerprint", "") is None,
             }
         )
     return rows
@@ -458,7 +474,13 @@ def _project_view(
     }
     keyring_available = credentials.keyring_available()
 
-    persisted_results = load_persisted_results(project)
+    # Saved results only count while their inputs are unchanged; see
+    # fingerprints.py.
+    input_checker = InputChecker(
+        project, manual, coding_sheet, provider=run_settings.provider, model=run_settings.model,
+        reasoning_effort=run_settings.reasoning_effort, **endpoint_options(run_settings.provider),
+    )
+    persisted_results = input_checker.check(load_persisted_results(project))
     completed_pdf_names = {
         source_pdf for source_pdf, result in persisted_results.items() if result.status == "ok"
     }
@@ -493,15 +515,29 @@ def _project_view(
 
     run_sort = run_sort if run_sort in RUN_SORT_COLUMNS else "source_pdf"
     run_dir = run_dir if run_dir in ("asc", "desc") else "asc"
+    # The table shows each PDF's latest attempt, which can be a failed retry
+    # of a PDF whose earlier success is still used.
     table_results = dict(persisted_results)
+    latest_attempts = input_checker.check(load_latest_attempts(project))
+    kept_success = {
+        name for name, attempt in latest_attempts.items()
+        if keeps_success(persisted_results.get(name), attempt)
+    }
+    table_results.update(latest_attempts)
     if run_state:
         # A retry's in-memory state includes only its target PDFs. Overlay it
-        # on the persisted history rather than hiding earlier outcomes.
-        table_results.update({progress.source_pdf: progress for progress in run_state.pdfs})
-    run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project)
+        # on the persisted history rather than hiding earlier outcomes. After
+        # the run, an input change since then takes precedence: the result
+        # is outdated whatever the run reported.
+        table_results.update({
+            progress.source_pdf: progress for progress in run_state.pdfs
+            if is_running or getattr(table_results.get(progress.source_pdf), "status", None) != STALE_STATUS
+        })
+    run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project, kept_success)
     run_rows_sorted = _sort_run_rows(run_rows_all, run_sort, run_dir)
     run_rows_page, run_page, run_total_pages = _paginate(run_rows_sorted, run_page)
     failed_result_count = sum(row["status"] == "error" for row in run_rows_all)
+    stale_result_count = sum(result.status == STALE_STATUS for result in persisted_results.values())
     can_retry = bool(
         not is_running
         and api_key_set
@@ -551,6 +587,7 @@ def _project_view(
         "pending_pdf_count": len(pending_pdf_names),
         "completed_articles": completed_articles,
         "failed_result_count": failed_result_count,
+        "stale_result_count": stale_result_count,
         "api_key_set": api_key_set,
         "run_provider_setup_error": runtime.provider_setup_error(run_settings.provider),
         "saved_key_available": saved_key_available,
@@ -676,6 +713,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         project = runtime.project(project_id)
         _reject_if_busy(project_id)
         clear_output(project)
+        runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=manage", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/open-folder")
@@ -921,6 +959,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             return TEMPLATES.TemplateResponse(request, "project.html", context, status_code=400)
         _reject_if_busy(project_id)
         write_manual(project, manual)
+        runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/manual/reset")
@@ -928,6 +967,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         project = runtime.project(project_id)
         _reject_if_busy(project_id)
         reset_manual_to_default(project)
+        runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/manual/import")
@@ -953,6 +993,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 f"/{token}/projects/{project_id}?error={quote(str(exc))}", status_code=303
             )
         write_manual(project, manual)
+        runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/manual/draft", response_class=JSONResponse)
@@ -1018,6 +1059,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if text != previous:
             atomic_write(project.coding_sheet_path, text.encode("utf-8"))
             clear_output(project)
+            runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/draft", response_class=JSONResponse)
@@ -1063,6 +1105,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if csv_text != previous:
             project.coding_sheet_path.write_text(csv_text, encoding="utf-8")
             clear_output(project)
+            runtime.runner.discard_finished_state(project_id)
         return JSONResponse({"redirect": f"/{token}/projects/{project_id}?tab=coding-sheet"})
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/match-pdfs")

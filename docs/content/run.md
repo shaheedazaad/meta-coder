@@ -23,7 +23,9 @@ To estimate spending before processing every PDF, see [Cost](costs.md). Extracti
 
 Progress updates while the run is active. While a run is active or cancelling, MetaCoder refuses changes to the coding manual, coding sheet, PDF matches, source PDFs, and generated data, so results always match the inputs they were coded from; wait for the run to finish or cancel it first. Cancellation stops queued work; requests already in flight may finish. Successful PDFs are retained. Retry failed or needs-review PDFs individually from the results table, or use the bulk retry control.
 
-Starting another run processes matched PDFs still needing coding; it does not automatically reprocess successful studies. To intentionally rerun everything, export what you need and clear generated data in [Project settings](projects.md).
+Starting another run processes matched PDFs still needing coding; it does not automatically reprocess successful studies. A successful result is marked **outdated** and coded again if its PDF, its coding-sheet row IDs or locators, the coding manual, or the provider and model settings have changed since. Outdated results stay in the project folder but are left out of new exports; they count again if you restore the earlier inputs. To intentionally rerun everything, export what you need and clear generated data in [Project settings](projects.md).
+
+A failed retry never replaces a successful result. The results table shows the latest attempt, while the earlier success remains in the exports.
 
 ## Review the output
 
