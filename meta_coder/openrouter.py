@@ -31,7 +31,9 @@ from .extraction import (
     ExtractionResult,
     ProviderError,
     cancellable_urlopen,
+    normalize_finish_reason,
     parse_json_response,
+    review_issues,
 )
 import threading
 from .manual import CodingManual
@@ -197,6 +199,7 @@ def _call_openrouter_content(
         "input_tokens": usage.get("prompt_tokens"),
         "output_tokens": usage.get("completion_tokens"),
         "served_model": served_model if isinstance(served_model, str) and served_model else None,
+        "finish_reason": normalize_finish_reason(choice.get("finish_reason")),
     }
     return text, tokens
 
@@ -308,15 +311,18 @@ def extract_pdf_effects(
         )
 
     result: ValidationResult = validate_response(parsed, requested_ids, manual.effects)
+    issues = review_issues(
+        repaired_response=repaired_response, finish_reason=tokens.get("finish_reason")
+    )
     duration = time.monotonic() - started
-    if not result.ok:
+    if not result.ok or issues:
         return ExtractionResult(
             source_pdf=source_pdf,
             status="needs_review",
             coded_by_row_id=result.coded_by_row_id,
             missing_ids=result.missing_ids,
             extra_ids=result.extra_ids,
-            error=result.error,
+            error=" ".join(filter(None, [*issues, result.error])),
             raw_response=raw_text,
             repaired_response=repaired_response,
             duration_sec=duration,
