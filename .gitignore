@@ -35,3 +35,8 @@ coverage.json
 
 # JavaScript coverage reports
 coverage/
+
+# Evaluation runs (evals/baselines holds the committed ones)
+evals/runs/
+# Regression-set PDFs, downloaded by evals/fetch_pdfs.py from a release
+evals/pdfs/
