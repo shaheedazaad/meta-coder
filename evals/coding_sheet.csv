@@ -1,0 +1,34 @@
+row_id,source_pdf,locator,authors,year
+kearney_2022_1,kearney_2022.pdf,Correlation between age diversity (SD) and revenues achieved by the teams,"Kearney, Razinskas, Weiss & Hoegl",2022
+kearney_2022_2,kearney_2022.pdf,Correlation between degree diversity (Blau) and revenues achieved by the teams,"Kearney, Razinskas, Weiss & Hoegl",2022
+kearney_2022_3,kearney_2022.pdf,Correlation between native language diversity (Blau) and revenues achieved by the teams,"Kearney, Razinskas, Weiss & Hoegl",2022
+kearney_2022_4,kearney_2022.pdf,Correlation between gender diversity (Binary - diverse v homogeneous teams) and revenues achieved by the teams,"Kearney, Razinskas, Weiss & Hoegl",2022
+ninerola_2022_1,ninerola_2022.pdf,Correlation between age diversity (coef var) and Return on equity,"Niñerola, Hernández-Lara & Sánchez-Rebull",2022
+ninerola_2022_2,ninerola_2022.pdf,Correlation between gender diversity (Blau) and Return on equity,"Niñerola, Hernández-Lara & Sánchez-Rebull",2022
+ninerola_2022_3,ninerola_2022.pdf,Correlation between tenure diversity (coef var) and Return on equity,"Niñerola, Hernández-Lara & Sánchez-Rebull",2022
+ninerola_2022_4,ninerola_2022.pdf,Correlation between function diversity (Blau) and Return on equity,"Niñerola, Hernández-Lara & Sánchez-Rebull",2022
+ninerola_2022_5,ninerola_2022.pdf,"Correlation between gender diversity (% female (M: 20%, SD: 28%)) and Return on equity","Niñerola, Hernández-Lara & Sánchez-Rebull",2022
+li_2018_1,li_2018.pdf,Correlation between tenure diversity (coef var) and Innovative performance,"Li, She & Yang",2018
+li_2018_2,li_2018.pdf,Correlation between age diversity (coef var) and Innovative performance,"Li, She & Yang",2018
+li_2018_3,li_2018.pdf,Correlation between gender diversity (Blau) and Innovative performance,"Li, She & Yang",2018
+altiner_2018_1,altiner_2018.pdf,Correlation between age diversity and Production,Altiner & Ayhan,2018
+altiner_2018_2,altiner_2018.pdf,Correlation between gender diversity and Efficiency (from DEA analysis),Altiner & Ayhan,2018
+altiner_2018_3,altiner_2018.pdf,Correlation between educational level diversity (highest degree) and Efficiency (from DEA analysis),Altiner & Ayhan,2018
+altiner_2018_4,altiner_2018.pdf,Correlation between tenure diversity and Efficiency (from DEA analysis),Altiner & Ayhan,2018
+xia_2022_1,xia_2022.pdf,Correlation between personality diversity (openness to experience - variance) and Creativity,"Xia, Yu & Yang",2022
+guo_2021_1,guo_2021.pdf,Correlation between educational level diversity (coef var) and Creativity,"Guo, Gan & Wang",2021
+guo_2021_2,guo_2021.pdf,Correlation between age diversity and Creativity,"Guo, Gan & Wang",2021
+guo_2021_3,guo_2021.pdf,"Correlation between gender diversity (% women (M = 0.26, SD = 0.22)) and Creativity","Guo, Gan & Wang",2021
+guo_2021_4,guo_2021.pdf,Correlation between tenure diversity and Creativity,"Guo, Gan & Wang",2021
+ma_2021_1,ma_2021.pdf,Correlation between function diversity and Adaptive firm performance (return on equity Q4 2020 - Q1 2020),"Ma, Ge & Wang",2021
+ma_2021_2,ma_2021.pdf,Correlation between education diversity and Adaptive firm performance (return on equity Q4 2020 - Q1 2020),"Ma, Ge & Wang",2021
+ma_2021_3,ma_2021.pdf,Correlation between tenure diversity and Adaptive firm performance (return on equity Q4 2020 - Q1 2020),"Ma, Ge & Wang",2021
+ma_2021_4,ma_2021.pdf,Correlation between gender diversity and Adaptive firm performance (return on equity Q4 2020 - Q1 2020),"Ma, Ge & Wang",2021
+ma_2021_5,ma_2021.pdf,Correlation between age diversity and Adaptive firm performance (return on equity Q4 2020 - Q1 2020),"Ma, Ge & Wang",2021
+chen_2018_1,chen_2018.pdf,Correlation between degree diversity (Blau) and ROE resilience (change post-pre crisis),Chen & Liu,2018
+chen_2018_2,chen_2018.pdf,Correlation between function diversity (Blau) and ROE resilience (change post-pre crisis),Chen & Liu,2018
+qamar_2022_1,qamar_2022.pdf,"Correlation between personality diversity (openness - mean pairwise distance) and Analysis & Design - Understandability; professional teams, analysis and design phase",Qamar & Malik,2022
+qamar_2022_2,qamar_2022.pdf,"Correlation between personality diversity (conscientiousness - mean pairwise distance) and Analysis & Design - Understandability; professional teams, analysis and design phase",Qamar & Malik,2022
+qamar_2022_3,qamar_2022.pdf,"Correlation between personality diversity (openness - mean pairwise distance) and Implementation - Bugs; student teams, implementation phase",Qamar & Malik,2022
+qamar_2022_4,qamar_2022.pdf,"Correlation between personality diversity (conscientiousness - mean pairwise distance) and Implementation - Bugs; student teams, implementation phase",Qamar & Malik,2022
+xia_2022_scanned_1,xia_2022_scanned.pdf,Correlation between personality diversity (openness to experience - variance) and Creativity,"Xia, Yu & Yang",2022

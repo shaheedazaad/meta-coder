@@ -152,6 +152,20 @@ do not claim pixel-level CSS verification or live-provider integration.
 CI runs both coverage commands, so run them before opening a pull request. All
 provider requests in the automated tests are faked; no API keys are needed.
 
+### Regression set
+
+`evals/` holds a small human-coded set of open-access articles for checking that
+a change does not make real coding worse; see [`evals/README.md`](evals/README.md).
+Download its PDFs once with `python evals/fetch_pdfs.py` (CI does this); the tests
+that need them skip otherwise. CI replays the committed baselines offline. If your
+change touches the prompt, the response schema, field descriptions or how PDFs are
+sent to a provider, also run the small set live against the baseline and report
+the result in the pull request.
+
+The PDFs are assets of the `evals-data-v1` release. That release is marked as a
+pre-release and not as latest, because the installers and the in-app update check
+use the latest release; keep it that way for any future data release.
+
 `tests/test_mechanism.py` is the important one: it proves the row_id/locator
 mechanism (build the response schema, hard-reject on any ID mismatch) with
 hand-written fake responses, with no API call involved.

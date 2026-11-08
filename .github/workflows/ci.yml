@@ -24,6 +24,12 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
+      # The regression set's PDFs are release assets, not in git history.
+      - uses: actions/cache@v4
+        with:
+          path: evals/pdfs
+          key: eval-pdfs-${{ hashFiles('evals/articles.csv') }}
+      - run: pixi run --locked -e dev python evals/fetch_pdfs.py
       - run: pixi run --locked -e dev coverage
       - run: pixi run --locked -e dev npm run coverage
   python-versions:
