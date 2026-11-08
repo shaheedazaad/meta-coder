@@ -65,7 +65,7 @@ effects:
       - value: Healthcare
       - value: Marketing
       - value: Prof services / consultancy
-      - value: Military personell
+      - value: Military personnel
       - value: Mixed
         description: Teams with different functions in the same sample.
       - value: Other
@@ -152,7 +152,7 @@ effects:
     type: string
     description: >
       Unit that best describes how long the team had existed when performance was measured: the
-      unit in which the lifespan is at least 2 (6 weeks is "weeks", 9 weeks is "months").
+      largest unit in which the lifespan is at least 2 (6 weeks is "weeks", 9 weeks is "months").
     levels:
       - value: hours
       - value: days

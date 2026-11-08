@@ -8,6 +8,7 @@ need them skip when they are absent.
 
 import csv
 import hashlib
+import http.client
 import io
 import json
 import shutil
@@ -91,21 +92,42 @@ def test_values_match(coded, truth, compare, expected):
     assert run_eval.values_match(coded, truth, compare) is expected
 
 
-def test_a_missing_human_code_matches_any_empty_value():
-    truth = {cell["row_id"]: cell for cell in _rows("ground_truth.csv") if cell["missing"]}
-    row_id, cell = next(iter(truth.items()))
-    pdf = next(row["source_pdf"] for row in _rows("coding_sheet.csv") if row["row_id"] == row_id)
-    blank = {"source_pdf": pdf, "status": "ok", "coded_by_row_id": {row_id: {cell["field"]: {"value": None}}}}
-    filled = {**blank, "coded_by_row_id": {row_id: {cell["field"]: {"value": "something"}}}}
-    assert run_eval.score({pdf: blank})["missing_values"]["left_blank"] >= 1
-    assert run_eval.score({pdf: filled})["missing_values"]["value_given"] >= 1
+def _missing_cell():
+    cell = next(cell for cell in _rows("ground_truth.csv") if cell["missing"])
+    pdf = next(row["source_pdf"] for row in _rows("coding_sheet.csv") if row["row_id"] == cell["row_id"])
+    return cell, pdf
+
+
+@pytest.mark.parametrize(("value", "expected"), [(None, 1), ("", 1), ("  ", 1), ("something", 0)])
+def test_a_missing_human_code_matches_null_or_a_blank_string(value, expected):
+    cell, pdf = _missing_cell()
+    coded = {cell["row_id"]: {cell["field"]: {"value": value}}}
+    summary = run_eval.score({pdf: {"source_pdf": pdf, "status": "ok", "coded_by_row_id": coded}})
+    wrong = {(error["row_id"], error["field"]) for error in summary["errors"]}
+    assert ((cell["row_id"], cell["field"]) not in wrong) == bool(expected)
+
+
+def test_a_pdf_without_output_earns_no_credit_for_missing_codes():
+    cell, pdf = _missing_cell()
+    summary = run_eval.score({pdf: {"source_pdf": pdf, "status": "error", "coded_by_row_id": {}}})
+    assert summary["correct"] == 0
+    assert "left_blank" not in summary["missing_values"]
 
 
 def test_regressions_report_an_accuracy_drop_and_more_pdfs_needing_review():
-    baseline = {"accuracy": 0.9, "statuses": {"ok": 5}}
-    assert run_eval.regressions({"accuracy": 0.87, "statuses": {"ok": 5}}, baseline) == []
-    problems = run_eval.regressions({"accuracy": 0.8, "statuses": {"ok": 4, "needs_review": 1}}, baseline)
+    same = {"cells": 272, "providers": ["gemini/flash"]}
+    baseline = {**same, "accuracy": 0.9, "statuses": {"ok": 5}}
+    assert run_eval.regressions({**same, "accuracy": 0.87, "statuses": {"ok": 5}}, baseline) == []
+    problems = run_eval.regressions({**same, "accuracy": 0.8, "statuses": {"ok": 4, "needs_review": 1}}, baseline)
     assert len(problems) == 2
+
+
+def test_regressions_report_runs_that_do_not_compare_with_the_baseline():
+    baseline = {"cells": 272, "providers": ["gemini/flash"], "accuracy": 0.9, "statuses": {"ok": 5}}
+    partial = {**baseline, "cells": 220, "statuses": {"ok": 4}}
+    assert "PDF is missing" in run_eval.regressions(partial, baseline)[0]
+    other_model = {**baseline, "providers": ["openrouter/x"]}
+    assert "baseline used" in run_eval.regressions(other_model, baseline)[0]
 
 
 @pytest.mark.skipif(not BASELINES, reason="no baseline committed in evals/baselines")
@@ -138,6 +160,7 @@ def test_fetch_downloads_only_absent_or_wrong_pdfs_and_rejects_bad_checksums(tmp
         {"source_pdf": "new.pdf", "sha256": hashlib.sha256(good).hexdigest()},
         {"source_pdf": "bad.pdf", "sha256": "0" * 64},
         {"source_pdf": "gone.pdf", "sha256": "0" * 64},
+        {"source_pdf": "cut.pdf", "sha256": "0" * 64},
     ]
     (tmp_path / "kept.pdf").write_bytes(good)
     requested = []
@@ -146,14 +169,17 @@ def test_fetch_downloads_only_absent_or_wrong_pdfs_and_rejects_bad_checksums(tmp
         requested.append(url.rsplit("/", 1)[1])
         if url.endswith("gone.pdf"):
             raise OSError("404")
+        if url.endswith("cut.pdf"):
+            raise http.client.IncompleteRead(b"%PDF")
         return io.BytesIO(good)
 
     monkeypatch.setattr(fetch_pdfs, "articles", lambda: articles)
     monkeypatch.setattr(fetch_pdfs.urllib.request, "urlopen", fake_urlopen)
     problems = fetch_pdfs.fetch(tmp_path, "https://example.test/")
-    assert requested == ["new.pdf", "bad.pdf", "gone.pdf"]
+    assert requested == ["new.pdf", "bad.pdf", "gone.pdf", "cut.pdf"]
     assert (tmp_path / "new.pdf").read_bytes() == good
     assert not (tmp_path / "bad.pdf").exists()
-    assert len(problems) == 2 and "checksum" in problems[0] and "download failed" in problems[1]
+    assert len(problems) == 3 and "checksum" in problems[0]
+    assert all("download failed" in problem for problem in problems[1:])
     monkeypatch.setattr(fetch_pdfs, "fetch", lambda: problems)
     assert fetch_pdfs.main() == 1

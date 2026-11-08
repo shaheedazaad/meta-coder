@@ -68,9 +68,9 @@ python evals/run_eval.py score evals/runs/my-run --baseline evals/baselines/<bas
 python evals/run_eval.py replay evals/runs/my-run
 ```
 
-`run` reads the key from `GEMINI_API_KEY`, `OPENROUTER_API_KEY` or `OPENAI_COMPATIBLE_API_KEY` (with `--base-url`). It keeps PDFs that already have a saved result, so a run stopped by a provider error can be repeated to finish it; `--force` recodes everything. Results go to `evals/runs/`, which is not committed.
+`run` reads the key from `GEMINI_API_KEY`, `OPENROUTER_API_KEY` or `OPENAI_COMPATIBLE_API_KEY` (with `--base-url`). It keeps PDFs already saved as `ok` or `needs_review` and recodes those saved as `error`, so a run stopped by a provider error can be repeated to finish it. `--force` recodes everything, including `needs_review` results. Results go to `evals/runs/`, which is not committed.
 
-A run counts as a regression when accuracy falls more than 5 percentage points below the baseline or more PDFs end as `needs_review` or `error`. Model output varies between runs, so smaller changes are reported but do not fail.
+A run counts as a regression when accuracy falls more than 5 percentage points below the baseline or more PDFs end as `needs_review` or `error`. It also fails when it is not comparable with the baseline: a different number of scored cells (a PDF missing from the run, or another set) or a different provider and model. A different prompt version is allowed, since checking a prompt change is the point. Model output varies between runs, so smaller changes are reported but do not fail.
 
 `replay` does not know the provider's finish reason, so a response that was held for review only because generation stopped early replays as `ok`.
 
@@ -80,7 +80,7 @@ Run the small set, then copy the run folder into `evals/baselines/` under a name
 
 ## What the score means
 
-A cell is correct when the coded value matches the human code: the same category, a number within the tolerance in `compare`, or an empty value where the human code is missing. The summary also reports, per run:
+A cell is correct when the coded value matches the human code: the same category, a number within the tolerance in `compare`, or an empty value (null or a blank string) where the human code is missing. A PDF whose row is absent from the response earns nothing, blanks included. The summary also reports, per run:
 
 - accuracy per field and by the model's confidence rating;
 - for missing human codes, how often the model left the value empty;

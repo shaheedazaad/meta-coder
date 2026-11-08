@@ -116,11 +116,14 @@ def score(results: dict[str, dict]) -> dict:
         coded = coded_row.get(cell["field"]) if isinstance(coded_row, dict) else None
         coded = coded if isinstance(coded, dict) else {}
         value = coded.get("value")
+        if isinstance(value, str) and not value.strip():
+            value = None
         if cell["missing"]:
             # The human code is missing. `missing` records why (not reported or
             # not applicable), but the app does not code reasons yet, so any
-            # empty value counts as a match.
-            ok = value is None
+            # empty value counts as a match, as long as the model returned the
+            # row at all: a PDF that failed earns no credit for blanks.
+            ok = value is None and isinstance(coded_row, dict)
             missing["left_blank" if ok else "value_given"] += 1
         else:
             ok = value is not None and values_match(value, cell["value"], cell["compare"])
@@ -140,6 +143,8 @@ def score(results: dict[str, dict]) -> dict:
                 "coded": value,
             })
     return {
+        "providers": sorted({f"{r.get('provider')}/{r.get('model')}" for r in results.values()}),
+        "prompt_versions": sorted({str(r.get("prompt_version")) for r in results.values()}),
         "pdfs": len(results),
         "statuses": dict(Counter(result.get("status") for result in results.values())),
         "cells": total,
@@ -158,6 +163,15 @@ def score(results: dict[str, dict]) -> dict:
 
 def regressions(summary: dict, baseline: dict) -> list[str]:
     problems = []
+    # Only runs over the same cells with the same provider and model compare.
+    # The prompt version may differ: checking a prompt change is the point.
+    if summary["cells"] != baseline.get("cells"):
+        problems.append(
+            f"scored {summary['cells']} cells but the baseline has {baseline.get('cells')}: "
+            "a PDF is missing from the run, or the sets differ"
+        )
+    if baseline.get("providers") and summary.get("providers") != baseline["providers"]:
+        problems.append(f"run used {summary.get('providers')} but the baseline used {baseline['providers']}")
     if summary["accuracy"] is not None and baseline.get("accuracy") is not None:
         if summary["accuracy"] < baseline["accuracy"] - ACCURACY_TOLERANCE:
             problems.append(f"accuracy fell from {baseline['accuracy']:.1%} to {summary['accuracy']:.1%}")

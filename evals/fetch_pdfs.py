@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import http.client
 import sys
 import urllib.request
 from pathlib import Path
@@ -47,7 +48,7 @@ def fetch(pdf_dir: Path = PDF_DIR, base_url: str = RELEASE_URL) -> list[str]:
             continue
         try:
             data = download(base_url + name)
-        except OSError as exc:
+        except (OSError, http.client.HTTPException) as exc:
             problems.append(f"{name}: download failed ({exc})")
             continue
         if sha256(data) != expected:
