@@ -132,7 +132,7 @@ def test_endpoint_listing_keeps_structured_output_providers(monkeypatch):
     monkeypatch.setattr(openrouter.urllib.request, 'urlopen', request)
     endpoints = openrouter.list_model_endpoints(' meta-llama/llama 3:free ', api_key='secret', timeout_sec=5)
     sent = request.call_args.args[0]
-    assert sent.full_url == 'https://openrouter.ai/api/v1/models/meta-llama/llama%203/endpoints'
+    assert sent.full_url == 'https://openrouter.ai/api/v1/models/meta-llama/llama%203:free/endpoints'
     assert sent.get_header('Authorization') == 'Bearer secret'
     assert request.call_args.kwargs == {'timeout': 5}
     assert endpoints == [
@@ -143,6 +143,43 @@ def test_endpoint_listing_keeps_structured_output_providers(monkeypatch):
     ]
     openrouter.list_model_endpoints('vendor/model')
     assert request.call_args.args[0].get_header('Authorization') is None
+
+
+def test_endpoint_listing_falls_back_to_the_base_model_for_routing_shortcuts(monkeypatch):
+    # `:nitro` is a routing shortcut with no endpoint list of its own.
+    payload = {'data': {'endpoints': [{'tag': 'groq', 'provider_name': 'Groq', 'supported_parameters': ['structured_outputs']}]}}
+    urls = []
+
+    def urlopen(request, **kwargs):
+        urls.append(request.full_url)
+        if request.full_url.endswith(':nitro/endpoints'):
+            raise HTTPError(request.full_url, 404, 'missing', {}, io.BytesIO(b''))
+        return Response(payload)
+
+    monkeypatch.setattr(openrouter.urllib.request, 'urlopen', urlopen)
+    assert openrouter.list_model_endpoints('vendor/model:nitro') == [{'tag': 'groq', 'name': 'Groq'}]
+    assert urls == ['https://openrouter.ai/api/v1/models/vendor/model:nitro/endpoints',
+                    'https://openrouter.ai/api/v1/models/vendor/model/endpoints']
+
+
+def test_endpoint_listing_reports_a_variant_missing_on_both_paths(monkeypatch):
+    def urlopen(request, **kwargs):
+        raise HTTPError(request.full_url, 404, 'missing', {}, io.BytesIO(b''))
+    monkeypatch.setattr(openrouter.urllib.request, 'urlopen', urlopen)
+    with pytest.raises(ProviderError, match='was not found'):
+        openrouter.list_model_endpoints('vendor/model:free')
+
+
+def test_endpoint_listing_does_not_fall_back_on_other_errors(monkeypatch):
+    urls = []
+
+    def urlopen(request, **kwargs):
+        urls.append(request.full_url)
+        raise HTTPError(request.full_url, 500, 'broken', {}, io.BytesIO(b''))
+    monkeypatch.setattr(openrouter.urllib.request, 'urlopen', urlopen)
+    with pytest.raises(ProviderError, match=r'API error \(500\)'):
+        openrouter.list_model_endpoints('vendor/model:free')
+    assert len(urls) == 1
 
 
 @pytest.mark.parametrize('model', ['', 'model', 'a/b/c', '/model', 'vendor/'])

@@ -84,15 +84,27 @@ def list_model_endpoints(model: str, *, api_key: str = "", timeout_sec: int = 20
     app relies on. Returns `{"tag", "name"}` pairs sorted by name; `tag` is the
     slug sent in `provider.order`."""
 
-    # A `:variant` suffix such as `:free` selects pricing, not a different model.
-    parts = model.strip().split(":", 1)[0].split("/")
+    base, _, variant = model.strip().partition(":")
+    parts = base.split("/")
     if len(parts) != 2 or not all(parts):
         raise ValueError(f"`{model}` is not an OpenRouter model ID (expected `author/model`).")
     path = "/".join(urllib.parse.quote(part, safe="") for part in parts)
-    request = _request(f"{API_BASE}/models/{path}/endpoints", api_key=api_key)
-    try:
+    # Some `:variant` suffixes, such as `:free`, are catalogue models with their
+    # own providers; others, such as `:nitro`, are routing shortcuts that have
+    # no endpoint list. Ask for the variant first and fall back to the base
+    # model only when OpenRouter doesn't know the variant.
+    def fetch(model_path: str) -> Any:
+        request = _request(f"{API_BASE}/models/{model_path}/endpoints", api_key=api_key)
         with urllib.request.urlopen(request, timeout=timeout_sec) as response:
-            body = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
+
+    try:
+        try:
+            body = fetch(f"{path}:{urllib.parse.quote(variant, safe='')}" if variant else path)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404 or not variant:
+                raise
+            body = fetch(path)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
             raise ProviderError(f"`{model}` was not found on OpenRouter.") from exc
