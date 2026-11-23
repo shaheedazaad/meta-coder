@@ -142,7 +142,8 @@ def load_persisted_results(project: Project) -> dict[str, ExtractionResult]:
     results: dict[str, ExtractionResult] = {}
     if not project.raw_dir.is_dir():
         return results
-    for path in project.raw_dir.glob("*.json"):
+    # Sorted so the outcome never depends on the filesystem's listing order.
+    for path in sorted(project.raw_dir.glob("*.json")):
         result = _result_from_raw_json(path)
         if result is not None and path != attempt_json_path(project, result.source_pdf):
             # Prefer the canonical collision-resistant record when both it and
