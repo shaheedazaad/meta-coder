@@ -45,6 +45,18 @@ var projectEdits = (function () {
   };
 })();
 
+// The message to show for a failed request: the server's `error`, then its
+// `detail`, or the fallback when neither is a non-empty string. FastAPI puts a
+// list of objects in `detail` when form validation fails (HTTP 422), which
+// would otherwise read as "[object Object]".
+function requestErrorMessage(payload, fallback) {
+  var source = payload && typeof payload === "object" ? payload : {};
+  var message = [source.error, source.detail].find(function (value) {
+    return typeof value === "string" && value.trim();
+  });
+  return message || fallback;
+}
+
 // Theme toggle (System/Light/Dark). Mirrors the inline pre-paint script in
 // base.html so the two never disagree about resolution logic; this instance
 // also wires up the dropdown's click handlers and keeps them synced when the
@@ -396,7 +408,7 @@ var projectEdits = (function () {
               payload = {};
             }
             if (!response.ok) {
-              throw new Error(payload.error || payload.detail || "The coding-manual draft failed.");
+              throw new Error(requestErrorMessage(payload, "The coding-manual draft failed."));
             }
             if (!payload || !payload.manual || typeof payload.manual !== "object" ||
                 !Array.isArray(payload.manual.effects) || typeof payload.yaml !== "string" ||
@@ -891,7 +903,7 @@ function initTabGroup(root, opts) {
         return response.text().then(function (text) {
           var payload;
           try { payload = JSON.parse(text); } catch (_) { payload = {}; }
-          if (!response.ok) throw new Error(payload.error || "The request failed. Please try again.");
+          if (!response.ok) throw new Error(requestErrorMessage(payload, "The request failed. Please try again."));
           return payload;
         });
       });
