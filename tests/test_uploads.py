@@ -4,8 +4,10 @@ import io
 import pytest
 
 from meta_coder.projects import ProjectError
+from meta_coder import uploads
 from meta_coder.uploads import (
-    UploadTooLarge, list_uploaded_pdfs, safe_pdf_name, save_pdf_upload, unique_destination,
+    DuplicateUpload, UploadTooLarge, list_uploaded_pdfs, safe_pdf_name, save_pdf_upload,
+    save_pdf_uploads, source_hashes, unique_destination, upload_summary,
 )
 
 
@@ -100,3 +102,37 @@ def test_multibyte_filename_fits_portable_byte_limit(tmp_path):
     name = safe_pdf_name('研' * 170 + '.pdf')
     assert len(name.encode('utf-8')) <= 180
     assert save_pdf_upload(tmp_path, name, io.BytesIO(b'%PDF')).name == name
+
+
+def test_uploads_with_content_already_in_the_project_are_skipped(tmp_path):
+    save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-one'))
+    result = save_pdf_uploads(tmp_path, [
+        ('renamed copy.pdf', io.BytesIO(b'%PDF-one')),
+        ('new.pdf', io.BytesIO(b'%PDF-new')),
+        ('new again.pdf', io.BytesIO(b'%PDF-new')),
+        ('paper.pdf', io.BytesIO(b'%PDF-different')),
+        ('bad.pdf', io.BytesIO(b'not a pdf')),
+    ])
+    assert [p.name for p in result.saved] == ['new.pdf', 'paper (2).pdf']
+    assert [(s.name, s.existing) for s in result.skipped] == [
+        ('renamed copy.pdf', 'paper.pdf'), ('new again.pdf', 'new.pdf'),
+    ]
+    assert result.errors == ['bad.pdf is not a valid PDF.']
+    assert upload_summary(result) == (
+        'Added 2 files. Skipped 2 already in this project: renamed copy.pdf, new again.pdf.'
+    )
+    with pytest.raises(DuplicateUpload, match='already in this project as paper.pdf'):
+        save_pdf_upload(tmp_path, 'third.pdf', io.BytesIO(b'%PDF-one'))
+    assert sorted(p.name for p in tmp_path.iterdir()) == ['new.pdf', 'paper (2).pdf', 'paper.pdf']
+
+
+def test_upload_summary_uses_singular_for_one_file(tmp_path):
+    save_pdf_upload(tmp_path, 'a.pdf', io.BytesIO(b'%PDF-a'))
+    result = save_pdf_uploads(tmp_path, [('b.pdf', io.BytesIO(b'%PDF-b')), ('c.pdf', io.BytesIO(b'%PDF-a'))])
+    assert upload_summary(result) == 'Added 1 file. Skipped 1 already in this project: c.pdf.'
+
+
+def test_unreadable_sources_are_left_out_of_the_hashes(tmp_path, monkeypatch):
+    (tmp_path / 'a.pdf').write_bytes(b'%PDF-a')
+    monkeypatch.setattr(uploads, 'pdf_digest', lambda path: None)
+    assert source_hashes(tmp_path) == {}

@@ -4,6 +4,7 @@ import json
 import re
 import zipfile
 from dataclasses import replace
+from urllib.parse import unquote
 from unittest.mock import Mock
 
 import pytest
@@ -171,7 +172,17 @@ def test_upload_routes_and_scanner_dispatch(site):
     assert response.status_code == 303 and 'error=' in response.headers['location']
     assert (project.sources_dir / 'ok.PDF').read_bytes() == b'%PDF-good'
     runtime.pdf_scanner.scan_async.assert_called_once()
-    assert client.post(url(project, '/uploads'), files={'files': ('other.pdf', b'%PDF-ok')}).status_code == 303
+    assert client.post(url(project, '/uploads'), files={'files': ('other.pdf', b'%PDF-ok')}).headers['location'].endswith(project.project_id)
+    response = client.post(url(project, '/uploads'), files=[('files', ('copy.pdf', b'%PDF-good')), ('files', ('new.pdf', b'%PDF-new'))])
+    assert response.status_code == 303
+    location = response.headers['location']
+    assert 'tab=sources' in location and 'error=' not in location
+    assert unquote(location.split('notice=', 1)[1]) == 'Added 1 file. Skipped 1 already in this project: copy.pdf.'
+    assert not (project.sources_dir / 'copy.pdf').exists()
+    page = client.get(location)
+    assert 'Skipped 1 already in this project: copy.pdf.' in page.text
+    response = client.post(url(project, '/uploads'), files=[('files', ('dup.pdf', b'%PDF-new')), ('files', ('bad.pdf', b'bad'))])
+    assert 'error=' in response.headers['location'] and 'notice=' in response.headers['location']
     assert client.post(url(project, '/uploads/delete'), data={'filename': 'ok.PDF'}).status_code == 303
     assert not (project.sources_dir / 'ok.PDF').exists()
     note = project.sources_dir / 'notes.txt'
