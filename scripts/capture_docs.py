@@ -22,9 +22,11 @@ import uvicorn
 from playwright.sync_api import sync_playwright
 from pypdf import PdfWriter
 
-from meta_coder import web
+from meta_coder import extractors, web
+from meta_coder.app_settings import AppSettings, save_app_settings
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import create_project, write_manual
+from meta_coder.settings import save_project_extractor_id
 
 
 def capture(browser_channel="chrome"):
@@ -33,8 +35,14 @@ def capture(browser_channel="chrome"):
     with ExitStack() as stack:
         directory = stack.enter_context(tempfile.TemporaryDirectory(prefix="meta-coder-docs-"))
         stack.enter_context(patch.dict(os.environ, {"META_CODER_HOME": directory}))
-        stack.enter_context(patch.object(web.credentials, "saved_key_configured", return_value=False))
         stack.enter_context(patch.object(web.credentials, "keyring_available", return_value=False))
+        # Fictional extractors. One is marked as having a key, but no key is ever saved or read.
+        gemini = extractors.add_extractor(extractors.Extractor(
+            id="guide-gemini", name="Gemini (lab key)", provider="gemini", model="gemini-3.8-flash", parallel_requests=2, key_saved=True))
+        extractors.add_extractor(extractors.Extractor(
+            id="guide-local", name="Local server", provider="openai_compatible", model="qwen3.8-27b",
+            base_url="http://localhost:8000/v1"))
+        save_app_settings(AppSettings(drafting_extractor_id=gemini.id))
         project = create_project("Interference effects · demonstration", root=Path(directory) / "projects")
         write_manual(project, parse_coding_manual('''name: Interference effects
 description: Fictional project for the MetaCoder guide.
@@ -56,6 +64,7 @@ effects:
         writer = PdfWriter()
         writer.add_blank_page(width=612, height=792)
         writer.write(project.sources_dir / "demo-study.pdf")
+        save_project_extractor_id(project, gemini.id)
         # Stable metadata keeps screenshots reproducible.
         metadata = project.path / ".meta_coder/project.json"
         metadata.write_text(metadata.read_text().replace(project.created_at, "2026-01-01T00:00:00+00:00"))

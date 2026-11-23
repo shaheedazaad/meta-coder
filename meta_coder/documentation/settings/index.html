@@ -33,11 +33,11 @@
     </aside>
     <main id="main" class="docs-article">
       <p class="docs-eyebrow">METACODER / USER GUIDE</p>
-      <h1 id="connections-and-settings">Connections and settings<a class="headerlink" href="#connections-and-settings" title="Permanent link">&para;</a></h1>
-<p>Open <strong>Settings</strong> in the app header to configure provider connections and the model used for AI drafts. Extraction settings belong to each project's <a href="../run/">Run tab</a>.</p>
-<p><a href="../assets/screenshots/settings.png"><img alt="Provider configuration and drafting preferences in Settings" src="../assets/screenshots/settings.png" /></a></p>
-<h2 id="connect-a-provider">Connect a provider<a class="headerlink" href="#connect-a-provider" title="Permanent link">&para;</a></h2>
-<p>Expand a provider under <strong>Provider configuration</strong>, enter its API key, then save. Before choosing a provider, read <a href="../privacy/">Privacy and data sharing</a>: data use differs between providers and, for Gemini, between free and paid access. Keys are stored in your computer's operating system credential store. After restarting the app, access is requested when an action needs the key, rather than on launch.</p>
+      <h1 id="extractors-and-settings">Extractors and settings<a class="headerlink" href="#extractors-and-settings" title="Permanent link">&para;</a></h1>
+<p>Open <strong>Settings</strong> in the app header to manage <strong>extractors</strong> and drafting preferences. Each project then chooses one extractor on its <a href="../run/">Run tab</a>.</p>
+<p><a href="../assets/screenshots/settings.png"><img alt="Extractors and drafting preferences in Settings" src="../assets/screenshots/settings.png" /></a></p>
+<h2 id="what-an-extractor-is">What an extractor is<a class="headerlink" href="#what-an-extractor-is" title="Permanent link">&para;</a></h2>
+<p>An extractor is a named, saved setup for reaching a model: its provider, model, endpoint, API key and request settings. You can keep several, including several for the same provider, for example two OpenRouter keys or two OpenAI-compatible servers. Before choosing a provider, read <a href="../privacy/">Privacy and data sharing</a>: data use differs between providers and, for Gemini, between free and paid access.</p>
 <table>
 <thead>
 <tr>
@@ -49,36 +49,59 @@
 <tbody>
 <tr>
 <td>Gemini</td>
-<td>Save a Gemini API key</td>
+<td>An API key</td>
 <td>Native PDF input</td>
 </tr>
 <tr>
 <td>OpenRouter</td>
-<td>Save an OpenRouter API key</td>
+<td>An API key</td>
 <td>PDF input through the provider</td>
 </tr>
 <tr>
 <td>OpenAI-compatible</td>
-<td>Save the API base URL and a key if required</td>
+<td>The API base URL, and a key if the server requires one</td>
 <td>Text extracted on your computer, with page numbers</td>
 </tr>
 </tbody>
 </table>
-<p>If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. MetaCoder warns about this when you save such a model in a project's Run settings. Information shown only in figures or unusual table layouts may be lost.</p>
-<p>For an OpenAI-compatible endpoint, include the API prefix such as <code>/v1</code>, without <code>/chat/completions</code>. Enter the exact model ID in the relevant model field. When changing endpoints, replace or remove the old key too.</p>
-<p>Choose a JSON output mode supported by the endpoint: <strong>Strict JSON schema</strong>, <strong>JSON object</strong>, or <strong>Prompt only</strong>. Responses are validated in every mode. Scanned pages and figures may need OCR or a provider with native PDF support.</p>
-<h2 id="choose-a-drafting-model">Choose a drafting model<a class="headerlink" href="#choose-a-drafting-model" title="Permanent link">&para;</a></h2>
-<p>Under <strong>Drafting model</strong>, select the provider and model for document-to-manual drafts and coding sheet conversion. Choose <strong>Save drafting preferences</strong>. This does not change a project's extraction provider or model.</p>
+<h2 id="add-an-extractor">Add an extractor<a class="headerlink" href="#add-an-extractor" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Expand <strong>Add an extractor</strong>.</li>
+<li>Give it a name you will recognise, such as "Gemini lab key", and choose a provider.</li>
+<li>Enter the model ID. <strong>Show available models</strong> asks the provider for its model list, using the key you typed. It loads only when you click it; the typed key is sent to the provider for that one request and is not stored unless you save the extractor.</li>
+<li>Paste the API key. For an OpenAI-compatible server, also enter the API base URL (include the prefix such as <code>/v1</code>, without <code>/chat/completions</code>) and a JSON output mode the server supports: <strong>Strict JSON schema</strong>, <strong>JSON object</strong>, or <strong>Prompt only</strong>. Responses are validated in every mode.</li>
+<li>Optionally expand <strong>Request settings</strong> to change parallel requests, the delay between requests, the request timeout, the Gemini service tier or the reasoning effort.</li>
+<li>Choose <strong>Add extractor</strong>.</li>
+</ol>
+<p>When you save with a key, MetaCoder asks the provider whether the model can be used and shows any warning. If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. Information shown only in figures or unusual table layouts may be lost.</p>
+<h2 id="edit-duplicate-or-delete">Edit, duplicate or delete<a class="headerlink" href="#edit-duplicate-or-delete" title="Permanent link">&para;</a></h2>
+<p>Expand an extractor to edit it. Its provider can't change; add another extractor instead. Leave the key field blank to keep the saved key, or paste a new one to replace it. <strong>Remove key</strong> deletes only the key.</p>
+<p><strong>Duplicate</strong> copies every setting except the key, which is never copied. Add the copy's key before running with it.</p>
+<p><strong>Delete</strong> first lists the projects that use the extractor, and says whether it is the drafting extractor, before asking you to confirm. Those projects must choose another extractor before they can run. Deleting an extractor also deletes its saved key. Your projects and their results are not affected.</p>
+<p>Editing an extractor changes what its projects use from their next run. A result coded with a different model or endpoint is marked outdated; see <a href="../run/#cancel-and-retry">Run extraction</a>.</p>
+<h2 id="api-keys">API keys<a class="headerlink" href="#api-keys" title="Permanent link">&para;</a></h2>
+<p>Keys are saved in your computer's operating system credential store (macOS Keychain, Windows Credential Locker or the Linux Secret Service), in one item holding every extractor's key. They are never written to MetaCoder's files, pages or exports, and known keys are removed from any error message.</p>
+<p>MetaCoder never opens the credential store when it starts or shows a page. The first action that needs a key, such as a run, a draft or a model check, reads the item once; your computer may ask you to allow access. The keys then stay in memory until you quit. If access is refused or the item can't be read, the action stops with a message and the item is left untouched, so you can try again.</p>
+<p>If your computer's credential store is unavailable, key entry is disabled. Restore access to your operating system's credential service and restart the app. An OpenAI-compatible server that genuinely allows keyless requests can still be used without a key.</p>
+<h2 id="choose-the-drafting-extractor">Choose the drafting extractor<a class="headerlink" href="#choose-the-drafting-extractor" title="Permanent link">&para;</a></h2>
+<p>Under <strong>Drafting</strong>, choose the extractor used for document-to-manual drafts and coding-sheet conversion, then choose <strong>Save drafting preferences</strong>. This does not change any project's extractor.</p>
 <p>The maximum document upload size is configurable here, from 1 to 1,024 MB.</p>
-<h2 id="credential-store-unavailable">Credential store unavailable<a class="headerlink" href="#credential-store-unavailable" title="Permanent link">&para;</a></h2>
-<p>If your computer's system credential store is unavailable, key entry is disabled. Restore access to your operating system's credential service and restart the app. An OpenAI-compatible endpoint that genuinely allows keyless requests can still be configured without a saved key.</p>
-<p>To remove a saved key, expand <strong>Key removal</strong> under its provider. Removing a key does not delete your projects.</p>
+<h2 id="upgrading-from-an-earlier-version">Upgrading from an earlier version<a class="headerlink" href="#upgrading-from-an-earlier-version" title="Permanent link">&para;</a></h2>
+<p>Earlier versions kept one key per provider plus a model and request settings in each project. The first time a newer version starts, it turns these into extractors:</p>
+<ul>
+<li>Each provider with a saved key, and an OpenAI-compatible server with a base URL, becomes an extractor named after the provider.</li>
+<li>Each project keeps the provider, model and request settings it had. Projects with identical settings share an extractor; a project with different settings gets its own, named after the project, which uses the same key.</li>
+<li>The drafting provider and model become the drafting extractor.</li>
+<li>Settings left at the defaults with no saved key are skipped. A project whose provider had no key or endpoint keeps its last settings on record but needs an extractor chosen before it can run.</li>
+<li>A saved key whose settings were missing or unusable is kept on an extractor that asks for its model or base URL.</li>
+</ul>
+<p>Migration does not open the credential store. Old per-provider keys move into the new credential item the first time a key is needed, and the old items are deleted only after the new one is saved. You may be asked to allow access once.</p>
       <nav class="docs-pagination" aria-label="Adjacent pages">
         <a href=".."><small>Previous</small>Getting started ←</a>
         <a href="../privacy/"><small>Next</small>Privacy and data sharing →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#connect-a-provider">Connect a provider</a><a href="#choose-a-drafting-model">Choose a drafting model</a><a href="#credential-store-unavailable">Credential store unavailable</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#what-an-extractor-is">What an extractor is</a><a href="#add-an-extractor">Add an extractor</a><a href="#edit-duplicate-or-delete">Edit, duplicate or delete</a><a href="#api-keys">API keys</a><a href="#choose-the-drafting-extractor">Choose the drafting extractor</a><a href="#upgrading-from-an-earlier-version">Upgrading from an earlier version</a></nav></aside>
   </div>
 </body>
 </html>

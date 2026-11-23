@@ -1,29 +1,35 @@
 # Run extraction
 
-Once your manual and coding sheet are ready, use **Run** to select a provider, save the extraction settings, and process matched PDFs.
+Once your manual and coding sheet are ready, use **Run** to choose the project's extractor and process matched PDFs.
 
-[![Extraction provider, model, and run controls](assets/screenshots/run.png)](assets/screenshots/run.png)
+[![Extractor summary and run controls](assets/screenshots/run.png)](assets/screenshots/run.png)
 
 ## Prepare the run
 
 1. Save changes to the analysis definition, coding manual, and coding sheet.
 2. Review PDF matches and resolve any blocking messages on **Run**.
-3. Choose a provider and model. Use **Manage connection** if its key or endpoint is missing.
-4. Choose **Save run settings**, then start extraction.
+3. Choose an extractor for the project and choose **Use this extractor**. The summary below the list shows its provider, model and request settings. If you have none yet, add one in [Settings](settings.md#add-an-extractor).
+4. Start extraction. The extractor's saved key is read from your computer's credential store when the run starts.
+
+To change the model, endpoint, key or request settings, use **Edit extractor**. Every project using that extractor picks up the change from its next run.
 
 Each request includes all coding-sheet rows for one PDF. The response must include the exact row IDs requested; an inconsistent response is marked for review rather than accepted as a partial guess. A response that the provider cut short (for example at its output token limit or by a content filter), or whose JSON had to be repaired, is also marked for review: its values are kept but may be truncated. A response with no usable text at all is reported as an error instead.
 
 ## Control throughput
 
-Expand **Advanced run settings** to adjust parallel requests, request delay, and timeout. Lower concurrency or add delay if the provider rejects requests because of rate limits. Provider-specific controls include Gemini service tier and reasoning effort for the other supported provider types.
+Parallel requests, the delay between requests and the request timeout belong to the extractor; change them under **Request settings** when editing it. Lower concurrency or add delay if the provider rejects requests because of rate limits. Provider-specific controls include the Gemini service tier and the reasoning effort for the other supported provider types. To use different throughput for one project, duplicate the extractor, adjust the copy, add its key and choose it for that project.
 
-To estimate spending before processing every PDF, see [Cost](costs.md). Extraction settings are saved per project. They are separate from the global model used to draft manuals or convert sheets.
+To estimate spending before processing every PDF, see [Cost](costs.md). Manual drafting and coding-sheet conversion use the drafting extractor chosen in Settings, which may differ from the project's.
+
+## What is recorded
+
+When a run starts, MetaCoder saves the extractor's id, name and a copy of all its settings (never the key) in the project's `run_settings.json` and in the run's audit record. Exports include them, so you can see exactly what ran even after the extractor is edited or deleted. See [Auditing](auditing.md).
 
 ## Cancel and retry
 
-Progress updates while the run is active. While a run is active or cancelling, MetaCoder refuses changes to the coding manual, coding sheet, PDF matches, source PDFs, and generated data, so results always match the inputs they were coded from; wait for the run to finish or cancel it first. Cancellation stops queued work; requests already in flight may finish. Successful PDFs are retained. Retry failed or needs-review PDFs individually from the results table, or use the bulk retry control.
+Progress updates while the run is active. While a run is active or cancelling, MetaCoder refuses changes to the coding manual, coding sheet, PDF matches, source PDFs, the project's extractor and generated data, so results always match the inputs they were coded from; wait for the run to finish or cancel it first. Cancellation stops queued work; requests already in flight may finish. Successful PDFs are retained. Retry failed or needs-review PDFs individually from the results table, or use the bulk retry control.
 
-Starting another run processes matched PDFs still needing coding; it does not automatically reprocess successful studies. A successful result is marked **outdated** and coded again if its PDF, its coding-sheet row IDs or locators, the coding manual, or the provider and model settings have changed since. Outdated results stay in the project folder but are left out of new exports; they count again if you restore the earlier inputs. To intentionally rerun everything, export what you need and clear generated data in [Project settings](projects.md).
+Starting another run processes matched PDFs still needing coding; it does not automatically reprocess successful studies. A successful result is marked **outdated** and coded again if its PDF, its coding-sheet row IDs or locators, the coding manual, or the extractor's provider, model, endpoint or reasoning settings have changed since. Outdated results stay in the project folder but are left out of new exports; they count again if you restore the earlier inputs. To intentionally rerun everything, export what you need and clear generated data in [Project settings](projects.md).
 
 A failed retry never replaces a successful result. The results table shows the latest attempt, while the earlier success remains in the exports.
 

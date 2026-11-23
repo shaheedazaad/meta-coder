@@ -26,7 +26,7 @@ study-01-exp-2,demo-study.pdf,"Experiment 2, Table 4",Demo and Example,2024
 
 ## Convert an existing sheet
 
-Choose **AI conversion** if your CSV uses another layout. Add notes explaining its columns or intended effect rows, choose the file, and select **Convert to a draft**. Conversion uses the saved manual and the global drafting model.
+Choose **AI conversion** if your CSV uses another layout. Add notes explaining its columns or intended effect rows, choose the file, and select **Convert to a draft**. Conversion uses the saved manual and the drafting extractor chosen in Settings.
 
 Review the preview and warnings. Edit the CSV if necessary without changing the required headers, then choose **Save converted sheet**. Fill in missing authors and years before saving. Conversion accepts up to 2,000 source rows and 500,000 characters.
 

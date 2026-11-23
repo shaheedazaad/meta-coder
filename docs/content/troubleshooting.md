@@ -14,7 +14,7 @@ Unmatched sheet rows and PDFs with no rows are skipped. Check **Needs PDF** and 
 
 ## Provider errors or timeouts
 
-Check the connection in [Settings](settings.md), the exact model ID, and the selected provider. For an OpenAI-compatible endpoint, verify its API base URL and supported JSON mode. Reduce parallelism or increase pacing for rate-limit errors; adjust the request timeout for slow responses.
+Check the project's extractor in [Settings](settings.md): its key, the exact model ID and the provider. For an OpenAI-compatible endpoint, verify its API base URL and supported JSON mode. Reduce parallel requests or increase the delay between requests for rate-limit errors; adjust the request timeout for slow responses. These are request settings on the extractor.
 
 Use raw responses and per-study status messages to identify the cause, then retry affected PDFs.
 

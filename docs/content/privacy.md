@@ -11,9 +11,9 @@ This page describes what MetaCoder sends and summarises provider terms as checke
 | Extraction with Gemini | Google's Gemini API (`generativelanguage.googleapis.com`) | The complete study PDF, plus instructions, your effect definition, coding manual fields, and the row IDs and locators for that PDF |
 | Extraction with OpenRouter | OpenRouter (`openrouter.ai`), which forwards the request to a model provider | The complete study PDF, plus the same instructions and coding details |
 | Extraction with an OpenAI-compatible endpoint | The API base URL you entered | Text extracted from the PDF on your computer, with page numbers, plus the same instructions and coding details. The PDF file itself is not sent |
-| AI manual drafting | Your drafting provider | Text extracted on your computer from the uploaded manual document |
-| Coding sheet conversion | Your drafting provider | The uploaded CSV content, your saved manual, your notes, and the names of uploaded PDFs |
-| Model checks | The selected provider | A request for model details; no documents |
+| AI manual drafting | The drafting extractor's provider | Text extracted on your computer from the uploaded manual document |
+| Coding sheet conversion | The drafting extractor's provider | The uploaded CSV content, your saved manual, your notes, and the names of uploaded PDFs |
+| Model checks and model lists | The extractor's provider | A request for model details or the model list; no documents |
 | Update checks | GitHub | A request for the latest release number; no documents or keys |
 
 Your API key is sent only to the provider it belongs to, to authorise requests. Nothing is sent to the MetaCoder developers.

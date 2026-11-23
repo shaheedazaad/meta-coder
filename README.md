@@ -62,20 +62,23 @@ using the Python environment where you installed it instead.
 ## Try it out
 
 1. Create a project.
-2. Set an API key in **Settings**: paste a Gemini key (get one at
+2. Add an **extractor** in **Settings**: a named, saved setup for reaching a model
+   (provider, model, endpoint, API key and request settings). Paste a Gemini key (get one at
    [Google AI Studio](https://aistudio.google.com/app/apikey)) or an OpenRouter key
-   ([openrouter.ai](https://openrouter.ai/settings/keys)). Keys are saved in your computer's
-   OS credential store (macOS Keychain / Windows Credential Locker / Linux Secret
-   Service). After restart, keychain access is requested when you run an action
-   that needs a key, never on launch. There is no separate unlock step or plaintext fallback.
+   ([openrouter.ai](https://openrouter.ai/settings/keys)), or point it at an
+   OpenAI-compatible server. You can keep several extractors, including several for
+   the same provider. Keys are saved in one item in your computer's OS credential
+   store (macOS Keychain / Windows Credential Locker / Linux Secret Service), never in
+   a file. The store is read once per session, the first time an action needs a key,
+   never on launch or page load. There is no separate unlock step or plaintext fallback.
 3. Define the effect on **Define your analysis** (`effect_definition`: what
    comparison counts as "the effect"), then write the coding manual on the
    **Coding manual** tab — a structured editor, not raw YAML: `effects` (the
    fields the model codes, with categories for categorical ones). Both are saved
    in the same manual. A starter example is pre-filled when you create a project. You
    can also import an existing `manual.yml`, or drop a PDF, DOCX, RTF, or Markdown (.md) coding manual into
-   the automatic generator. Its provider/model are configured globally in Settings,
-   independently of extraction. The draft appears in the editor without a page reload
+   the automatic generator. It uses the drafting extractor chosen in Settings,
+   independently of each project's extractor. The draft appears in the editor without a page reload
    and is not saved until you explicitly validate and save it.
 4. Upload the PDFs you want coded (**Source PDFs** tab).
 5. Upload a coding sheet CSV (**Coding sheet** tab): `row_id`, `source_pdf`,
@@ -87,7 +90,7 @@ using the Python environment where you installed it instead.
    For a CSV with a different layout, use **AI conversion**.
    Add optional notes about its columns and intended effect rows, choose the CSV,
    and click **Convert to a draft**. Conversion uses the saved coding manual and
-   the provider/model configured for manual drafting. Review the preview and
+   the drafting extractor. Review the preview and
    warnings, edit the CSV if needed, then choose **Save converted sheet**.
    Conversion preserves the current sheet and results until you save; saving a
    changed sheet clears prior extraction results. Missing authors/year must be
@@ -95,7 +98,8 @@ using the Python environment where you installed it instead.
    CSVs must be UTF-8, with at most 2,000 source rows and 500,000 characters.
    Already formatted CSVs can still be uploaded directly under the separate
    **Upload formatted CSV** option.
-6. On the **Run** tab, pick a provider/model and parallelism/pacing, then run. Every
+6. On the **Run** tab, choose the project's extractor (its settings are shown
+   read-only, with an **Edit extractor** link), then run. Every
    coding-sheet row for one PDF is sent in a single request; the model must echo
    back the exact row IDs it was given, or that PDF is marked `needs_review` rather
    than accepting a best-effort guess. A response the provider cut short (e.g. at
@@ -114,25 +118,25 @@ using the Python environment where you installed it instead.
 
 ## OpenAI-compatible endpoints
 
-In **Settings**, enter the endpoint's API base URL (for example,
-`http://localhost:8000/v1` or `https://api.openai.com/v1`). Include its API prefix;
-MetaCoder appends `/chat/completions`. The endpoint is shared across projects
-and the manual generator. Select **OpenAI-compatible** on the Run tab, enter the
-exact model ID served by your endpoint, and save. The manual generator has its
-own provider/model selection in Settings.
+In **Settings**, add an extractor with the **OpenAI-compatible** provider, the
+endpoint's API base URL (for example, `http://localhost:8000/v1` or
+`https://api.openai.com/v1`) and the exact model ID it serves. Include the API
+prefix; MetaCoder appends `/chat/completions`. Each extractor has its own
+endpoint, so you can keep several servers side by side. Choose the extractor on a
+project's Run tab, or as the drafting extractor in Settings.
 
-Save an API key under **OpenAI-compatible** if the server requires authentication;
-local servers can run without one. Keys use the same OS credential store on your computer as the
-other providers and, as with them, a saved key is read from the store when you
-run an action that needs it. When switching endpoints,
-replace or remove the old key as appropriate.
+Add an API key if the server requires authentication; local servers can run
+without one. Keys use the same OS credential store as the other providers and,
+as with them, a saved key is read from the store when you run an action that
+needs it.
 
 The default output mode is **Strict JSON schema**. For servers that do not support
-it, choose **JSON object** or **Prompt only** in Settings. These correspond to the
+it, choose **JSON object** or **Prompt only** on the extractor. These correspond to the
 [Chat Completions structured-output modes](https://developers.openai.com/api/docs/guides/structured-outputs);
 prompt-only mode omits `response_format`. All results still undergo MetaCoder's
 row and field validation. Model IDs are accepted without requiring a `/models`
-catalog; availability is checked when a request runs.
+catalog (**Show available models** uses it when the server has one);
+availability is checked when a request runs.
 
 This provider extracts PDF text on your computer and sends it with page numbers, rather than
 PDF attachments. Figures and scanned pages are not interpreted; run OCR first or
@@ -148,8 +152,9 @@ dependency versions, UTC timestamps, input snapshots, exact credential-free
 request bodies, full provider response envelopes, model revision/fingerprint
 when returned, validation outcomes, and each HTTP exchange, including any
 automatic retries. Run records preserve
-CSV exports and connect per-PDF attempts. The ZIP includes current run settings
-and an `export_manifest.json` with SHA-256 checksums.
+CSV exports and connect per-PDF attempts, and name the extractor used with a
+snapshot of its settings. The ZIP includes the last run's settings and an
+`export_manifest.json` with SHA-256 checksums.
 
 History survives retries, manual changes, source removal, and clearing working
 output. Deleting a project deletes its history. API credentials are excluded;

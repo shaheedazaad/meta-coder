@@ -47,12 +47,12 @@ MetaCoder checks for updates when you open a page, at most once every six hours.
 ## Your first project
 
 1. Enter a name on **Projects** and choose **Create project**.
-2. [Connect a provider](settings.md) in global **Settings**.
+2. [Add an extractor](settings.md) in global **Settings**: a saved provider, model and API key.
 3. [Define your analysis](analysis.md): state exactly which comparison counts as an effect.
 4. [Build your coding manual](manual.md): define the fields and categories to extract.
 5. [Add a coding sheet](coding-sheet.md): identify each effect with a unique row ID and locator.
 6. [Upload source PDFs](sources.md), then [review PDF matches](matching.md).
-7. [Run extraction](run.md) with your selected provider and model.
+7. [Run extraction](run.md) with the extractor you chose for the project.
 8. [Review results and export](results.md), checking coded values against their supporting evidence.
 9. [Validate the coding](validation.md) against human coding on a sample of studies.
 
