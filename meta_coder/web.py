@@ -77,7 +77,9 @@ from .runner import (
     raw_json_path_for_read,
 )
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
-from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
+from .settings import (
+    MAX_OUTPUT_TOKENS, REASONING_EFFORTS, RunSettings, load_run_settings, output_token_limit, save_run_settings,
+)
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .uploads import list_uploaded_pdfs, save_pdf_upload
 import yaml
@@ -606,6 +608,7 @@ def _project_view(
         "providers": PROVIDERS,
         "provider_labels": PROVIDER_LABELS,
         "reasoning_efforts": REASONING_EFFORTS,
+        "max_output_tokens_limit": MAX_OUTPUT_TOKENS,
         "has_results": bool(run_state) or bool(completed_articles) or (coded_csv.is_file() and evidence_csv.is_file()),
         "result_files_available": coded_csv.is_file() and evidence_csv.is_file(),
         "confidence_file_available": (project.output_dir / CONFIDENCE_CSV).is_file(),
@@ -914,6 +917,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         request_timeout_sec: int = Form(0),
         service_tier: str = Form(""),
         reasoning_effort: str = Form(""),
+        # Text, not int: an empty field means the provider's own limit.
+        max_output_tokens: str = Form(""),
     ):
         project = runtime.project(project_id)
         settings = RunSettings(
@@ -924,6 +929,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             request_timeout_sec=request_timeout_sec,
             service_tier=service_tier,
             reasoning_effort=reasoning_effort,
+            max_output_tokens=output_token_limit(max_output_tokens),
         ).clamped()
         setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
         problems = [setup_error] if setup_error else await run_in_threadpool(check_model,
@@ -1266,6 +1272,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 request_timeout_sec=settings.request_timeout_sec,
                 service_tier=settings.service_tier,
                 reasoning_effort=settings.reasoning_effort,
+                max_output_tokens=settings.max_output_tokens,
                 only_pdfs=only_pdfs,
             )
         except RuntimeError as exc:

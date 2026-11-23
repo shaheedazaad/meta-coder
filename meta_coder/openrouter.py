@@ -20,6 +20,7 @@ import base64
 import json
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -49,6 +50,10 @@ DEFAULT_TIMEOUT_SEC = 600
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE_SEC = 2.0
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
+# Context kept for the article when an endpoint's output limit becomes the
+# default cap: OpenRouter parses the PDF itself, so the article's size isn't
+# known in advance. A quarter of the context, and never less than this.
+MIN_INPUT_TOKEN_RESERVE = 32_768
 
 
 def _redact(text: str, api_key: str) -> str:
@@ -111,6 +116,66 @@ def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list
     return problems
 
 
+def _structured_endpoints(model: str, *, api_key: str, timeout_sec: int) -> list[dict[str, Any]]:
+    """The provider endpoints serving `model` that can return strict structured output."""
+
+    # Endpoints are listed per model, without a variant suffix such as `:free`.
+    path = "/".join(urllib.parse.quote(part, safe="") for part in model.split(":", 1)[0].split("/"))
+    request = _request(f"{API_BASE}/models/{path}/endpoints", api_key=api_key)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_sec) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError) as exc:  # network errors and timeouts are OSErrors; bad JSON a ValueError
+        raise ProviderError(f"Could not read OpenRouter's endpoints: {_redact(str(exc), api_key)}") from exc
+    data = body.get("data") if isinstance(body, dict) else None
+    endpoints = data.get("endpoints") if isinstance(data, dict) else None
+    if not isinstance(endpoints, list):
+        raise ProviderError("OpenRouter returned an invalid endpoint list.")
+    return [
+        endpoint for endpoint in endpoints
+        if isinstance(endpoint, dict)
+        and "structured_outputs" in {str(value).lower() for value in endpoint.get("supported_parameters") or []}
+    ]
+
+
+def _token_count(value: Any) -> int:
+    """A token count from endpoint metadata, or 0 when it is missing or malformed."""
+
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _endpoint_output_limit(endpoint: dict[str, Any]) -> int | None:
+    """An endpoint's output maximum, less whatever would crowd the article out of its context."""
+
+    limit = _token_count(endpoint.get("max_completion_tokens"))
+    context_length = _token_count(endpoint.get("context_length"))
+    if limit and context_length:
+        limit = min(limit, context_length - max(context_length // 4, MIN_INPUT_TOKEN_RESERVE))
+    # An endpoint too small to hold both the article and any output can't serve
+    # these requests, so it doesn't count towards the lowest limit.
+    return limit if limit > 0 else None
+
+
+def endpoint_output_limit(model: str, *, api_key: str = "", timeout_sec: int = 20) -> int | None:
+    """The default output cap for `model`: the lowest any structured-output endpoint allows.
+
+    Extraction asks for strict structured output, so OpenRouter may route a
+    request to any endpoint that supports it; the lowest limit is one they all
+    accept. Each endpoint's limit leaves room in its context for the article.
+    None when no endpoint states a limit. Raises ProviderError when the
+    endpoint list can't be read.
+    """
+
+    endpoints = _structured_endpoints(model, api_key=api_key, timeout_sec=timeout_sec)
+    limits = [limit for limit in map(_endpoint_output_limit, endpoints) if limit]
+    return min(limits) if limits else None
+
+
 def _call_openrouter_content(
     *,
     model: str,
@@ -119,6 +184,7 @@ def _call_openrouter_content(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, Any]]:
     payload: dict[str, Any] = {
@@ -137,6 +203,9 @@ def _call_openrouter_content(
     }
     if reasoning_effort:
         payload["reasoning"] = {"effort": reasoning_effort}
+    if max_output_tokens:
+        # Reasoning tokens count against this cap too.
+        payload["max_tokens"] = max_output_tokens
 
     last_error: ProviderError | None = None
     raw_response = ""
@@ -214,6 +283,7 @@ def _call_openrouter(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Structured generation with a PDF file part, kept as the extraction seam."""
@@ -235,6 +305,7 @@ def _call_openrouter(
         response_schema=response_schema,
         timeout_sec=timeout_sec,
         reasoning_effort=reasoning_effort,
+        max_output_tokens=max_output_tokens,
         cancel_event=cancel_event,
     )
 
@@ -270,8 +341,12 @@ def extract_pdf_effects(
     model: str = DEFAULT_MODEL,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
+    """Extract one PDF. `max_output_tokens` caps the response, reasoning
+    included; None sends no cap, so OpenRouter's default applies."""
+
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
@@ -288,6 +363,7 @@ def extract_pdf_effects(
             response_schema=response_schema,
             timeout_sec=timeout_sec,
             reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
             cancel_event=cancel_event,
         )
     except ProviderError as exc:

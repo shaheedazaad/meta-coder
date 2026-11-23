@@ -128,6 +128,11 @@ class AuditOperation:
         self.data['inputs'][name] = self.blob(data)
         self.save()
 
+    def update_settings(self, **values):
+        """Record settings settled after the operation started, such as a looked-up limit."""
+        self.data['settings'].update(values)
+        self.save()
+
     def save(self):
         atomic_write(self.path / 'operation.json', self.scrub(json_bytes(self.data)))
 
@@ -145,6 +150,7 @@ def audited_call(project, operation, function, *, audit_inputs=None, audit_setti
     """Run on the calling worker so nested transports share this operation only."""
     settings = {k: v for k, v in kwargs.items() if k in {
         'provider', 'model', 'timeout_sec', 'service_tier', 'reasoning_effort', 'base_url', 'response_format',
+        'max_output_tokens',
     }}
     settings.update(audit_settings or {})
     audit = AuditOperation(project, operation, settings, secrets=(kwargs.get('api_key', ''),))

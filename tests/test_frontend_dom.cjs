@@ -146,6 +146,9 @@ test('provider controls update defaults, notices, and unsaved settings state', a
   assert.match(d.getElementById('run-key-status').textContent, /API key optional/);
   change(w, provider, 'openrouter', 'change');
   assert.match(d.getElementById('run-model').value, /\//);
+  // The maximum output hint says what an empty value means for the chosen provider.
+  const outputHints = [...d.getElementById('run-max-output').parentElement.querySelectorAll('[data-provider-setting]')];
+  assert.deepEqual(outputHints.filter(hint => !hint.hidden).map(hint => hint.dataset.providerSetting), ['openrouter']);
   assert.match(d.getElementById('run-key-status').textContent, /No OpenRouter API key/);
   await flush();
   assert.equal(w.projectEdits.dirty(), true);

@@ -93,6 +93,13 @@ def _request(url: str, *, api_key: str, body: dict[str, Any] | None = None, meth
     return urllib.request.Request(url, data=data, headers=headers, method=method)
 
 
+def _max_output_key(base_url: str) -> str:
+    """OpenAI's own API rejects `max_tokens` for reasoning models; other servers expect it."""
+    from urllib.parse import urlsplit
+
+    return "max_completion_tokens" if urlsplit(base_url).hostname == "api.openai.com" else "max_tokens"
+
+
 def _call(
     *,
     model: str,
@@ -103,6 +110,7 @@ def _call(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, Any]]:
     payload: dict[str, Any] = {
@@ -131,6 +139,8 @@ def _call(
         base_url = normalize_base_url(base_url)
     except ValueError as exc:
         raise ProviderError(str(exc)) from exc
+    if max_output_tokens:
+        payload[_max_output_key(base_url)] = max_output_tokens
     if not model.strip():
         raise ProviderError("Enter the model ID served by your OpenAI-compatible endpoint.")
     cancel_event = cancel_event or threading.Event()
@@ -219,6 +229,7 @@ def extract_pdf_effects(
     reasoning_effort: str = "",
     base_url: str,
     response_format: str = "json_schema",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
     source_pdf = pdf_path.name
@@ -237,6 +248,7 @@ def extract_pdf_effects(
             response_schema=response_schema,
             timeout_sec=timeout_sec,
             reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
             cancel_event=cancel_event,
         )
     except ProviderError as exc:
