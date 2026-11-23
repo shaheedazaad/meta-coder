@@ -27,6 +27,8 @@ Starting another run processes matched PDFs still needing coding; it does not au
 
 A failed retry never replaces a successful result. The results table shows the latest attempt, while the earlier success remains in the exports.
 
+A failed or cancelled retry doesn't replace a needs-review result either, so the values awaiting review stay in the exports. The results table keeps showing the needs-review result with **Last retry failed:** and the error beside its review reasons. A retry that returns a new result, even one that again needs review, replaces it. Every attempt, including the failed one, is still kept in the project's records.
+
 ## Review the output
 
 Open [Results](results.md) after processing. A completed request is not a substitute for checking the extracted values and evidence.

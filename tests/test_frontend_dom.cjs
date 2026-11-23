@@ -299,7 +299,7 @@ test('failed sheet conversion releases controls and preserves server-disabled bu
 for (const kind of ['run', 'pdf-scan']) {
   test(`${kind} polling handles progress, transient errors, and terminal refresh with unsaved edits`, async t => {
     let timers;
-    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
+    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], retry_error: 'HTTP 503', low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
     let fail = false;
     const { w, d } = setup(t, 'project', w => {
       timers = fakeTimers(w);
@@ -315,7 +315,7 @@ for (const kind of ['run', 'pdf-scan']) {
       assert.match(d.querySelector('[data-run-status-cell]').textContent, /ok · repaired/);
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '12');
       assert.equal(d.querySelector('[data-run-output-tokens]').textContent, '4');
-      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 low-confidence cells: 2/);
+      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 Last retry failed: HTTP 503 low-confidence cells: 2/);
       current = { status: 'cancelling', total: 0, processed: 0, pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
       assert.equal(timers.run(), 1500);
       await flush();
