@@ -9,6 +9,9 @@ particular the coding manual's description and what each category level means.
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from .coding_sheet import CodingSheetRow
 from .manual import CodingManual
 
@@ -17,7 +20,7 @@ from .manual import CodingManual
 # wording, the codebook rendering below, and the response schema built by
 # mechanism.build_response_schema. Bump it whenever any of those change in a way
 # that could change what a model returns, so stored results can be told apart.
-PROMPT_VERSION = "3"
+PROMPT_VERSION = "4"
 
 BASELINE_RULES = """You are a research assistant coding effects for a meta-analysis.
 
@@ -75,6 +78,18 @@ def render_codebook(manual: CodingManual) -> str:
                 else:
                     lines.append(f"  - `{level.value}`")
     return "\n".join(lines)
+
+
+def schema_prompt(response_schema: dict[str, Any]) -> str:
+    """The response schema as text to append to a prompt.
+
+    Some providers enforce a structured-output schema without showing it to the
+    model, which then has to guess the field names and can end up with nothing
+    valid to write. Adapters that send the schema only in `response_format`
+    (OpenRouter, OpenAI-compatible) append this so the model always sees it.
+    """
+
+    return "\n\nReturn only JSON matching this schema:\n" + json.dumps(response_schema)
 
 
 def build_extraction_prompt(

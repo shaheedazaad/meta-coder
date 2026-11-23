@@ -6,7 +6,9 @@ as a `file` content part (base64 data URL), and structured output is requested v
 `response_format: {type: "json_schema", ...}` — see `mechanism.build_response_schema`
 called with `dialect="json_schema"` and `strict: true`. Every manual field is
 required in each returned row; `value: null` explicitly means the paper did not
-report it, rather than letting a provider silently omit the field.
+report it, rather than letting a provider silently omit the field. The same schema
+is also appended to the prompt text (`prompts.schema_prompt`): some backends enforce
+`response_format` without showing it to the model, which then has to guess the fields.
 
 Unlike Gemini's adapter, this one retries transient failures (connection errors,
 429, 5xx) with bounded exponential backoff — OpenRouter fans a single request out
@@ -38,7 +40,7 @@ from .extraction import (
 import threading
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
-from .prompts import build_extraction_prompt
+from .prompts import build_extraction_prompt, schema_prompt
 
 
 API_BASE = "https://openrouter.ai/api/v1"
@@ -222,7 +224,7 @@ def _call_openrouter(
         model=model,
         api_key=api_key,
         content=[
-            {"type": "text", "text": prompt},
+            {"type": "text", "text": prompt + schema_prompt(response_schema)},
             {
                 "type": "file",
                 "file": {
@@ -253,7 +255,7 @@ def generate_structured_text(
     text, _tokens = _call_openrouter_content(
         model=model,
         api_key=api_key,
-        content=[{"type": "text", "text": prompt}],
+        content=[{"type": "text", "text": prompt + schema_prompt(response_schema)}],
         response_schema=response_schema,
         timeout_sec=timeout_sec,
         reasoning_effort=reasoning_effort,
