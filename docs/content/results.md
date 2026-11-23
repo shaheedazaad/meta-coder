@@ -23,7 +23,7 @@ The Detail column of the results table counts each PDF's **low-confidence cells*
 | Export | Purpose |
 | --- | --- |
 | `coded_data.csv` | Coded values arranged by effect row |
-| `evidence.csv` | Supporting page and quote information for the coded cells |
+| `evidence.csv` | Same rows and columns as `coded_data.csv`, with the supporting page and quote for each coded cell |
 | `confidence.csv` | The model's confidence in each coded cell, when the manual asks for it |
 | `provenance.csv` | Provider, model and audit operation behind each row of `coded_data.csv`; blank for results saved by earlier versions |
 | Spreadsheet copies | `coded_data.csv`, `evidence.csv` and (when present) `confidence.csv` for opening in Excel or LibreOffice: text that could run as a formula (starting with `=`, `+`, `-` or `@`) begins with `'`, and accented characters display correctly. Use the plain files for analysis |
