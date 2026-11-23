@@ -225,7 +225,7 @@
               <input class="manual-upload-input" id="manual-draft-file" name="file" type="file"
                      accept=".pdf,.docx,.rtf,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/rtf,text/rtf,text/markdown"
                      aria-label="Choose a PDF, DOCX, RTF, or Markdown coding manual" aria-describedby="manual-draft-help" required
-                     {% if not manual_generator_ready or not manual_editor_json %}disabled{% endif %}>
+                     {% if not drafting_ready or not manual_editor_json %}disabled{% endif %}>
             </label>
           </div>
         </form>
@@ -233,15 +233,16 @@
         <div id="manual-draft-help" class="u-xs u-muted">
           {% if not manual_editor_json %}
           <p class="u-warning">Reset the unreadable saved manual below before creating a draft.</p>
-          {% elif not manual_generator_ready %}
-          <p class="u-warning">{{ manual_generator_setup_error }} <a href="/{{ token }}/settings" style="color:var(--primary)">Open Settings</a>.</p>
+          {% elif not drafting_ready %}
+          <p class="u-warning">{{ drafting_setup_error }} <a href="/{{ token }}/settings" style="color:var(--primary)">Open Settings</a>.</p>
           {% else %}
           AI drafting starts when you choose a file. Review the generated fields before saving.
           {% endif %}
         </div>
         <p class="u-xs u-muted manual-upload-description">
-          {{ provider_labels.get(manual_generator_provider, manual_generator_provider) }} · {{ manual_generator_model }}
-          · <a href="/{{ token }}/settings" style="color:var(--primary)">Change</a>
+          {% if drafting_extractor %}Drafting extractor: {{ drafting_extractor.name }} ({{ drafting_extractor.provider_label }} · {{ drafting_extractor.model or "no model" }})
+          {% else %}No drafting extractor chosen{% endif %}
+          · <a href="/{{ token }}/settings#drafting" style="color:var(--primary)">Change</a>
         </p>
       </section>
 
@@ -430,16 +431,16 @@
           <div class="field">
             <label for="sheet-draft-file">Coding sheet CSV</label>
             <input id="sheet-draft-file" name="file" type="file" accept=".csv,text/csv" required
-                   {% if not manual_generator_ready or manual_error or not manual or not manual.is_complete %}disabled{% endif %}>
+                   {% if not drafting_ready or manual_error or not manual or not manual.is_complete %}disabled{% endif %}>
           </div>
           <div><button type="submit" class="btn" data-size="sm"
-                       {% if not manual_generator_ready or manual_error or not manual or not manual.is_complete %}disabled{% endif %}>Convert to a draft</button></div>
+                       {% if not drafting_ready or manual_error or not manual or not manual.is_complete %}disabled{% endif %}>Convert to a draft</button></div>
         </form>
-        <p class="u-xs u-muted">Uses {{ provider_labels.get(manual_generator_provider, manual_generator_provider) }} · {{ manual_generator_model }} — the same model as manual drafting. <a href="/{{ token }}/settings">Change model</a>.</p>
+        <p class="u-xs u-muted">Uses the drafting extractor{% if drafting_extractor %}, {{ drafting_extractor.name }}{% endif %}, the same as manual drafting. <a href="/{{ token }}/settings#drafting">Change it</a>.</p>
         {% if manual_error or not manual or not manual.is_complete %}
         <p class="u-xs u-warning">Complete and save the coding manual before converting a sheet.</p>
-        {% elif not manual_generator_ready %}
-        <p class="u-xs u-warning">{{ manual_generator_setup_error }} <a href="/{{ token }}/settings">Open Settings</a>.</p>
+        {% elif not drafting_ready %}
+        <p class="u-xs u-warning">{{ drafting_setup_error }} <a href="/{{ token }}/settings">Open Settings</a>.</p>
         {% endif %}
         <div id="sheet-draft-status" class="alert hidden" role="status" aria-live="polite"></div>
       </section>
@@ -785,93 +786,46 @@
       <div class="run-columns">
         <div class="stack">
           <div>
-            <h3 style="margin:0; font-size:var(--text-lg); font-weight:600">Run settings</h3>
-            <p class="u-sm u-muted" style="margin:var(--sp-1) 0 0">Provider, model, and throughput for this project.</p>
+            <h3 style="margin:0; font-size:var(--text-lg); font-weight:600">Extractor</h3>
+            <p class="u-sm u-muted" style="margin:var(--sp-1) 0 0">The saved model setup this project codes with. Extractors are managed in Settings.</p>
           </div>
 
-          <div id="run-key-status" class="alert" data-variant="{{ 'success' if api_key_set else 'warning' }}"
-               data-provider-status='{{ provider_key_status | tojson }}'
-               data-provider-labels='{{ provider_labels | tojson }}'>
+          <div id="run-key-status" class="alert" data-variant="{{ 'success' if api_key_set else 'warning' }}">
             <section>
-              <span data-run-key-message>{% if run_provider_setup_error %}{{ run_provider_setup_error }}
-              {% elif run_settings.provider == "openai_compatible" and api_key_set %}OpenAI-compatible endpoint is configured (API key optional).
-              {% elif api_key_set %}{{ provider_labels.get(run_settings.provider, run_settings.provider) }} API key is saved. Keychain access will be requested when needed.
-              {% elif saved_key_available %}{{ provider_labels.get(run_settings.provider, run_settings.provider) }} API key is saved.
-              {% else %}No {{ provider_labels.get(run_settings.provider, run_settings.provider) }} API key set yet.{% endif %}</span>
-              <a href="/{{ token }}/settings" style="color:var(--primary)">Manage connection</a>.
-
+              {% if run_setup_error %}{{ run_setup_error }}
+              {% else %}Ready to run. The credential store is asked for the key when the run starts.{% endif %}
+              <a href="/{{ token }}/settings" style="color:var(--primary)">Open Settings</a>.
             </section>
           </div>
 
-          <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/settings" class="stack">
-            <input type="hidden" name="previous_provider" value="{{ run_settings.provider }}">
-            <script id="run-provider-defaults" type="application/json">{{ provider_default_models | tojson }}</script>
-            <div class="grid-2">
-              <div class="field">
-                <label for="run-provider">Provider</label>
-                <select id="run-provider" name="provider" class="select" {% if is_running %}disabled{% endif %}>
-                  {% for p in providers %}
-                  <option value="{{ p }}" {% if run_settings.provider == p %}selected{% endif %}>{{ provider_labels.get(p, p) }}</option>
-                  {% endfor %}
-                </select>
-                <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">
-                  Gemini sends PDFs natively; OpenRouter supports PDF input. OpenAI-compatible endpoints use extracted PDF text and the base URL in Settings.
-                </p>
-              </div>
-              <div class="field">
-                <label for="run-model">Model</label>
-                <input type="text" id="run-model" name="model" value="{{ run_settings.model }}"
-                       class="input u-mono" {% if is_running %}disabled{% endif %}>
-              </div>
+          {% if extractors %}
+          <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/settings" class="stack" id="run-extractor-form">
+            <div class="field">
+              <label for="run-extractor">Extractor for this project</label>
+              <select id="run-extractor" name="extractor_id" class="select" required {% if is_running %}disabled{% endif %}>
+                {% if not selected_extractor_id %}<option value="" selected disabled>Choose an extractor…</option>{% endif %}
+                {% for e in extractors %}
+                <option value="{{ e.id }}" {% if e.id == selected_extractor_id %}selected{% endif %}>{{ e.name }}</option>
+                {% endfor %}
+              </select>
             </div>
-
-            <details class="disclosure"><summary>Advanced run settings</summary><div class="disclosure-body stack">
-            <div class="grid-3">
-              <div class="field">
-                <label for="run-parallel">Parallel requests</label>
-                <input type="number" id="run-parallel" name="parallel_requests" value="{{ run_settings.parallel_requests }}"
-                       min="1" max="32" class="input" {% if is_running %}disabled{% endif %}>
-              </div>
-              <div class="field">
-                <label for="run-delay">Request delay (s)</label>
-                <input type="number" id="run-delay" name="request_delay_sec" value="{{ run_settings.request_delay_sec }}"
-                       min="0" max="3600" class="input" {% if is_running %}disabled{% endif %}>
-              </div>
-              <div class="field">
-                <label for="run-timeout">Request timeout (s)</label>
-                <input type="number" id="run-timeout" name="request_timeout_sec" value="{{ run_settings.request_timeout_sec }}"
-                       min="30" max="3600" class="input" {% if is_running %}disabled{% endif %}>
-              </div>
+            {% for e in extractors %}
+            <div class="stack-sm" data-extractor-summary="{{ e.id }}" {% if e.id != selected_extractor_id %}hidden{% endif %}>
+              <dl class="extractor-summary u-sm">
+                {% for label, value in e.summary %}
+                <dt class="u-muted">{{ label }}</dt><dd class="{{ 'u-mono' if label in ['Model', 'API base URL'] else '' }}">{{ value }}</dd>
+                {% endfor %}
+              </dl>
+              <p class="u-xs" style="margin:0"><a href="/{{ token }}/settings#extractor-{{ e.id }}" style="color:var(--primary)">Edit extractor</a></p>
             </div>
-
-            <div data-provider-setting="gemini" {% if run_settings.provider != 'gemini' %}hidden{% endif %}>
-              <div class="field field-max">
-                <label for="run-service-tier">Service tier <span class="u-muted">(Gemini only)</span></label>
-                <input type="text" id="run-service-tier" name="service_tier" value="{{ run_settings.service_tier }}"
-                       list="service-tier-options" class="input u-mono" {% if is_running %}disabled{% endif %}>
-                <datalist id="service-tier-options">
-                  <option value="flex">
-                  <option value="standard">
-                </datalist>
-                <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">"flex" is cheaper with variable latency.</p>
-              </div>
-            </div>
-            <div data-provider-setting="openrouter openai_compatible" {% if run_settings.provider not in ['openrouter', 'openai_compatible'] %}hidden{% endif %}>
-              <div class="field field-max">
-                <label for="run-reasoning-effort">Reasoning effort</label>
-                <select id="run-reasoning-effort" name="reasoning_effort" class="select" {% if is_running %}disabled{% endif %}>
-                  {% for effort in reasoning_efforts %}
-                  <option value="{{ effort }}" {% if run_settings.reasoning_effort == effort %}selected{% endif %}>{{ effort or "(model default)" }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-
-            </div></details>
+            {% endfor %}
             <div class="cluster" style="justify-content:flex-end">
-              <button type="submit" class="btn" data-variant="outline" data-size="sm" {% if is_running %}disabled{% endif %}>Save run settings</button>
+              <button type="submit" class="btn" data-variant="outline" data-size="sm" {% if is_running %}disabled{% endif %}>Use this extractor</button>
             </div>
           </form>
+          {% else %}
+          <p class="u-sm u-muted" style="margin:0">No extractors yet. <a href="/{{ token }}/settings#add-extractor" style="color:var(--primary)">Add one in Settings</a>.</p>
+          {% endif %}
         </div>
 
         <div class="stack">

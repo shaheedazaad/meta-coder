@@ -35,6 +35,14 @@ def redact_secret(text: str, secret: str) -> str:
     return text
 
 
+def redact_secrets(text: str, secrets) -> str:
+    """Remove every given API key, longest first, from text shown or persisted."""
+
+    for secret in sorted({value for value in secrets if value}, key=len, reverse=True):
+        text = redact_secret(text, secret)
+    return text
+
+
 def parse_json_response(raw_text: str) -> tuple[object, str | None]:
     """Parse provider JSON, repairing common truncated/malformed responses."""
 

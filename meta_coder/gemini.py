@@ -76,6 +76,33 @@ def check_model(model: str, *, api_key: str, timeout_sec: int = 20) -> list[str]
     return []
 
 
+def list_model_ids(*, api_key: str, timeout_sec: int = 20) -> list[str]:
+    """Gemini models this key can use for generateContent, for suggestions."""
+
+    if not api_key:
+        raise ProviderError("Enter an API key to load Gemini models.")
+    names: set[str] = set()
+    page_token = ""
+    while True:
+        query = urllib.parse.urlencode({"pageSize": 1000, **({"pageToken": page_token} if page_token else {})})
+        request = urllib.request.Request(f"{API_BASE}/models?{query}", headers={"x-goog-api-key": api_key})
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_sec) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise ProviderError(f"Gemini could not list models ({exc.code}).") from None
+        except (urllib.error.URLError, ValueError) as exc:
+            raise ProviderError(f"Could not load Gemini models: {_redact(str(exc), api_key)}") from None
+        for entry in body.get("models") or []:
+            methods = {str(method).lower() for method in entry.get("supportedGenerationMethods") or []}
+            name = str(entry.get("name") or "").removeprefix("models/")
+            if name and "generatecontent" in methods:
+                names.add(name)
+        page_token = str(body.get("nextPageToken") or "")
+        if not page_token:
+            return sorted(names)
+
+
 MAX_ATTEMPTS = 3
 RETRY_BACKOFF_BASE_SEC = 2.0
 MAX_RETRY_AFTER_SEC = 30.0

@@ -291,6 +291,7 @@ class Runner:
         only_pdfs: list[str] | None = None,
         base_url: str = "",
         response_format: str = "json_schema",
+        extractor: dict | None = None,
     ) -> RunState:
         """`only_pdfs`, when given, restricts the run to that subset of the
         coding sheet's PDFs (todo.md step 11's retry: reprocess only
@@ -335,6 +336,8 @@ class Runner:
             "service_tier": service_tier, "reasoning_effort": reasoning_effort,
             "base_url": base_url, "response_format": response_format,
             "selected_pdfs": pdf_names, "retry_selection": only_pdfs,
+            # The extractor's id, name and a snapshot of its settings.
+            "extractor": extractor or {},
         }, secrets=(api_key,))
         state.audit_run.input("effective_manual.json", json_bytes(manual))
         state.audit_run.input("effective_coding_sheet.json", json_bytes(coding_sheet))

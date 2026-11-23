@@ -70,7 +70,6 @@ def test_provenance_follows_coded_rows_with_blanks_for_unknown_results():
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     monkeypatch.setattr(web.credentials, 'keyring_available', lambda: False)
     app = web.create_app(token='test', projects_root=tmp_path / 'projects')
     project = create_project('Export study', root=tmp_path / 'projects')

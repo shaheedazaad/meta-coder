@@ -27,7 +27,6 @@ from meta_coder.projects import clear_output, create_project, project_archive_fi
 @pytest.fixture
 def project(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     p = create_project('Audit project', root=tmp_path / 'projects')
     write_manual(p, parse_coding_manual('effect_definition: Treatment versus control\neffects:\n  count: {type: number}\n'))
     (p.sources_dir / 'paper.pdf').write_bytes(b'%PDF-1.4 example')
@@ -160,16 +159,20 @@ def test_history_survives_retries_and_output_reset_with_input_snapshots(project,
     assert blob(project, operations[0]['inputs']['source/paper.pdf']) == b'%PDF-1.4 example'
 
 
-def test_draft_uploads_and_results_are_exported_without_credentials(project, monkeypatch):
-    monkeypatch.setattr(web.Runtime, 'prepare_provider', lambda *args: None)
+def test_draft_uploads_and_results_are_exported_without_credentials(project, drafting_extractor, monkeypatch):
     monkeypatch.setattr(web, 'draft_coding_manual', lambda **kwargs: parse_coding_manual(project.manual_path.read_text()))
     app = web.create_app(token='test', projects_root=project.path.parent)
+    app.state.runtime.vault._keys = {drafting_extractor.id: SYNTHETIC_KEY}
     with TestClient(app, base_url='http://localhost') as client:
         response = client.post(f'/test/projects/{project.project_id}/manual/draft', files={'file': ('manual.md', b'Original manual text', 'text/markdown')})
         assert response.status_code == 200
         op = records(project)[0]
         assert blob(project, op['inputs']['uploaded/manual.md']) == b'Original manual text'
         assert json.loads(blob(project, op['inputs']['document_text.json'])) == 'Original manual text'
+        # The drafting extractor's settings are part of the record; its key is not.
+        assert op['settings']['extractor'] == {
+            'id': 'drafting', 'name': 'Drafting', 'settings': drafting_extractor.snapshot()}
+        assert op['settings']['model'] == 'draft-model'
         response = client.get(f'/test/projects/{project.project_id}/download/zip')
     with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
         manifest = json.loads(archive.read('export_manifest.json'))
@@ -333,10 +336,10 @@ def test_parallel_operations_keep_requests_separate(project, monkeypatch):
         assert request['contents'][0]['parts'][0]['text'] == exchange['response']['reported_model']
 
 
-def test_sheet_conversion_records_original_csv_notes_and_generated_draft(project, monkeypatch):
-    monkeypatch.setattr(web.Runtime, 'prepare_provider', lambda *args: None)
+def test_sheet_conversion_records_original_csv_notes_and_generated_draft(project, drafting_extractor, monkeypatch):
     monkeypatch.setattr(web, 'draft_coding_sheet', lambda **kwargs: {'csv_text': 'generated', 'warnings': []})
     app = web.create_app(token='test', projects_root=project.path.parent)
+    app.state.runtime.vault._keys = {drafting_extractor.id: 'test-key'}
     with TestClient(app, base_url='http://localhost') as client:
         response = client.post(f'/test/projects/{project.project_id}/coding-sheet/draft',
             files={'file': ('original.csv', b'paper,effect\nDemo,Experiment 1\n', 'text/csv')},
@@ -413,20 +416,20 @@ def test_unexpected_errors_echoing_the_key_are_redacted_everywhere(project, monk
     assert_key_absent(project, state)
 
 
-def test_draft_errors_echoing_the_key_are_redacted(project, monkeypatch):
-    monkeypatch.setattr(web.Runtime, 'prepare_provider', lambda *args: None)
+def test_draft_errors_echoing_the_key_are_redacted(project, drafting_extractor, monkeypatch):
     app = web.create_app(token='test', projects_root=project.path.parent)
-    app.state.runtime._session_keys['gemini'] = SYNTHETIC_KEY
+    # Another extractor's key, also known this session, is redacted too.
+    app.state.runtime.vault._keys = {drafting_extractor.id: SYNTHETIC_KEY, 'other': 'other-session-key'}
     routes = [('manual/draft', 'draft_coding_manual', ManualDraftError, 'manual.md'),
               ('coding-sheet/draft', 'draft_coding_sheet', CodingSheetDraftError, 'sheet.csv')]
     with TestClient(app, base_url='http://localhost') as client:
         for route, function, draft_error, filename in routes:
             for error, status in [(draft_error, 400), (ProviderError, 502)]:
-                monkeypatch.setattr(web, function, Mock(side_effect=error(f'failed with {SYNTHETIC_KEY}')))
+                monkeypatch.setattr(web, function, Mock(side_effect=error(f'failed with {SYNTHETIC_KEY} other-session-key')))
                 response = client.post(f'/test/projects/{project.project_id}/{route}',
                                        files={'file': (filename, b'citation\nSmith 2024')})
                 assert response.status_code == status
-                assert response.json()['error'] == 'failed with [redacted]'
+                assert response.json()['error'] == 'failed with [redacted] [redacted]'
 
 
 def test_json_bytes_supports_sets_paths_and_rejects_unknown_objects():

@@ -60,6 +60,25 @@ def check_model(model: str, *, api_key: str = "", base_url: str = "") -> list[st
     return [] if model.strip() else ["Enter the model ID served by your endpoint."]
 
 
+def list_model_ids(*, api_key: str = "", base_url: str = "", timeout_sec: int = 20) -> list[str]:
+    """IDs from the endpoint's optional GET /models catalog, for suggestions."""
+
+    try:
+        url = normalize_base_url(base_url) + "/models"
+    except ValueError as exc:
+        raise ProviderError(str(exc)) from None
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout_sec) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise ProviderError(f"The endpoint could not list models ({exc.code}).") from None
+    except (urllib.error.URLError, ValueError) as exc:
+        raise ProviderError(f"Could not load models from the endpoint: {_redact(str(exc), api_key)}") from None
+    entries = body.get("data") if isinstance(body, dict) else None
+    return sorted({str(entry["id"]) for entry in entries or [] if isinstance(entry, dict) and entry.get("id")})
+
+
 def pdf_text(path: Path, cancel_event: threading.Event | None) -> str:
     from pypdf import PdfReader
 

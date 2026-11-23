@@ -46,6 +46,17 @@ def check_model(provider: str, model: str, *, api_key: str, base_url: str = "") 
     return [f"Unknown provider: {provider!r}."]
 
 
+def list_models(provider: str, *, api_key: str = "", base_url: str = "") -> list[str]:
+    """Model IDs the provider offers, sorted, for suggestions. Raises ProviderError."""
+    if provider == "openai_compatible":
+        return openai_compatible.list_model_ids(api_key=api_key, base_url=base_url)
+    if provider == "gemini":
+        return gemini.list_model_ids(api_key=api_key)
+    if provider == "openrouter":
+        return sorted({str(entry.get("id")) for entry in openrouter.list_models(api_key=api_key) if entry.get("id")})
+    raise ValueError(f"Unknown provider: {provider!r}.")
+
+
 def _generate_draft_text(
     *,
     provider: str,
@@ -114,7 +125,9 @@ def draft_coding_manual(
 
 def draft_coding_sheet(
     *, provider: str, source: dict, manual: str, notes: str, filenames: list[str],
-    api_key: str, model: str, base_url: str = "", response_format: str = "json_schema",
+    api_key: str, model: str, timeout_sec: int | None = None,
+    service_tier: str = gemini.DEFAULT_SERVICE_TIER, reasoning_effort: str = "",
+    base_url: str = "", response_format: str = "json_schema",
 ) -> dict:
     """Convert source rows without modifying the saved sheet or results."""
     from .coding_sheet_drafting import (
@@ -125,7 +138,8 @@ def draft_coding_sheet(
         provider=provider,
         prompt=build_sheet_draft_prompt(source, manual=manual, notes=notes, filenames=filenames),
         response_schema=build_sheet_draft_schema(dialect="gemini" if provider == "gemini" else "json_schema"),
-        api_key=api_key, model=model, base_url=base_url, response_format=response_format,
+        api_key=api_key, model=model, timeout_sec=timeout_sec, service_tier=service_tier,
+        reasoning_effort=reasoning_effort, base_url=base_url, response_format=response_format,
     )
     return parse_sheet_draft_response(raw_text, source_row_count=len(source["rows"]))
 

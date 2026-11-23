@@ -697,55 +697,18 @@ function initTabGroup(root, opts) {
   setTimeout(poll, 1000);
 })();
 
+// The Run tab shows the chosen extractor's settings; a change is saved explicitly.
 (function () {
-  var provider = document.getElementById("run-provider");
-  if (!provider) return;
-  var model = document.getElementById("run-model");
-  var keyStatus = document.getElementById("run-key-status");
-  var defaults = {};
-  var statuses = {};
-  var labels = {};
-  var defaultsInput = document.getElementById("run-provider-defaults");
-  try {
-    if (keyStatus) {
-      statuses = JSON.parse(keyStatus.dataset.providerStatus || "{}");
-      labels = JSON.parse(keyStatus.dataset.providerLabels || "{}");
-    }
-    if (defaultsInput) defaults = JSON.parse(defaultsInput.textContent || "{}");
-  } catch (_) {
-    // The server still validates the provider and supplies its default on save.
-  }
-
-  function updateProviderSettings(resetModel) {
-    document.querySelectorAll("[data-provider-setting]").forEach(function (setting) {
-      setting.hidden = !setting.getAttribute("data-provider-setting").split(" ").includes(provider.value);
+  var select = document.getElementById("run-extractor");
+  if (!select) return;
+  function showSummary() {
+    document.querySelectorAll("[data-extractor-summary]").forEach(function (summary) {
+      summary.hidden = summary.getAttribute("data-extractor-summary") !== select.value;
     });
-    if (resetModel && model) model.value = defaults[provider.value] || "";
-
-    if (!keyStatus) return;
-    var status = statuses[provider.value] || "missing";
-    var label = labels[provider.value] || provider.value;
-    var message = keyStatus.querySelector("[data-run-key-message]");
-    keyStatus.setAttribute("data-variant", (status === "saved" || status === "optional") ? "success" : "warning");
-    if (message) {
-      message.textContent = status === "unconfigured"
-        ? "Set the OpenAI-compatible API base URL in Settings."
-        : status === "optional"
-        ? "OpenAI-compatible endpoint is configured (API key optional)."
-        : status === "saved"
-        ? label + " API key is saved. Keychain access will be requested when needed."
-        : "No " + label + " API key set yet.";
-    }
-
   }
-
-  provider.addEventListener("change", function () { updateProviderSettings(true); });
-  updateProviderSettings(false);
-  var settingsForm = provider.form;
-  var savedSettings = JSON.stringify(Array.from(new FormData(settingsForm)));
-  projectEdits.register(settingsForm, function () {
-    return JSON.stringify(Array.from(new FormData(settingsForm))) !== savedSettings;
-  });
+  select.addEventListener("change", showSummary);
+  var saved = select.value;
+  projectEdits.register(select.form, function () { return select.value !== saved; });
 })();
 
 (function () {
@@ -822,20 +785,85 @@ function initTabGroup(root, opts) {
   });
 })();
 
-// Manual drafting has its own model, independent of per-project extraction.
+// Settings: each extractor form shows only its provider's fields and loads
+// model suggestions on request (never automatically); deleting an extractor
+// first names the projects that use it.
 (function () {
-  var provider = document.getElementById("manual-generator-provider");
-  var model = document.getElementById("manual-generator-model");
-  var defaultsInput = document.getElementById("manual-provider-defaults");
-  if (!provider || !model || !defaultsInput) return;
-  var defaults = JSON.parse(defaultsInput.textContent);
-  var models = {};
-  var previous = provider.value;
-  provider.addEventListener("change", function () {
-    models[previous] = model.value;
-    model.value = models[provider.value] || defaults[provider.value] || "";
-    model.placeholder = provider.value === "openai_compatible" ? "Model ID served by your endpoint" : "Model ID";
-    previous = provider.value;
+  document.querySelectorAll(".js-extractor-form").forEach(function (form) {
+    var provider = form.querySelector(".js-extractor-provider");
+    var model = form.querySelector(".js-extractor-model");
+    function showProviderFields() {
+      form.querySelectorAll("[data-provider-setting]").forEach(function (setting) {
+        setting.hidden = !setting.getAttribute("data-provider-setting").split(" ").includes(form.elements.provider.value);
+      });
+    }
+    if (provider) {
+      // Only a new extractor can change provider; remember each provider's model.
+      var defaults = JSON.parse(form.querySelector("[data-provider-defaults]").textContent);
+      var models = {};
+      var previous = provider.value;
+      provider.addEventListener("change", function () {
+        models[previous] = model.value;
+        model.value = models[provider.value] || defaults[provider.value];
+        previous = provider.value;
+        showProviderFields();
+      });
+    }
+
+    var button = form.querySelector(".js-load-models");
+    var status = form.querySelector("[data-models-status]");
+    var list = document.getElementById(model.getAttribute("list"));
+    button.addEventListener("click", function () {
+      var body = new FormData();
+      body.append("provider", form.elements.provider.value);
+      // The typed key goes in the request body only, never the URL.
+      body.append("api_key", form.elements.api_key.value);
+      body.append("base_url", form.elements.base_url.value);
+      body.append("extractor_id", button.dataset.extractorId || "");
+      button.disabled = true;
+      status.textContent = "Loading models…";
+      fetch(button.dataset.modelsUrl, { method: "POST", body: body })
+        .then(function (response) {
+          return response.json().then(function (data) {
+            if (!response.ok) throw new Error(data.detail || "Models could not be loaded.");
+            return data.models;
+          });
+        })
+        .then(function (ids) {
+          list.replaceChildren.apply(list, ids.map(function (id) {
+            var option = document.createElement("option");
+            option.value = id;
+            return option;
+          }));
+          status.textContent = ids.length + " model" + (ids.length === 1 ? "" : "s") +
+            " available. Start typing in the model field to choose one.";
+        })
+        .catch(function (error) { status.textContent = error.message; })
+        .finally(function () { button.disabled = false; });
+    });
+  });
+
+  document.querySelectorAll(".js-delete-extractor").forEach(function (form) {
+    form.addEventListener("submit", function (event) {
+      if (form.dataset.confirmed) return;
+      event.preventDefault();
+      fetch(form.dataset.usesUrl)
+        .then(function (response) {
+          if (!response.ok) throw new Error("Could not check which projects use this extractor. Reload the page and try again.");
+          return response.json();
+        })
+        .then(function (uses) {
+          var message = "Delete the “" + form.dataset.extractorName + "” extractor and its saved API key?\n\n" +
+            (uses.projects.length
+              ? "These projects use it and will need another extractor: " + uses.projects.join(", ") + "."
+              : "No projects use it.");
+          if (uses.drafting) message += "\nIt is also the drafting extractor.";
+          if (!window.confirm(message)) return;
+          form.dataset.confirmed = "true";
+          form.requestSubmit();
+        })
+        .catch(function (error) { window.alert(error.message); });
+    });
   });
 })();
 
