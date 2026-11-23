@@ -22,8 +22,6 @@ def safe_pdf_name(filename: str) -> str:
     cleaned = SAFE_NAME_RE.sub("_", unicodedata.normalize("NFC", basename)).strip(" .")
     if not cleaned or cleaned in {".", ".."}:
         raise ProjectError("A PDF filename is required.")
-    if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
-        cleaned = "_" + cleaned
     if len(cleaned.encode("utf-8")) > 180:
         full_stem = Path(cleaned).stem
         stem = full_stem
@@ -35,6 +33,9 @@ def safe_pdf_name(filename: str) -> str:
         while kept and len(kept) < len(full_stem) and unicodedata.category(full_stem[len(kept)]).startswith("M"):
             kept = kept[:-1]
         cleaned = (kept or stem) + Path(cleaned).suffix
+    # After shortening: dropping a combining sequence can leave a device name.
+    if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
+        cleaned = "_" + cleaned
     if Path(cleaned).suffix.lower() != ".pdf":
         raise ProjectError(f"{basename or 'File'} is not a PDF.")
     return cleaned

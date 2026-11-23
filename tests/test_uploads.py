@@ -91,6 +91,8 @@ def test_existing_partial_upload_is_not_deleted_by_a_competing_upload(tmp_path):
     ('lpt1.PDF', '_lpt1.PDF'),
     ('nul.extra.pdf', '_nul.extra.pdf'),
     ('control\x01.pdf', 'control_.pdf'),
+    # Dropping the combining sequence while shortening leaves a device name.
+    ('CONq' + '\u0303' * 100 + '.pdf', '_CON.pdf'),
 ])
 def test_unicode_and_portable_names(name, expected):
     assert safe_pdf_name(name) == expected
