@@ -866,6 +866,25 @@
                 </select>
               </div>
             </div>
+            <div class="grid-2" data-provider-setting="openrouter" {% if run_settings.provider != 'openrouter' %}hidden{% endif %}>
+              <div class="field">
+                <label for="run-openrouter-provider">Route to provider</label>
+                <select id="run-openrouter-provider" name="openrouter_provider" class="select"
+                        data-endpoints-url="/{{ token }}/api/openrouter/endpoints" {% if is_running %}disabled{% endif %}>
+                  <option value="">Automatic (OpenRouter chooses)</option>
+                  {% if run_settings.openrouter_provider %}<option value="{{ run_settings.openrouter_provider }}" selected>{{ run_settings.openrouter_provider }}</option>{% endif %}
+                </select>
+                <p id="run-openrouter-provider-status" class="u-xs u-muted" style="margin:var(--sp-1) 0 0" role="status">Providers that serve this model with structured output.</p>
+              </div>
+              <div class="field">
+                <label for="run-openrouter-fallbacks">Fallbacks</label>
+                <select id="run-openrouter-fallbacks" name="openrouter_fallbacks" class="select" {% if is_running %}disabled{% endif %}>
+                  <option value="allow" {% if run_settings.openrouter_allow_fallbacks %}selected{% endif %}>Allow other providers</option>
+                  <option value="deny" {% if not run_settings.openrouter_allow_fallbacks %}selected{% endif %}>Don't fall back</option>
+                </select>
+                <p id="run-openrouter-fallbacks-hint" class="u-xs u-muted" style="margin:var(--sp-1) 0 0"></p>
+              </div>
+            </div>
 
             </div></details>
             <div class="cluster" style="justify-content:flex-end">

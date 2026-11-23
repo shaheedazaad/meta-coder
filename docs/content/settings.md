@@ -20,6 +20,15 @@ For an OpenAI-compatible endpoint, include the API prefix such as `/v1`, without
 
 Choose a JSON output mode supported by the endpoint: **Strict JSON schema**, **JSON object**, or **Prompt only**. Responses are validated in every mode. Scanned pages and figures may need OCR or a provider with native PDF support.
 
+## Route OpenRouter requests to one provider
+
+OpenRouter serves each model through several backend providers, which can differ in quantization, speed, price and output limits. By default OpenRouter chooses one for each request, so PDFs in the same run can be coded by different providers. When a project uses OpenRouter, two more controls appear under **Advanced run settings** on its [Run tab](run.md#control-throughput):
+
+- **Route to provider** lists the providers that currently serve the project's model with structured output, such as `DeepInfra (turbo, fp8)`. The list reloads when you change the model. Leave it on **Automatic (OpenRouter chooses)** to keep OpenRouter's choice, or pick a provider to send every request to it first. If a provider you saved stops serving the model, it stays selected and is marked **(not listed for this model)**; choose another provider or **Automatic** if requests start failing.
+- **Fallbacks** decides what happens when that provider is unavailable. **Allow other providers** lets OpenRouter retry elsewhere. **Don't fall back** fails the request instead, so every result comes from the provider you chose. With **Automatic**, it limits each request to OpenRouter's first choice. A hint under the control describes the current combination.
+
+Both are saved with the project's run settings and recorded in each run's [audit record](auditing.md). Changing them does not mark existing results as outdated: they choose who serves the same model, not what is asked of it, so PDFs already coded are not coded again. The new routing applies to the PDFs coded from then on. Your [OpenRouter privacy settings](privacy.md#openrouter) still apply, so a provider they exclude cannot be used.
+
 ## Choose a drafting model
 
 Under **Drafting model**, select the provider and model for document-to-manual drafts and coding sheet conversion. Choose **Save drafting preferences**. This does not change a project's extraction provider or model.

@@ -144,6 +144,8 @@ def extract_pdf_effects(
     base_url: str = "",
     response_format: str = "json_schema",
     cancel_event: threading.Event | None = None,
+    openrouter_provider: str = "",
+    openrouter_allow_fallbacks: bool = True,
 ) -> ExtractionResult:
     """Route to the right adapter. Each adapter keeps its own kwargs (Gemini's
     `service_tier`, OpenRouter's `reasoning_effort`) — this function picks out
@@ -167,6 +169,8 @@ def extract_pdf_effects(
             timeout_sec=timeout_sec or openrouter.DEFAULT_TIMEOUT_SEC,
             reasoning_effort=reasoning_effort,
             cancel_event=cancel_event,
+            openrouter_provider=openrouter_provider,
+            allow_fallbacks=openrouter_allow_fallbacks,
         )
     if provider == "gemini":
         return gemini.extract_pdf_effects(

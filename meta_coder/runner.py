@@ -32,6 +32,13 @@ from .results import CONFIDENCE_CSV, collate_field_key, collate_results, low_con
 _SAFE_STEM_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
+def openrouter_routing(provider: str, allow_fallbacks: bool) -> dict[str, Any]:
+    """OpenRouter's provider routing settings, as recorded in provenance and
+    passed to the adapter."""
+
+    return {"openrouter_provider": provider, "openrouter_allow_fallbacks": allow_fallbacks}
+
+
 def _safe_stem(source_pdf: str) -> str:
     return _SAFE_STEM_RE.sub("_", Path(source_pdf).stem)
 
@@ -291,6 +298,8 @@ class Runner:
         only_pdfs: list[str] | None = None,
         base_url: str = "",
         response_format: str = "json_schema",
+        openrouter_provider: str = "",
+        openrouter_allow_fallbacks: bool = True,
     ) -> RunState:
         """`only_pdfs`, when given, restricts the run to that subset of the
         coding sheet's PDFs (todo.md step 11's retry: reprocess only
@@ -334,6 +343,7 @@ class Runner:
             "request_delay_sec": request_delay_sec, "timeout_sec": request_timeout_sec,
             "service_tier": service_tier, "reasoning_effort": reasoning_effort,
             "base_url": base_url, "response_format": response_format,
+            **(openrouter_routing(openrouter_provider, openrouter_allow_fallbacks) if provider == "openrouter" else {}),
             "selected_pdfs": pdf_names, "retry_selection": only_pdfs,
         }, secrets=(api_key,))
         state.audit_run.input("effective_manual.json", json_bytes(manual))
@@ -359,6 +369,7 @@ class Runner:
                 base_url,
                 response_format,
             ),
+            kwargs=openrouter_routing(openrouter_provider, openrouter_allow_fallbacks),
             daemon=True,
         )
         thread.start()
@@ -380,6 +391,8 @@ class Runner:
         reasoning_effort: str,
         base_url: str,
         response_format: str,
+        openrouter_provider: str = "",
+        openrouter_allow_fallbacks: bool = True,
     ) -> None:
         # Seed from prior attempts (see `_load_existing_results`) so a partial run
         # — a retry of a few PDFs, or a run cancelled midway — upserts over the
@@ -401,6 +414,8 @@ class Runner:
             provider_kwargs["service_tier"] = service_tier
         if reasoning_effort:
             provider_kwargs["reasoning_effort"] = reasoning_effort
+        if provider == "openrouter":
+            provider_kwargs.update(openrouter_routing(openrouter_provider, openrouter_allow_fallbacks))
 
         def process_one(progress: PdfProgress) -> None:
             if state.cancel_requested:

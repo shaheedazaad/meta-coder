@@ -57,7 +57,7 @@ For fields with low agreement, consider having a human check every study, or cod
 Describe LLM-assisted coding in enough detail for others to understand and repeat it. Include:
 
 - The provider, the model ID, and any model version reported in the audit records.
-- The dates of the extraction runs and key settings, such as the Gemini service tier or reasoning effort.
+- The dates of the extraction runs and key settings, such as the Gemini service tier, reasoning effort or OpenRouter provider routing.
 - The coding manual used for the final run, as a supplement, and how it was developed.
 - That MetaCoder sent one request per PDF with the full PDF (or extracted text), and the MetaCoder version from the audit record.
 - The validation sample: how it was drawn, its size, and how human coders were blinded.

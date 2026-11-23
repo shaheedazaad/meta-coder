@@ -67,6 +67,13 @@
 <p>If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. MetaCoder warns about this when you save such a model in a project's Run settings. Information shown only in figures or unusual table layouts may be lost.</p>
 <p>For an OpenAI-compatible endpoint, include the API prefix such as <code>/v1</code>, without <code>/chat/completions</code>. Enter the exact model ID in the relevant model field. When changing endpoints, replace or remove the old key too.</p>
 <p>Choose a JSON output mode supported by the endpoint: <strong>Strict JSON schema</strong>, <strong>JSON object</strong>, or <strong>Prompt only</strong>. Responses are validated in every mode. Scanned pages and figures may need OCR or a provider with native PDF support.</p>
+<h2 id="route-openrouter-requests-to-one-provider">Route OpenRouter requests to one provider<a class="headerlink" href="#route-openrouter-requests-to-one-provider" title="Permanent link">&para;</a></h2>
+<p>OpenRouter serves each model through several backend providers, which can differ in quantization, speed, price and output limits. By default OpenRouter chooses one for each request, so PDFs in the same run can be coded by different providers. When a project uses OpenRouter, two more controls appear under <strong>Advanced run settings</strong> on its <a href="../run/#control-throughput">Run tab</a>:</p>
+<ul>
+<li><strong>Route to provider</strong> lists the providers that currently serve the project's model with structured output, such as <code>DeepInfra (turbo, fp8)</code>. The list reloads when you change the model. Leave it on <strong>Automatic (OpenRouter chooses)</strong> to keep OpenRouter's choice, or pick a provider to send every request to it first. If a provider you saved stops serving the model, it stays selected and is marked <strong>(not listed for this model)</strong>; choose another provider or <strong>Automatic</strong> if requests start failing.</li>
+<li><strong>Fallbacks</strong> decides what happens when that provider is unavailable. <strong>Allow other providers</strong> lets OpenRouter retry elsewhere. <strong>Don't fall back</strong> fails the request instead, so every result comes from the provider you chose. With <strong>Automatic</strong>, it limits each request to OpenRouter's first choice. A hint under the control describes the current combination.</li>
+</ul>
+<p>Both are saved with the project's run settings and recorded in each run's <a href="../auditing/">audit record</a>. Changing them does not mark existing results as outdated: they choose who serves the same model, not what is asked of it, so PDFs already coded are not coded again. The new routing applies to the PDFs coded from then on. Your <a href="../privacy/#openrouter">OpenRouter privacy settings</a> still apply, so a provider they exclude cannot be used.</p>
 <h2 id="choose-a-drafting-model">Choose a drafting model<a class="headerlink" href="#choose-a-drafting-model" title="Permanent link">&para;</a></h2>
 <p>Under <strong>Drafting model</strong>, select the provider and model for document-to-manual drafts and coding sheet conversion. Choose <strong>Save drafting preferences</strong>. This does not change a project's extraction provider or model.</p>
 <p>The maximum document upload size is configurable here, from 1 to 1,024 MB.</p>
@@ -78,7 +85,7 @@
         <a href="../privacy/"><small>Next</small>Privacy and data sharing →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#connect-a-provider">Connect a provider</a><a href="#choose-a-drafting-model">Choose a drafting model</a><a href="#credential-store-unavailable">Credential store unavailable</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#connect-a-provider">Connect a provider</a><a href="#route-openrouter-requests-to-one-provider">Route OpenRouter requests to one provider</a><a href="#choose-a-drafting-model">Choose a drafting model</a><a href="#credential-store-unavailable">Credential store unavailable</a></nav></aside>
   </div>
 </body>
 </html>
