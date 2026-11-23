@@ -20,7 +20,7 @@ def test_filename_normalization(name, expected):
     assert safe_pdf_name(name) == expected
 
 
-@pytest.mark.parametrize('name', ['', '.', '..', '...', 'paper.txt', 'paper'])
+@pytest.mark.parametrize('name', ['', '.', '..', '...', 'paper.txt', 'paper', 'paper.' + 'x' * 200])
 def test_invalid_names_are_rejected(name):
     with pytest.raises(ProjectError):
         safe_pdf_name(name)
@@ -100,3 +100,19 @@ def test_multibyte_filename_fits_portable_byte_limit(tmp_path):
     name = safe_pdf_name('研' * 170 + '.pdf')
     assert len(name.encode('utf-8')) <= 180
     assert save_pdf_upload(tmp_path, name, io.BytesIO(b'%PDF')).name == name
+
+
+@pytest.mark.parametrize(('name', 'expected'), [
+    # The 160-byte cut falls between a Devanagari letter and its vowel sign (Mc).
+    ('x' * 157 + '\u0915\u093f' + 'y' * 40 + '.pdf', 'x' * 157 + '.pdf'),
+    # The cut keeps a letter and one mark but drops the second mark (Mn).
+    ('x' * 154 + '\u0915\u093f\u0902' + 'y' * 40 + '.pdf', 'x' * 154 + '.pdf'),
+    # A base letter whose combining tilde has no precomposed NFC form.
+    ('x' * 159 + 'q\u0303' + 'y' * 40 + '.pdf', 'x' * 159 + '.pdf'),
+    # A cut that lands just after a complete sequence keeps it.
+    ('x' * 154 + '\u0915\u093f' + 'y' * 40 + '.pdf', 'x' * 154 + '\u0915\u093f.pdf'),
+    # A stem made only of marks has no base letter to protect, so the plain cut stands.
+    ('\u0301' * 100 + '.pdf', '\u0301' * 80 + '.pdf'),
+])
+def test_truncation_keeps_combining_marks_with_their_base_letter(name, expected):
+    assert safe_pdf_name(name) == expected

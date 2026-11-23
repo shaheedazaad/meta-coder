@@ -25,10 +25,16 @@ def safe_pdf_name(filename: str) -> str:
     if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
         cleaned = "_" + cleaned
     if len(cleaned.encode("utf-8")) > 180:
-        stem = Path(cleaned).stem
+        full_stem = Path(cleaned).stem
+        stem = full_stem
         while len(stem.encode("utf-8")) > 160:
             stem = stem[:-1]
-        cleaned = stem + Path(cleaned).suffix
+        # Do not separate a base letter from the marks (categories Mn, Mc, Me)
+        # that follow it; drop the whole combining sequence instead.
+        kept = stem
+        while kept and len(kept) < len(full_stem) and unicodedata.category(full_stem[len(kept)]).startswith("M"):
+            kept = kept[:-1]
+        cleaned = (kept or stem) + Path(cleaned).suffix
     if Path(cleaned).suffix.lower() != ".pdf":
         raise ProjectError(f"{basename or 'File'} is not a PDF.")
     return cleaned
