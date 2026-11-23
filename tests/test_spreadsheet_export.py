@@ -1,4 +1,5 @@
 """Spreadsheet-safe copies of the result CSVs and the per-row provenance export."""
+import asyncio
 import csv
 import io
 
@@ -22,6 +23,8 @@ from meta_coder.runner import write_raw_result
     ('\r=1', "'\r=1"),
     ('  =1+1', "'  =1+1"),
     ('\n@x', "'\n@x"),
+    ('\n=HYPERLINK("http://x")', '\'\n=HYPERLINK("http://x")'),
+    ('\nplain', "'\nplain"),
     ('-1.25e-3', '-1.25e-3'),
     ('+4', '+4'),
     (' -.5', ' -.5'),
@@ -99,6 +102,25 @@ def test_spreadsheet_download_routes(site):
         assert (project.output_dir / filename).read_bytes() == b'row_id,value\r\n=1+1,-2\r\n'
     unknown = client.get(url(project, '/download/spreadsheet/provenance'))
     assert unknown.status_code == 404 and unknown.json()['detail'] == 'Unknown export.'
+
+
+def test_spreadsheet_conversion_runs_off_the_event_loop(site, monkeypatch):
+    client, project = site
+    (project.output_dir / 'coded_data.csv').write_bytes(b'row_id\r\nr1\r\n')
+    calls = []
+
+    def convert(text):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            calls.append('worker thread')
+        else:
+            calls.append('event loop')
+        return b'converted'
+
+    monkeypatch.setattr(web, 'spreadsheet_csv', convert)
+    response = client.get(url(project, '/download/spreadsheet/coded'))
+    assert response.content == b'converted' and calls == ['worker thread']
 
 
 def test_provenance_download_reads_persisted_provider_and_model(site):

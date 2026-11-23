@@ -1373,7 +1373,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         path = project.output_dir / filename
         if not path.is_file():
             raise HTTPException(status_code=404, detail="No results yet.")
-        data = spreadsheet_csv((await run_in_threadpool(path.read_bytes)).decode("utf-8"))
+        # Read and convert off the event loop: a large project's CSV would otherwise
+        # stall other requests, including run-status polling.
+        data = await run_in_threadpool(lambda: spreadsheet_csv(path.read_bytes().decode("utf-8")))
         return _csv_attachment(data, f"{project.name}-{Path(filename).stem}-spreadsheet.csv")
 
     @app.get(f"/{token}/projects/{{project_id}}/download/provenance")

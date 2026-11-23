@@ -193,10 +193,10 @@ def render_pdf_audit_yaml(
 
 
 # OWASP CSV-injection guidance: spreadsheet apps evaluate cells starting with
-# these characters as formulas. Tab and carriage return are always prefixed;
-# the others also after leading whitespace, which some apps ignore.
+# these characters as formulas. Tab, carriage return and line feed are always
+# prefixed; the others also after leading whitespace, which some apps ignore.
 _FORMULA_PREFIXES = ("=", "+", "-", "@")
-_CONTROL_PREFIXES = ("\t", "\r")
+_CONTROL_PREFIXES = ("\t", "\r", "\n")
 _NUMBER_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
 
 
