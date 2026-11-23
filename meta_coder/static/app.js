@@ -564,6 +564,7 @@ function initTabGroup(root, opts) {
   var statusUrl = root.dataset.statusUrl;
   var bar = root.querySelector("[data-progress-bar]");
   var summary = root.querySelector("[data-progress-summary]");
+  var warningBox = root.querySelector("[data-run-warning]");
   var rowsByPdf = {};
   document.querySelectorAll("[data-run-row]").forEach(function (tr) {
     rowsByPdf[tr.getAttribute("data-run-row")] = tr;
@@ -589,6 +590,10 @@ function initTabGroup(root, opts) {
     }
     if (summary) {
       summary.textContent = data.processed + " / " + data.total + " PDFs processed — " + data.status;
+    }
+    if (warningBox) {
+      warningBox.querySelector("section").textContent = data.warning || "";
+      warningBox.classList.toggle("hidden", !data.warning);
     }
     (data.pdfs || []).forEach(function (pdf) {
       var tr = rowsByPdf[pdf.source_pdf];

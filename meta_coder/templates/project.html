@@ -921,9 +921,8 @@
               <span style="width: {{ pct }}%"></span>
             </div>
 
-            {% if run_state.warning %}
-            <div class="alert" data-variant="warning" style="margin-top:var(--sp-3)"><section>{{ run_state.warning }}</section></div>
-            {% endif %}
+            {# Always rendered so the progress poller can show a warning raised mid-run. #}
+            <div class="alert{% if not run_state.warning %} hidden{% endif %}" data-variant="warning" data-run-warning role="status" style="margin-top:var(--sp-3)"><section>{{ run_state.warning or "" }}</section></div>
             {% if run_state.error %}
             <div class="alert" data-variant="destructive" style="margin-top:var(--sp-3)"><section>{{ run_state.error }}</section></div>
             {% endif %}
