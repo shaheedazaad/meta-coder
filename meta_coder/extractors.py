@@ -541,7 +541,10 @@ def migrate_legacy_settings(*, projects_root: Path | None = None) -> bool:
 
     choices: list[tuple[Project, str]] = []
     for project in sorted(list_projects(root=projects_root), key=lambda item: (item.created_at, item.name)):
-        if load_project_extractor_id(project) or not run_settings_saved(project):
+        # No extractors file exists yet, so a choice already saved here comes
+        # from an interrupted migration and names an extractor that was never
+        # written. Rebuild it from the project's last run settings.
+        if not run_settings_saved(project):
             continue
         previous = load_run_settings(project)
         chosen = claim({

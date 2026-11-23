@@ -192,8 +192,6 @@ def test_saved_keys_and_settings_become_extractors(isolated_home, tmp_path, memo
     fast_too = legacy_project(tmp_path, 'Fast too', provider='gemini', model='gemini-3.8-flash', parallel_requests=8)
     pro = legacy_project(tmp_path, 'Pro Gemini', provider='gemini', model='gemini-pro', service_tier='standard')
     router = legacy_project(tmp_path, 'Router', provider='openrouter', model='a/b', reasoning_effort='high')
-    chosen = legacy_project(tmp_path, 'Already chosen', provider='gemini', model='x')
-    save_project_extractor_id(chosen, 'kept')
     create_project('Never ran', root=tmp_path)
     memory_keyring.store[(_SERVICE_NAME, 'gemini')] = 'old-gemini-key'
     memory_keyring.store[(_SERVICE_NAME, 'openrouter')] = 'old-router-key'
@@ -213,7 +211,6 @@ def test_saved_keys_and_settings_become_extractors(isolated_home, tmp_path, memo
     assert by_name['Gemini (Pro Gemini)'].service_tier == 'standard'
     assert load_project_extractor_id(router) == by_name['OpenRouter'].id
     assert by_name['OpenRouter'].reasoning_effort == 'high'
-    assert load_project_extractor_id(chosen) == 'kept'
     assert all(item.legacy_credential == item.provider and item.key_saved
                for item in by_name.values() if item.provider != 'openai_compatible')
     assert endpoint.base_url == 'http://localhost:8000/v1' and endpoint.response_format == 'none'
@@ -229,6 +226,26 @@ def test_saved_keys_and_settings_become_extractors(isolated_home, tmp_path, memo
     assert (_SERVICE_NAME, 'gemini') not in memory_keyring.store
     assert extractors.legacy_claims() == {}
     assert all(item.key_saved for item in extractors.load_extractors() if item.provider != 'openai_compatible')
+
+
+def test_an_interrupted_migration_rebuilds_project_choices(isolated_home, tmp_path, monkeypatch):
+    write_legacy(isolated_home, flags={'gemini': True})
+    project = legacy_project(tmp_path, 'Fast', provider='gemini', model='gemini-pro', parallel_requests=8)
+    real_write = extractors._write
+
+    def crash(*args):
+        raise OSError('power cut')
+    monkeypatch.setattr(extractors, '_write', crash)
+    with pytest.raises(OSError, match='power cut'):
+        extractors.migrate_legacy_settings(projects_root=tmp_path)
+    assert load_project_extractor_id(project)  # written before the crash
+    assert not extractors.extractors_path().exists()
+
+    monkeypatch.setattr(extractors, '_write', real_write)
+    assert extractors.migrate_legacy_settings(projects_root=tmp_path) is True
+    by_id = {item.id: item for item in extractors.load_extractors()}
+    chosen = by_id[load_project_extractor_id(project)]  # resolves to a real extractor
+    assert (chosen.model, chosen.parallel_requests) == ('gemini-pro', 8)
 
 
 def test_a_saved_key_with_unusable_settings_is_kept(isolated_home, tmp_path):
