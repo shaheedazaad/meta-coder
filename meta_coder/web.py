@@ -1177,6 +1177,23 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             target.unlink()
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
+    @app.get(f"/{token}/projects/{{project_id}}/sources/{{filename}}")
+    async def open_source_pdf(project_id: str, filename: str):
+        project = runtime.project(project_id)
+        # Only a PDF directly inside sources/: the resolved path's parent must be
+        # the real sources folder, so ".." and symlinks pointing elsewhere 404.
+        path = (project.sources_dir / Path(filename).name).resolve()
+        if (
+            Path(filename).name != filename
+            or path.suffix.lower() != ".pdf"
+            or path.parent != project.sources_dir.resolve()
+            or not path.is_file()
+        ):
+            raise HTTPException(status_code=404, detail="PDF not found.")
+        return FileResponse(
+            path, media_type="application/pdf", filename=filename, content_disposition_type="inline"
+        )
+
     def _runnable_view(project: Project) -> dict:
         """A fresh view of the project's inputs, validated for a full run."""
 

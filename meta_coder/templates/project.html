@@ -553,10 +553,13 @@
                 <td>{{ pdf.name }}</td>
                 <td class="u-mono u-sm">{{ (pdf.stat().st_size / 1024) | round(1) }} KB</td>
                 <td>
-                  <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/uploads/delete">
-                    <input type="hidden" name="filename" value="{{ pdf.name }}">
-                    <button type="submit" class="btn" data-variant="ghost" data-size="sm">Remove</button>
-                  </form>
+                  <div class="row-actions">
+                    <a class="btn" data-variant="outline" data-size="sm" href="/{{ token }}/projects/{{ project.project_id }}/sources/{{ pdf.name | urlencode }}" target="_blank" rel="noopener">Open<span class="u-visually-hidden"> {{ pdf.name }} (opens in a new tab)</span></a>
+                    <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/uploads/delete">
+                      <input type="hidden" name="filename" value="{{ pdf.name }}">
+                      <button type="submit" class="btn" data-variant="ghost" data-size="sm">Remove</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% endfor %}

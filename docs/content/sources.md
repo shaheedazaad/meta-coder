@@ -8,6 +8,8 @@ Upload the study reports that contain the effects listed in your coding sheet. U
 
 Open **Source PDFs**, choose one or more PDF files, and upload them. The list shows the files stored in the project. A filename in the coding sheet must exactly match an uploaded filename.
 
+Select **Open** next to a file to view it in a new browser tab, for example to check that a PDF is the right study while [matching PDFs](matching.md). MetaCoder serves only PDFs stored in the project's source folder.
+
 Next, open [PDF matching](matching.md) to resolve missing matches. A PDF with no coding-sheet rows is not processed during extraction.
 
 ## Check document quality
