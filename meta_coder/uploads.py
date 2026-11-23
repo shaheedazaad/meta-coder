@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import BinaryIO
 
 from .projects import ProjectError
+from .sources import SOURCE_SUFFIXES, SourceError, XmlChecker, source_format
 
 
 SAFE_NAME_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f]+')
@@ -17,11 +18,11 @@ class UploadTooLarge(ProjectError):
     pass
 
 
-def safe_pdf_name(filename: str) -> str:
+def safe_source_name(filename: str) -> str:
     basename = Path(filename.replace("\\", "/")).name
     cleaned = SAFE_NAME_RE.sub("_", unicodedata.normalize("NFC", basename)).strip(" .")
     if not cleaned or cleaned in {".", ".."}:
-        raise ProjectError("A PDF filename is required.")
+        raise ProjectError("A PDF or XML filename is required.")
     if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
         cleaned = "_" + cleaned
     if len(cleaned.encode("utf-8")) > 180:
@@ -29,8 +30,8 @@ def safe_pdf_name(filename: str) -> str:
         while len(stem.encode("utf-8")) > 160:
             stem = stem[:-1]
         cleaned = stem + Path(cleaned).suffix
-    if Path(cleaned).suffix.lower() != ".pdf":
-        raise ProjectError(f"{basename or 'File'} is not a PDF.")
+    if source_format(cleaned) is None:
+        raise ProjectError(f"{basename or 'File'} is not a PDF or XML file.")
     return cleaned
 
 
@@ -47,14 +48,21 @@ def unique_destination(sources_dir: Path, filename: str) -> Path:
         counter += 1
 
 
-def save_pdf_upload(
+def save_source_upload(
     sources_dir: Path,
     filename: str,
     stream: BinaryIO,
     *,
     max_bytes: int = MAX_UPLOAD_BYTES,
 ) -> Path:
-    safe_name = safe_pdf_name(filename)
+    """Save one uploaded PDF or XML source, rejecting files that can't be used.
+
+    An XML upload is checked as it streams in (UTF-8, not binary, starts with
+    markup), so a bad file never lands in the project's sources.
+    """
+
+    safe_name = safe_source_name(filename)
+    xml_checker = XmlChecker(safe_name) if source_format(safe_name) == "xml" else None
     destination = unique_destination(sources_dir, safe_name)
     partial = destination.with_name(destination.name + ".uploading")
     written = 0
@@ -72,13 +80,21 @@ def save_pdf_upload(
                     raise UploadTooLarge(
                         f"{safe_name} exceeds the {max_bytes // (1024 * 1024)} MB upload limit."
                     )
+                if xml_checker:
+                    xml_checker.feed(chunk)
                 handle.write(chunk)
-        if written < 4:
-            raise ProjectError(f"{safe_name} is empty or not a valid PDF.")
-        with partial.open("rb") as handle:
-            if handle.read(4) != b"%PDF":
-                raise ProjectError(f"{safe_name} is not a valid PDF.")
+        if xml_checker:
+            xml_checker.feed(b"", final=True)
+        else:
+            if written < 4:
+                raise ProjectError(f"{safe_name} is empty or not a valid PDF.")
+            with partial.open("rb") as handle:
+                if handle.read(4) != b"%PDF":
+                    raise ProjectError(f"{safe_name} is not a valid PDF.")
         partial.replace(destination)
+    except SourceError as exc:
+        partial.unlink(missing_ok=True)
+        raise ProjectError(str(exc)) from exc
     except Exception:
         if owns_partial:
             partial.unlink(missing_ok=True)
@@ -86,5 +102,7 @@ def save_pdf_upload(
     return destination
 
 
-def list_uploaded_pdfs(sources_dir: Path) -> list[Path]:
-    return sorted(p for p in sources_dir.glob("*") if p.is_file() and p.suffix.lower() == ".pdf")
+def list_uploaded_sources(sources_dir: Path) -> list[Path]:
+    """The project's uploaded PDF and XML sources, sorted by filename."""
+
+    return sorted(p for p in sources_dir.glob("*") if p.is_file() and p.suffix.lower() in SOURCE_SUFFIXES)

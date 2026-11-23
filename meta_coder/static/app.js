@@ -588,7 +588,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = data.processed + " / " + data.total + " PDFs processed — " + data.status;
+      summary.textContent = data.processed + " / " + data.total + " sources processed — " + data.status;
     }
     (data.pdfs || []).forEach(function (pdf) {
       var tr = rowsByPdf[pdf.source_pdf];
@@ -645,7 +645,7 @@ function initTabGroup(root, opts) {
   setTimeout(poll, 1000);
 })();
 
-// PDF match-scan progress: same polling/reload-on-terminal shape as the run
+// Source match-scan progress: same polling/reload-on-terminal shape as the run
 // progress bar above, but there's no per-row table to update — just the bar
 // and summary line — since the scan only feeds the (server-rendered) match
 // suggestions panel once it's done.
@@ -667,7 +667,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = "Scanning uploaded PDFs for matches — " + (data.processed || 0) + " / " + (data.total || 0);
+      summary.textContent = "Scanning uploaded sources for matches — " + (data.processed || 0) + " / " + (data.total || 0);
     }
   }
 
