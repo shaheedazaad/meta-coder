@@ -151,7 +151,8 @@ def test_xml_upload_is_saved_and_listed_with_pdfs(tmp_path):
     assert saved.name == 'Study.XML' and saved.read_bytes() == JATS
     (tmp_path / 'a.pdf').write_bytes(b'%PDF')
     (tmp_path / 'notes.txt').write_bytes(b'x')
-    assert [path.name for path in list_uploaded_sources(tmp_path)] == ['Study.XML', 'a.pdf']
+    # Windows sorts paths case-insensitively, so compare names, not order.
+    assert {path.name for path in list_uploaded_sources(tmp_path)} == {'Study.XML', 'a.pdf'}
     assert safe_source_name('dir/paper.xml') == 'paper.xml'
     with pytest.raises(ProjectError, match='not a PDF or XML file'):
         safe_source_name('notes.txt')
