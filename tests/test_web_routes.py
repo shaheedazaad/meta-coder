@@ -559,6 +559,7 @@ GUARDED_EDITS = {
     'unmatch PDF': ('/coding-sheet/unmatch-pdf', {'data': {'source_pdf': 'paper.pdf'}}),
     'delete PDF': ('/uploads/delete', {'data': {'filename': 'paper.pdf'}}),
     'clear output': ('/clear-output', {}),
+    'delete selected output': ('/results/delete', {'data': {'source_pdf': 'paper.pdf'}}),
     'delete project': ('/delete', {}),
 }
 

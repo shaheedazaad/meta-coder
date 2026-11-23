@@ -71,6 +71,7 @@ from .runner import (
     Runner,
     attempt_json_path,
     audit_yaml_path,
+    delete_pdf_outputs,
     keeps_success,
     load_latest_attempts,
     load_persisted_results,
@@ -129,6 +130,16 @@ GROBID_SETTINGS_ENABLED = False
 
 
 RETRYABLE_STATUSES = {"error", "needs_review", "cancelled", STALE_STATUS}
+# The Results tab's status filter, in menu order.
+RUN_STATUS_FILTERS = {
+    "ok": "OK",
+    "needs_review": "Needs review",
+    "error": "Failed",
+    STALE_STATUS: "Outdated",
+    "cancelled": "Cancelled",
+    "running": "Running",
+    "pending": "Pending",
+}
 RUN_ACTIVE_DETAIL = "Cancel or wait for the active run first."
 
 
@@ -349,6 +360,7 @@ def _project_view(
     run_sort: str | None = None,
     run_dir: str | None = None,
     run_page: int = 1,
+    run_status: str | None = None,
     id_issues_page: int = 1,
     id_matches_page: int = 1,
     id_saved_page: int = 1,
@@ -543,19 +555,24 @@ def _project_view(
             if is_running or getattr(table_results.get(progress.source_pdf), "status", None) != STALE_STATUS
         })
     run_rows_all = _run_table_rows(table_results.values(), coding_sheet, project, kept_success, rated_fields(manual))
-    run_rows_sorted = _sort_run_rows(run_rows_all, run_sort, run_dir)
+    run_status_counts = {status: 0 for status in RUN_STATUS_FILTERS}
+    for row in run_rows_all:
+        run_status_counts[row["status"]] = run_status_counts.get(row["status"], 0) + 1
+    run_status = run_status if run_status in RUN_STATUS_FILTERS else ""
+    run_rows_filtered = [row for row in run_rows_all if not run_status or row["status"] == run_status]
+    run_rows_sorted = _sort_run_rows(run_rows_filtered, run_sort, run_dir)
     run_rows_page, run_page, run_total_pages = _paginate(run_rows_sorted, run_page)
     failed_result_count = sum(row["status"] == "error" for row in run_rows_all)
     stale_result_count = sum(result.status == STALE_STATUS for result in persisted_results.values())
-    can_retry = bool(
+    can_retry_selected = bool(
         not is_running
         and api_key_set
         and run_settings.model.strip()
         and manual is not None
         and manual.is_complete
         and not coding_sheet.sheet_issues
-        and any(row["retryable"] for row in run_rows_all)
     )
+    can_retry = can_retry_selected and any(row["retryable"] for row in run_rows_all)
 
     return {
         "project": project,
@@ -619,11 +636,22 @@ def _project_view(
         "run_rows": run_rows_page,
         "run_rows_all": run_rows_all,
         "run_row_count": len(run_rows_all),
+        "run_filtered_count": len(run_rows_filtered),
+        # Every PDF matching the filter, on any page, for select-all.
+        "run_filtered_pdfs": [row["source_pdf"] for row in run_rows_sorted],
+        "run_all_pdfs": [row["source_pdf"] for row in run_rows_all],
+        "run_status": run_status,
+        "run_status_options": [
+            (status, label, run_status_counts[status])
+            for status, label in RUN_STATUS_FILTERS.items()
+            if run_status_counts[status] or status == run_status
+        ],
         "run_sort": run_sort,
         "run_dir": run_dir,
         "run_page": run_page,
         "run_total_pages": run_total_pages,
         "can_retry": can_retry,
+        "can_retry_selected": can_retry_selected,
     }
 
 
@@ -785,6 +813,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         run_sort: str | None = None,
         run_dir: str | None = None,
         run_page: int = 1,
+        run_status: str | None = None,
         id_issues_page: int = 1,
         id_matches_page: int = 1,
         id_saved_page: int = 1,
@@ -808,6 +837,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 run_sort=run_sort,
                 run_dir=run_dir,
                 run_page=run_page,
+                run_status=run_status,
                 id_issues_page=id_issues_page,
                 id_matches_page=id_matches_page,
                 id_saved_page=id_saved_page,
@@ -1284,11 +1314,57 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         runtime.runner.cancel(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
 
+    def _selected_pdfs(source_pdf: list[str], source_pdfs: str | None) -> list[str]:
+        """The PDFs a form names: repeated `source_pdf` fields and/or a
+        `source_pdfs` JSON array. A Results-tab selection arrives as the JSON
+        field, so a large selection stays within the form parser's field limit."""
+
+        names = list(source_pdf)
+        if source_pdfs is not None:
+            try:
+                parsed = json.loads(source_pdfs)
+            except ValueError:
+                parsed = None
+            if not isinstance(parsed, list) or not parsed or not all(isinstance(name, str) and name for name in parsed):
+                raise HTTPException(status_code=400, detail="Select at least one PDF.")
+            names.extend(parsed)
+        return list(dict.fromkeys(names))
+
     @app.post(f"/{token}/projects/{{project_id}}/run/retry")
-    async def retry_run(project_id: str, source_pdf: list[str] = Form([])):
+    async def retry_run(project_id: str, source_pdf: list[str] = Form([]), source_pdfs: str | None = Form(None)):
+        """Retry every failed, needs-review, cancelled or outdated PDF, or
+        exactly the named PDFs whatever their status."""
+
         project = runtime.project(project_id)
-        await _start_run(project, lambda: _retryable_view(project, source_pdf))
+        selected = _selected_pdfs(source_pdf, source_pdfs)
+        await _start_run(project, lambda: _retryable_view(project, selected))
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
+
+    @app.post(f"/{token}/projects/{{project_id}}/results/delete")
+    async def delete_results(project_id: str, source_pdf: list[str] = Form([]), source_pdfs: str | None = Form(None)):
+        """Delete the named PDFs' saved output and re-collate the result CSVs."""
+
+        project = runtime.project(project_id)
+        _reject_if_busy(project_id)
+        selected = _selected_pdfs(source_pdf, source_pdfs)
+        if not selected:
+            raise HTTPException(status_code=400, detail="Select at least one PDF.")
+        try:
+            manual = parse_coding_manual(read_manual_text(project), require_effect_definition=False)
+        except ManualError as exc:
+            raise HTTPException(status_code=400, detail="Fix the coding manual before deleting output.") from exc
+        uploaded_names = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
+        coding_sheet = read_coding_sheet(project.coding_sheet_path, uploaded_filenames=uploaded_names)
+        settings = load_run_settings(project)
+        checker = InputChecker(
+            project, manual, coding_sheet, provider=settings.provider, model=settings.model,
+            reasoning_effort=settings.reasoning_effort, **endpoint_options(settings.provider),
+        )
+        if not delete_pdf_outputs(project, selected, manual=manual, coding_sheet=coding_sheet, checker=checker):
+            raise HTTPException(status_code=400, detail="None of the selected PDFs have saved output.")
+        # The finished run's progress would otherwise still list the deleted PDFs.
+        runtime.runner.discard_finished_state(project_id)
+        return RedirectResponse(f"/{token}/projects/{project_id}?tab=results", status_code=303)
 
     @app.get(f"/{token}/projects/{{project_id}}/status")
     async def run_status(project_id: str):

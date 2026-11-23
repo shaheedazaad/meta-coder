@@ -645,6 +645,88 @@ function initTabGroup(root, opts) {
   setTimeout(poll, 1000);
 })();
 
+// Results tab: filter by status, and select PDFs for Retry selected or Delete
+// output. The table is paginated on the server, so the selection is kept for
+// this browser tab across pages and filters, and select-all covers every PDF
+// the filter matches (listed in the embedded JSON), not just this page's rows.
+(function () {
+  var root = document.querySelector("[data-result-selection]");
+  if (!root) return;
+
+  var pdfs = JSON.parse(root.querySelector("[data-result-selection-pdfs]").textContent);
+  var known = new Set(pdfs.all);
+  var storageKey = "meta-coder-result-selection:" + root.dataset.projectId;
+  var selected = new Set();
+  try {
+    var saved = JSON.parse(window.sessionStorage.getItem(storageKey));
+    // Drop PDFs whose output was deleted or that left the coding sheet.
+    if (Array.isArray(saved)) saved.forEach(function (name) { if (known.has(name)) selected.add(name); });
+  } catch (error) { /* Unavailable or unreadable storage: start with nothing selected. */ }
+
+  var filter = root.querySelector("[data-result-filter]");
+  var bar = root.querySelector("[data-selection-bar]");
+  var input = bar.querySelector("[data-selection-input]");
+  var count = bar.querySelector("[data-selection-count]");
+  var selectAll = root.querySelector("[data-select-all]");
+  var boxes = root.querySelectorAll("[data-select-pdf]");
+
+  function save() {
+    try {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(Array.from(selected)));
+    } catch (error) { /* The selection still works for this page. */ }
+  }
+
+  function render() {
+    var names = Array.from(selected);
+    boxes.forEach(function (box) { box.checked = selected.has(box.value); });
+    var matching = pdfs.filtered.filter(function (name) { return selected.has(name); }).length;
+    selectAll.checked = pdfs.filtered.length > 0 && matching === pdfs.filtered.length;
+    selectAll.indeterminate = matching > 0 && matching < pdfs.filtered.length;
+    bar.hidden = !names.length;
+    count.textContent = names.length + (names.length === 1 ? " PDF selected" : " PDFs selected");
+    input.value = JSON.stringify(names);
+    save();
+  }
+
+  boxes.forEach(function (box) {
+    box.addEventListener("change", function () {
+      if (box.checked) selected.add(box.value);
+      else selected.delete(box.value);
+      render();
+    });
+  });
+  selectAll.addEventListener("change", function () {
+    pdfs.filtered.forEach(function (name) {
+      if (selectAll.checked) selected.add(name);
+      else selected.delete(name);
+    });
+    render();
+  });
+  bar.querySelector("[data-selection-clear]").addEventListener("click", function () {
+    selected.clear();
+    render();
+  });
+  bar.addEventListener("submit", function (event) {
+    var names = Array.from(selected);
+    var label = names.length === 1 ? "“" + names[0] + "”" : names.length + " PDFs";
+    var deleting = Boolean(event.submitter && event.submitter.hasAttribute("data-selection-delete"));
+    var question = deleting
+      ? "Delete the saved output for " + label + "? It is removed from coded_data.csv and evidence.csv, " +
+        "and the next run codes it again. The audit history keeps a copy."
+      : "Code " + label + " again? A PDF already coded successfully keeps its current result if the new attempt fails.";
+    if (!window.confirm(question)) {
+      event.preventDefault();
+      return;
+    }
+    // The form already carries the names; start with nothing selected afterwards.
+    selected.clear();
+    save();
+  });
+  filter.querySelector("select").addEventListener("change", function () { filter.submit(); });
+
+  render();
+})();
+
 // PDF match-scan progress: same polling/reload-on-terminal shape as the run
 // progress bar above, but there's no per-row table to update — just the bar
 // and summary line — since the scan only feeds the (server-rendered) match
