@@ -2,7 +2,7 @@
 to Gemini's, routing through whatever underlying model the user names.
 
 Uses the OpenAI-compatible chat completions shape OpenRouter exposes: PDFs go in
-as a `file` content part (base64 data URL), and structured output is requested via
+as a `file` content part (base64 data URL), XML sources as plain text, and structured output is requested via
 `response_format: {type: "json_schema", ...}` — see `mechanism.build_response_schema`
 called with `dialect="json_schema"` and `strict: true`. Every manual field is
 required in each returned row; `value: null` explicitly means the paper did not
@@ -34,11 +34,14 @@ from .extraction import (
     normalize_finish_reason,
     parse_json_response,
     review_issues,
+    XML_ARTICLE_HEADING,
+    xml_article_text,
 )
 import threading
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
 from .prompts import build_extraction_prompt
+from .sources import source_format
 
 
 API_BASE = "https://openrouter.ai/api/v1"
@@ -272,24 +275,42 @@ def extract_pdf_effects(
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
+    """Code one PDF or XML source. A PDF is sent as a file part; an XML source
+    as one text part after the prompt, so no file parser is involved."""
+
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = build_extraction_prompt(manual, rows)
+    is_xml = source_format(pdf_path) == "xml"
+    prompt = build_extraction_prompt(
+        manual, rows, article="article XML below" if is_xml else "attached PDF",
+        source_format="xml" if is_xml else "pdf",
+    )
 
     try:
-        raw_text, tokens = _call_openrouter(
-            model=model,
-            api_key=api_key,
-            prompt=prompt,
-            pdf_bytes=pdf_path.read_bytes(),
-            filename=source_pdf,
-            response_schema=response_schema,
-            timeout_sec=timeout_sec,
-            reasoning_effort=reasoning_effort,
-            cancel_event=cancel_event,
-        )
+        if is_xml:
+            raw_text, tokens = _call_openrouter_content(
+                model=model,
+                api_key=api_key,
+                content=[{"type": "text", "text": prompt + XML_ARTICLE_HEADING + xml_article_text(pdf_path)}],
+                response_schema=response_schema,
+                timeout_sec=timeout_sec,
+                reasoning_effort=reasoning_effort,
+                cancel_event=cancel_event,
+            )
+        else:
+            raw_text, tokens = _call_openrouter(
+                model=model,
+                api_key=api_key,
+                prompt=prompt,
+                pdf_bytes=pdf_path.read_bytes(),
+                filename=source_pdf,
+                response_schema=response_schema,
+                timeout_sec=timeout_sec,
+                reasoning_effort=reasoning_effort,
+                cancel_event=cancel_event,
+            )
     except ProviderError as exc:
         return ExtractionResult(
             source_pdf=source_pdf,

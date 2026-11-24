@@ -1,5 +1,6 @@
 """Assisted matching between a coding sheet's `source_pdf` values and the
-PDFs actually uploaded to a project.
+sources (PDF or XML files) actually uploaded to a project. The column keeps
+its historical `source_pdf` name whatever the source format.
 
 `coding_sheet.py` treats a `source_pdf` that doesn't match an uploaded
 filename exactly as a blocking issue — correct, since a run must never guess
@@ -29,6 +30,7 @@ from typing import Any
 from .manual_drafting import ManualDraftError, pdf_text
 from .coding_sheet import coding_sheet_reader
 from .projects import Project
+from .sources import SourceError, jats_front, normalize_doi, read_article_text, source_format
 
 
 # Letters and digits in any script, so "Müller" and "王" survive as tokens.
@@ -54,6 +56,14 @@ LOW_CONFIDENCE = 0.25
 # lead over the next plausible candidate is below the margin is shown as low.
 CONTRADICTORY_YEAR_CAP = 0.4
 AMBIGUITY_MARGIN = 0.1
+# An XML source's DOI comes from its JATS front matter, so it identifies the
+# article reliably: the same DOI as the sheet is a match, a different one rules
+# a match out as firmly as a contradictory year.
+CONTRADICTORY_DOI_CAP = CONTRADICTORY_YEAR_CAP
+# Without JATS front matter, an XML source's opening text stands in for a PDF's
+# first page.
+_XML_OPENING_CHARS = 5000
+_XML_TAG_RE = re.compile(r"<[^>]*>")
 
 
 @dataclass
@@ -88,11 +98,13 @@ class MatchedPaper:
 class PdfSignal:
     tokens: str
     year: str | None
+    # Normalized DOI read from the source itself (JATS front matter); "" if none.
+    doi: str = ""
 
 
 _SIGNAL_CACHE_NAME = "pdf_signals.json"
 _SCORE_CACHE_NAME = "pdf_match_scores.json"
-_SCORE_CACHE_VERSION = 2
+_SCORE_CACHE_VERSION = 3
 
 
 def _signal_cache_path(project: Project) -> Path:
@@ -169,12 +181,15 @@ def _score_cache_key(paper: UnmatchedPaper, signal: PdfSignal) -> str:
             "title": paper.title,
             "doi": paper.doi,
         },
-        "signal": {"tokens": signal.tokens, "year": signal.year},
+        "signal": {"tokens": signal.tokens, "year": signal.year, "doi": signal.doi},
     }
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def _cache_source(grobid_url: str) -> str:
+def _cache_source(grobid_url: str, fmt: str | None = "pdf") -> str:
+    # GROBID reads PDFs only; an XML source's signal never depends on it.
+    if fmt == "xml":
+        return "identity-v2:jats"
     return "identity-v2:grobid" if grobid_url else "identity-v2:local"
 
 
@@ -183,9 +198,10 @@ def _cache_entry(path: Path, signal: PdfSignal, grobid_url: str) -> dict[str, An
     return {
         "mtime": int(stat.st_mtime),
         "size": stat.st_size,
-        "source": _cache_source(grobid_url),
+        "source": _cache_source(grobid_url, source_format(path)),
         "tokens": signal.tokens,
         "year": signal.year,
+        "doi": signal.doi,
     }
 
 
@@ -206,10 +222,10 @@ def cached_signal(
     if (
         entry.get("size") != stat.st_size
         or entry.get("mtime") != int(stat.st_mtime)
-        or entry.get("source") != _cache_source(grobid_url)
+        or entry.get("source") != _cache_source(grobid_url, source_format(path))
     ):
         return None
-    return PdfSignal(tokens=entry.get("tokens", ""), year=entry.get("year"))
+    return PdfSignal(tokens=entry.get("tokens", ""), year=entry.get("year"), doi=entry.get("doi") or "")
 
 
 @dataclass
@@ -385,6 +401,29 @@ def _local_pdf_signal(path: Path) -> PdfSignal:
     return PdfSignal(tokens=" ".join(sorted(_signal_tokens(combined_tokens))), year=text_year)
 
 
+def _xml_signal(path: Path) -> PdfSignal:
+    """Filename tokens plus the JATS front matter's title, author surnames,
+    DOI and publication year. An XML file without JATS front matter (another
+    publisher schema) falls back to its opening text, markup removed."""
+
+    filename_tokens = _normalize(path.stem.replace("_", " ").replace("-", " "))
+    year = _find_year(path.stem)
+    try:
+        text = read_article_text(path)
+    except (SourceError, OSError):
+        text = ""
+    front = jats_front(text)
+    if front.title or front.surnames or front.doi:
+        text_tokens = _normalize(" ".join([front.title, *front.surnames, front.doi]))
+        year = front.year or year
+    else:
+        opening = _XML_TAG_RE.sub(" ", text[:_XML_OPENING_CHARS])
+        text_tokens = _normalize(opening)
+        year = year or _find_year(opening)
+    combined_tokens = " ".join(t for t in (filename_tokens, text_tokens) if t)
+    return PdfSignal(tokens=" ".join(sorted(_signal_tokens(combined_tokens))), year=year, doi=front.doi)
+
+
 def grobid_signal(path: Path, grobid_url: str) -> PdfSignal | None:
     """Query a GROBID server's header-extraction endpoint for title/author/year.
     Any failure (unreachable server, timeout, bad response, unparseable TEI)
@@ -433,6 +472,10 @@ def grobid_signal(path: Path, grobid_url: str) -> PdfSignal | None:
 
 
 def pdf_signal(path: Path, *, grobid_url: str = "") -> PdfSignal:
+    """The matching signal for one uploaded source, PDF or XML."""
+
+    if source_format(path) == "xml":
+        return _xml_signal(path)
     if grobid_url:
         signal = grobid_signal(path, grobid_url)
         if signal is not None:
@@ -452,7 +495,14 @@ def score_pair(paper: UnmatchedPaper, signal: PdfSignal) -> float:
     appears verbatim in the long one — so instead this checks what fraction
     of the paper's significant tokens (surname, year, title words, DOI)
     actually appear in the signal.
+
+    When both sides carry a DOI (the source's from its JATS front matter),
+    the DOI decides: equal is a certain match, different caps the score.
     """
+
+    paper_doi = normalize_doi(paper.doi)
+    if paper_doi and signal.doi and paper_doi == signal.doi:
+        return 1.0
 
     paper_tokens = _significant_tokens(
         f"{paper.authors} {paper.year} {paper.source_pdf} {paper.title} {paper.doi}"
@@ -484,6 +534,8 @@ def score_pair(paper: UnmatchedPaper, signal: PdfSignal) -> float:
     score = min(1.0, containment + fuzzy_credit + year_bonus)
     if paper_year and signal.year and paper_year != signal.year:
         score = min(score, CONTRADICTORY_YEAR_CAP)
+    if paper_doi and signal.doi:
+        score = min(score, CONTRADICTORY_DOI_CAP)
     return score
 
 

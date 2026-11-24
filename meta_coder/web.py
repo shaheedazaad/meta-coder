@@ -79,7 +79,8 @@ from .runner import (
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
 from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
-from .uploads import list_uploaded_pdfs, save_pdf_upload
+from .sources import SOURCE_ACCEPT, source_format
+from .uploads import list_uploaded_sources, save_source_upload
 import yaml
 
 
@@ -220,7 +221,7 @@ def _home_view(projects: list[Project], *, q: str = "", sort: str = "newest", pa
     else:
         matching.sort(key=lambda project: (project.created_at, project.project_id), reverse=sort == "newest")
     page_projects, page, total_pages = _paginate(matching, page)
-    pdf_counts = {project.project_id: len(list_uploaded_pdfs(project.sources_dir)) for project in page_projects}
+    pdf_counts = {project.project_id: len(list_uploaded_sources(project.sources_dir)) for project in page_projects}
     return {
         "projects": page_projects, "total_projects": len(projects), "matching_count": len(matching),
         "pdf_counts": pdf_counts, "q": q, "sort": sort,
@@ -380,7 +381,7 @@ def _project_view(
     # "reset to default" recovery action instead of rendering the editor.
     manual_editor_json = _embeddable_json(manual_to_editor_payload(manual)) if manual else None
 
-    uploaded = list_uploaded_pdfs(project.sources_dir)
+    uploaded = list_uploaded_sources(project.sources_dir)
     uploaded_names = {p.name for p in uploaded}
 
     # No longer depends on `manual` — the coding sheet's columns are a fixed
@@ -564,6 +565,7 @@ def _project_view(
         "manual_error": manual_error,
         "manual_editor_json": manual_editor_json,
         "uploaded_pdfs": sources_page_rows,
+        "source_accept": SOURCE_ACCEPT,
         "uploaded_pdfs_count": len(uploaded),
         "sources_page": sources_page,
         "sources_total_pages": sources_total_pages,
@@ -650,7 +652,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if runtime.runner.is_running(project_id):
             raise HTTPException(status_code=409, detail=detail)
         if include_pdf_scan and runtime.pdf_scanner.is_running(project_id):
-            raise HTTPException(status_code=409, detail="Wait for the PDF scan to finish first.")
+            raise HTTPException(status_code=409, detail="Wait for the source scan to finish first.")
 
     @app.get(f"/{token}/updates")
     def update_status():
@@ -1055,7 +1057,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             text = raw.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=400, detail="Save the CSV as UTF-8 and try again.") from exc
-        sheet = parse_coding_sheet_csv(text, uploaded_filenames={p.name for p in list_uploaded_pdfs(project.sources_dir)})
+        sheet = parse_coding_sheet_csv(text, uploaded_filenames={p.name for p in list_uploaded_sources(project.sources_dir)})
         if sheet.sheet_issues:
             raise HTTPException(status_code=400, detail="; ".join(issue.message for issue in sheet.sheet_issues))
         _reject_if_busy(project_id, "Wait for the active run to finish before replacing the sheet.")
@@ -1086,7 +1088,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 audited_call, project, "sheet_conversion", draft_coding_sheet, provider=provider, source=source,
                 audit_inputs={"uploaded/" + Path(file.filename or "sheet.csv").name: source_bytes},
                 manual=manual_to_yaml_text(manual), notes=notes,
-                filenames=[path.name for path in list_uploaded_pdfs(project.sources_dir)],
+                filenames=[path.name for path in list_uploaded_sources(project.sources_dir)],
                 api_key=runtime.api_key(provider) or "", model=settings.manual_generator_model,
                 **endpoint_options(provider, settings),
             )
@@ -1119,7 +1121,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         _reject_if_busy(project_id)
         paper_keys = form.getlist("paper_key")
         filenames = form.getlist("filename")
-        uploaded_filenames = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
+        uploaded_filenames = {path.name for path in list_uploaded_sources(project.sources_dir)}
         mapping = {
             paper_key: filename
             for paper_key, filename in zip(paper_keys, filenames)
@@ -1136,7 +1138,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     async def unmatch_coding_sheet_pdf(project_id: str, source_pdf: str = Form(...)):
         project = runtime.project(project_id)
         _reject_if_busy(project_id)
-        uploaded_filenames = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
+        uploaded_filenames = {path.name for path in list_uploaded_sources(project.sources_dir)}
         if source_pdf in uploaded_filenames and project.coding_sheet_path.is_file():
             apply_source_pdf_matches(project.coding_sheet_path, {source_pdf: ""})
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=identify", status_code=303)
@@ -1150,7 +1152,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         for upload in files:
             try:
                 saved.append(
-                    save_pdf_upload(
+                    save_source_upload(
                         project.sources_dir,
                         upload.filename or "",
                         upload.file,
@@ -1173,7 +1175,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         _reject_if_busy(project_id)
         safe = Path(filename).name
         target = project.sources_dir / safe
-        if target.is_file() and target.suffix.lower() == ".pdf":
+        if target.is_file() and source_format(target) is not None:
             target.unlink()
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 

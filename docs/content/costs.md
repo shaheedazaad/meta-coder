@@ -7,7 +7,7 @@ MetaCoder is free, but hosted providers charge for AI requests. Costs are usuall
 Providers charge per token, a unit of text roughly the size of a short word. Input tokens (what is sent) and output tokens (what the model writes) are priced separately, and output usually costs more.
 
 - **One request per PDF.** Each extraction request contains one complete PDF and all of its coding-sheet rows, so long articles cost more than short ones.
-- **PDF length.** Gemini and OpenRouter models with native PDF input count each page as tokens, including figures and tables. OpenAI-compatible endpoints receive extracted text instead.
+- **PDF length.** Gemini and OpenRouter models with native PDF input count each page as tokens, including figures and tables. OpenAI-compatible endpoints receive extracted text instead. An [XML source](sources.md#xml-jats-full-text) is sent as text to every provider; its markup counts as input tokens, so it often uses more tokens than the same article's PDF text, though no page images.
 - **Coding manual size.** The instructions and field descriptions are repeated in every request, so a long manual adds to every PDF.
 - **Output size.** More rows, more fields, and longer evidence quotes increase output tokens.
 - **Reasoning.** Models that "think" before answering are billed for those reasoning tokens as output. A higher **Reasoning effort** setting usually increases cost.
