@@ -217,6 +217,7 @@ def test_openrouter_sends_xml_as_one_text_part(monkeypatch, xml_source):
     assert len(content) == 1 and content[0]['type'] == 'text'
     assert content[0]['text'].endswith('\n\nArticle XML:\n' + JATS.decode('utf-8'))
     assert XML_SOURCE_NOTE in content[0]['text'] and 'plugins' not in sent[0]
+    assert 'Return only JSON matching this schema' in content[0]['text']
 
 
 def test_openai_compatible_sends_raw_xml_text(monkeypatch, xml_source):
@@ -229,6 +230,7 @@ def test_openai_compatible_sends_raw_xml_text(monkeypatch, xml_source):
     message = sent[0]['messages'][0]['content']
     assert 'from the article XML below' in message and XML_SOURCE_NOTE in message
     assert '\n\nArticle XML:\n' + JATS.decode('utf-8') in message
+    assert 'Return only JSON matching this schema' in message
 
 
 @pytest.mark.parametrize('module, extra', [
