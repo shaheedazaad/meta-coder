@@ -1,6 +1,6 @@
 [project]
 name = "meta-coder"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local browser app for LLM-assisted meta-analysis moderator coding"
 license = "MIT"
 license-files = ["LICENSE"]
