@@ -843,6 +843,76 @@ function initTabGroup(root, opts) {
   });
 })();
 
+// OpenRouter provider routing: list the providers serving the chosen model with
+// structured output. A saved provider stays selected even when it is not listed.
+(function () {
+  var select = document.getElementById("run-openrouter-provider");
+  if (!select) return;
+  var provider = document.getElementById("run-provider");
+  var model = document.getElementById("run-model");
+  var fallbacks = document.getElementById("run-openrouter-fallbacks");
+  var status = document.getElementById("run-openrouter-provider-status");
+  var hint = document.getElementById("run-openrouter-fallbacks-hint");
+  var revision = 0;
+
+  function updateHint() {
+    var chosen = select.value ? select.selectedOptions[0].textContent : "";
+    var allow = fallbacks.value === "allow";
+    hint.textContent = chosen
+      ? (allow
+        ? "Tries " + chosen + " first, then other providers if it is unavailable."
+        : "Only " + chosen + " is used. Requests fail if it is unavailable.")
+      : (allow
+        ? "OpenRouter picks a provider and tries others if a request fails."
+        : "Only OpenRouter's first-choice provider is tried. Requests fail if it is unavailable.");
+  }
+
+  function render(endpoints, listed) {
+    var selected = select.value;
+    var options = [{ tag: "", name: "Automatic (OpenRouter chooses)" }].concat(endpoints);
+    if (selected && !endpoints.some(function (item) { return item.tag === selected; })) {
+      options.push({ tag: selected, name: listed ? selected + " (not listed for this model)" : selected });
+    }
+    select.replaceChildren.apply(select, options.map(function (item) { return new Option(item.name, item.tag); }));
+    select.value = selected;
+    updateHint();
+  }
+
+  async function load() {
+    var current = ++revision;
+    var id = model.value.trim();
+    render([], false);
+    if (provider.value !== "openrouter" || !id) {
+      status.textContent = "Enter a model ID to see which providers serve it.";
+      return;
+    }
+    status.textContent = "Loading providers…";
+    try {
+      var response = await fetch(select.dataset.endpointsUrl + "?model=" + encodeURIComponent(id), {
+        headers: { Accept: "application/json" },
+      });
+      var payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !Array.isArray(payload)) {
+        throw new Error((payload && payload.detail) || "Providers could not be loaded.");
+      }
+      if (current !== revision) return;
+      render(payload, true);
+      status.textContent = payload.length
+        ? payload.length + (payload.length === 1 ? " provider serves" : " providers serve") + " this model with structured output."
+        : "No provider currently serves this model with structured output.";
+    } catch (error) {
+      if (current !== revision) return;
+      status.textContent = error.message;
+    }
+  }
+
+  provider.addEventListener("change", load);
+  model.addEventListener("change", load);
+  select.addEventListener("change", updateHint);
+  fallbacks.addEventListener("change", updateHint);
+  load();
+})();
+
 (function () {
   var tabRoot = document.getElementById("tab-root");
   if (tabRoot) {

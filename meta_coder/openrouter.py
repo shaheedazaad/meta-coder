@@ -23,6 +23,7 @@ import json
 import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -83,6 +84,70 @@ def list_models(*, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, A
     return body.get("data") or []
 
 
+def list_model_endpoints(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, str]]:
+    """GET /models/{model}/endpoints, keeping only the provider endpoints that
+    can return schema-constrained output (`structured_outputs`), which this
+    app relies on. Returns `{"tag", "name"}` pairs sorted by name; `tag` is the
+    slug sent in `provider.order`."""
+
+    base, _, variant = model.strip().partition(":")
+    parts = base.split("/")
+    if len(parts) != 2 or not all(parts):
+        raise ValueError(f"`{model}` is not an OpenRouter model ID (expected `author/model`).")
+    path = "/".join(urllib.parse.quote(part, safe="") for part in parts)
+    # Some `:variant` suffixes, such as `:free`, are catalogue models with their
+    # own providers; others, such as `:nitro`, are routing shortcuts that have
+    # no endpoint list. Ask for the variant first and fall back to the base
+    # model only when OpenRouter doesn't know the variant.
+    def fetch(model_path: str) -> Any:
+        request = _request(f"{API_BASE}/models/{model_path}/endpoints", api_key=api_key)
+        with urllib.request.urlopen(request, timeout=timeout_sec) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    try:
+        try:
+            body = fetch(f"{path}:{urllib.parse.quote(variant, safe='')}" if variant else path)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404 or not variant:
+                raise
+            body = fetch(path)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise ProviderError(f"`{model}` was not found on OpenRouter.") from exc
+        raise ProviderError(f"OpenRouter API error ({exc.code}).") from exc
+    except urllib.error.URLError as exc:
+        raise ProviderError(f"Could not reach OpenRouter: {exc.reason}") from exc
+    except ValueError as exc:
+        raise ProviderError("OpenRouter returned an invalid endpoint list.") from exc
+    data = body.get("data") if isinstance(body, dict) else None
+    endpoints = data.get("endpoints") if isinstance(data, dict) else None
+    if not isinstance(endpoints, list):
+        raise ProviderError("OpenRouter returned an invalid endpoint list.")
+    listed: dict[str, dict[str, str]] = {}
+    for endpoint in endpoints:
+        if not isinstance(endpoint, dict):
+            continue
+        tag = str(endpoint.get("tag") or "").strip().lower()
+        parameters = {str(value).lower() for value in endpoint.get("supported_parameters") or []}
+        if not tag or tag in listed or "structured_outputs" not in parameters:
+            continue
+        details = [
+            part for part in (tag.partition("/")[2], str(endpoint.get("quantization") or ""))
+            if part and part != "unknown"
+        ]
+        name = str(endpoint.get("provider_name") or tag)
+        listed[tag] = {"tag": tag, "name": f"{name} ({', '.join(dict.fromkeys(details))})" if details else name}
+    return sorted(listed.values(), key=lambda item: (item["name"].lower(), item["tag"]))
+
+
+def provider_preferences(preferred_provider: str = "", allow_fallbacks: bool = True) -> dict[str, Any] | None:
+    """The request's `provider` object, or None to leave routing to OpenRouter."""
+
+    if preferred_provider:
+        return {"order": [preferred_provider], "allow_fallbacks": allow_fallbacks}
+    return None if allow_fallbacks else {"allow_fallbacks": False}
+
+
 def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list[str]:
     """Live validation (todo.md step 17): fetch OpenRouter's model list and report
     anything about `model` that would undermine this app's mechanism — never
@@ -123,6 +188,7 @@ def _completion_payload(
     content: list[dict[str, Any]],
     response_schema: dict[str, Any],
     reasoning_effort: str = "",
+    provider: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": model,
@@ -140,6 +206,8 @@ def _completion_payload(
     }
     if reasoning_effort:
         payload["reasoning"] = {"effort": reasoning_effort}
+    if provider:
+        payload["provider"] = provider
     return payload
 
 
@@ -232,9 +300,14 @@ def _call_openrouter_content(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
+    provider: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     payload = _completion_payload(
-        model=model, content=content, response_schema=response_schema, reasoning_effort=reasoning_effort
+        model=model,
+        content=content,
+        response_schema=response_schema,
+        reasoning_effort=reasoning_effort,
+        provider=provider,
     )
     body, raw_response = _post_completion(
         payload, api_key=api_key, timeout_sec=timeout_sec, cancel_event=cancel_event
@@ -330,6 +403,7 @@ def _call_openrouter(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
+    provider: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Structured generation with a PDF file part, kept as the extraction seam.
 
@@ -354,6 +428,7 @@ def _call_openrouter(
         ],
         response_schema=response_schema,
         reasoning_effort=reasoning_effort,
+        provider=provider,
     )
     send: dict[str, Any] = {"api_key": api_key, "timeout_sec": timeout_sec, "cancel_event": cancel_event}
     body, raw_response = _post_completion(payload, **send)
@@ -416,9 +491,15 @@ def extract_pdf_effects(
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
     cancel_event: threading.Event | None = None,
+    openrouter_provider: str = "",
+    allow_fallbacks: bool = True,
 ) -> ExtractionResult:
     """Code one PDF or XML source. A PDF is sent as a file part; an XML source
-    as one text part after the prompt, so no file parser is involved."""
+    as one text part after the prompt, so no file parser is involved.
+
+    `openrouter_provider` pins the backend provider (a slug such as
+    `deepinfra/fp8`; "" lets OpenRouter choose) and `allow_fallbacks` controls
+    whether OpenRouter may try other providers when it is unavailable."""
 
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
@@ -431,6 +512,7 @@ def extract_pdf_effects(
     )
 
     try:
+        provider = provider_preferences(openrouter_provider, allow_fallbacks)
         if is_xml:
             raw_text, tokens = _call_openrouter_content(
                 model=model,
@@ -443,6 +525,7 @@ def extract_pdf_effects(
                 timeout_sec=timeout_sec,
                 reasoning_effort=reasoning_effort,
                 cancel_event=cancel_event,
+                provider=provider,
             )
         else:
             raw_text, tokens = _call_openrouter(
@@ -455,6 +538,7 @@ def extract_pdf_effects(
                 timeout_sec=timeout_sec,
                 reasoning_effort=reasoning_effort,
                 cancel_event=cancel_event,
+                provider=provider,
             )
     except ProviderError as exc:
         return ExtractionResult(

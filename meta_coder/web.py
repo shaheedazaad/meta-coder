@@ -44,6 +44,7 @@ from .pdf_matching import (
     unmatched_paper_ids,
 )
 from .extraction import ProviderError, redact_secret
+from .openrouter import list_model_endpoints
 from .manual import (
     ManualError,
     manual_from_editor_payload,
@@ -78,7 +79,7 @@ from .runner import (
     raw_json_path_for_read,
 )
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
-from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
+from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, normalize_openrouter_provider, save_run_settings
 from .sources import SOURCE_ACCEPT, source_format
 from .uploads import list_uploaded_sources, save_source_uploads, upload_summary
 import yaml
@@ -946,6 +947,21 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         ))
         return RedirectResponse(f"/{token}/settings", status_code=303)
 
+    @app.get(f"/{token}/api/openrouter/endpoints")
+    async def openrouter_endpoints(model: str = ""):
+        """Providers serving an OpenRouter model with structured output.
+
+        The listing is public. Send a key only if one is already unlocked this
+        session; a page interaction must never prompt for keychain access."""
+        try:
+            return await run_in_threadpool(
+                list_model_endpoints, model, api_key=runtime.api_key("openrouter") or ""
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
     @app.post(f"/{token}/projects/{{project_id}}/settings")
     async def save_project_settings(
         project_id: str,
@@ -957,8 +973,16 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         request_timeout_sec: int = Form(0),
         service_tier: str = Form(""),
         reasoning_effort: str = Form(""),
+        openrouter_provider: str = Form(""),
+        openrouter_fallbacks: str = Form("allow"),
     ):
         project = runtime.project(project_id)
+        if openrouter_fallbacks not in ("allow", "deny"):
+            raise HTTPException(status_code=400, detail="OpenRouter fallbacks must be `allow` or `deny`.")
+        try:
+            routed_provider = normalize_openrouter_provider(openrouter_provider)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         settings = RunSettings(
             provider=provider,
             model=model if provider == "openai_compatible" or provider == previous_provider else "",
@@ -967,6 +991,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             request_timeout_sec=request_timeout_sec,
             service_tier=service_tier,
             reasoning_effort=reasoning_effort,
+            openrouter_provider=routed_provider,
+            openrouter_allow_fallbacks=openrouter_fallbacks == "allow",
         ).clamped()
         setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
         problems = [setup_error] if setup_error else await run_in_threadpool(check_model,
@@ -1327,6 +1353,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 request_timeout_sec=settings.request_timeout_sec,
                 service_tier=settings.service_tier,
                 reasoning_effort=settings.reasoning_effort,
+                openrouter_provider=settings.openrouter_provider,
+                openrouter_allow_fallbacks=settings.openrouter_allow_fallbacks,
                 only_pdfs=only_pdfs,
             )
         except RuntimeError as exc:

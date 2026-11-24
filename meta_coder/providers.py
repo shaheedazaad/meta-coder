@@ -144,6 +144,8 @@ def extract_pdf_effects(
     base_url: str = "",
     response_format: str = "json_schema",
     cancel_event: threading.Event | None = None,
+    openrouter_provider: str = "",
+    openrouter_allow_fallbacks: bool = True,
 ) -> ExtractionResult:
     """Code one source, PDF or XML (`pdf_path` keeps its historical name),
     with the selected provider. Each adapter sends an XML source as text.
@@ -170,6 +172,8 @@ def extract_pdf_effects(
             timeout_sec=timeout_sec or openrouter.DEFAULT_TIMEOUT_SEC,
             reasoning_effort=reasoning_effort,
             cancel_event=cancel_event,
+            openrouter_provider=openrouter_provider,
+            allow_fallbacks=openrouter_allow_fallbacks,
         )
     if provider == "gemini":
         return gemini.extract_pdf_effects(
