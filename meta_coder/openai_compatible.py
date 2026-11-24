@@ -25,7 +25,7 @@ from .extraction import (
 )
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
-from .prompts import build_extraction_prompt
+from .prompts import build_extraction_prompt, schema_prompt
 from .sources import source_format
 
 DEFAULT_MODEL = ""
@@ -113,7 +113,7 @@ def _call(
         "messages": [
             {
                 "role": "user",
-                "content": prompt + "\n\nReturn only JSON matching this schema:\n" + json.dumps(response_schema),
+                "content": prompt + schema_prompt(response_schema),
             }
         ],
         "response_format": {

@@ -8,7 +8,8 @@ from meta_coder import gemini, openai_compatible, openrouter
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import create_project
-from meta_coder.prompts import PROMPT_VERSION, build_extraction_prompt, render_codebook
+from meta_coder.mechanism import build_response_schema
+from meta_coder.prompts import PROMPT_VERSION, build_extraction_prompt, render_codebook, schema_prompt
 from meta_coder.runner import Runner, raw_json_path
 
 
@@ -132,8 +133,42 @@ def test_every_adapter_sends_the_shared_prompt_with_codebook(adapter, reply, kwa
     if adapter is openai_compatible:
         expected = build_extraction_prompt(CODEBOOK_MANUAL, rows, article="article text below")
         assert text.startswith(expected + "\n\nArticle text:\n[Page 1]\nArticle body.")
+    elif adapter is openrouter:
+        schema = build_response_schema(CODEBOOK_MANUAL, dialect="json_schema")
+        assert text == build_extraction_prompt(CODEBOOK_MANUAL, rows) + schema_prompt(schema)
     else:
         assert text == build_extraction_prompt(CODEBOOK_MANUAL, rows)
+
+
+def test_schema_prompt_shows_the_schema_as_json():
+    schema = {"type": "object", "properties": {"effects": {"type": "array"}}}
+    assert schema_prompt(schema) == "\n\nReturn only JSON matching this schema:\n" + json.dumps(schema)
+
+
+@pytest.mark.parametrize(
+    "adapter, kwargs",
+    [(openrouter, {}), (openai_compatible, {"model": "m", "base_url": "http://localhost/v1"})],
+)
+def test_chat_adapters_show_the_strict_schema_in_the_prompt_as_well_as_response_format(
+    adapter, kwargs, tmp_path, monkeypatch
+):
+    # Some OpenRouter backends enforce response_format without showing it to the
+    # model, so the schema must also be in the text the model reads.
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_bytes(b"%PDF")
+    sent = []
+
+    def respond(request, **_):
+        sent.append(json.loads(request.data))
+        return json.dumps(CHAT_REPLY).encode()
+
+    monkeypatch.setattr(adapter, "cancellable_urlopen", respond)
+    monkeypatch.setattr(openai_compatible, "pdf_text", lambda path, event: "Article body.")
+    rows = [CodingSheetRow(row_id="r1", source_pdf="paper.pdf", locator="")]
+    adapter.extract_pdf_effects(pdf_path=pdf, manual=CODEBOOK_MANUAL, rows=rows, api_key="k", **kwargs)
+
+    schema = sent[0]["response_format"]["json_schema"]["schema"]
+    assert _request_text(adapter, sent[0]).endswith(schema_prompt(schema))
 
 
 def test_prompt_version_is_recorded_in_raw_result_and_audit_settings(tmp_path, monkeypatch):

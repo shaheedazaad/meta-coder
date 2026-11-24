@@ -58,6 +58,16 @@ pixi run start
 Either way, this opens your browser to a local, randomly-tokened URL
 (`http://127.0.0.1:<port>/<token>/`). The server binds only to `127.0.0.1`.
 
+### Uninstall a source or release installation
+
+For an installation made with pip, run `python -m pip uninstall meta-coder`
+using the Python environment where you installed it.
+
+To remove a release installation from a source checkout, run
+`bash scripts/uninstall.sh` (macOS / Linux) or `./scripts/uninstall.ps1`
+(Windows). They do the same as the published uninstallers described in the
+[user guide](https://shaheedazaad.github.io/meta-coder/#uninstall-metacoder).
+
 ### Pixi environments
 
 The project has two Pixi environments (`[tool.pixi.environments]` in
@@ -99,6 +109,11 @@ pytest
   ```sh
   META_CODER_HOME=/tmp/meta-coder-dev pixi run start
   ```
+- **Installer variables.** `scripts/install.sh` and `scripts/install.ps1` read
+  `META_CODER_VERSION` (install that exact version, for example `0.1.0`,
+  instead of the latest) and `META_CODER_RELEASE_BASE_URL` (download bundles
+  and `latest.txt` from somewhere other than the GitHub release, for mirrors
+  and testing).
 - **Building a release bundle locally**, e.g. to test `scripts/install.sh`
   end-to-end without a real host: `scripts/build_release.sh` archives a git
   ref (default `HEAD`) into `dist/meta-coder-<version>.tar.gz` — see
