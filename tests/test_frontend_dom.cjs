@@ -299,10 +299,41 @@ test('failed sheet conversion releases controls and preserves server-disabled bu
   assert.equal(w.projectEdits.dirty(), false);
 });
 
+// FastAPI answers a form that fails validation (HTTP 422) with a list of
+// objects in `detail`; that and any other non-string message must not reach
+// the page as "[object Object]".
+const validationDetail = [{ type: 'missing', loc: ['body', 'file'], msg: 'Field required', input: null }];
+for (const [label, body, expected] of [
+  ['a 422 validation list in detail', { detail: validationDetail }, null],
+  ['an object error', { error: { message: 'Provider unavailable' } }, null],
+  ['a blank error and a string detail', { error: '  ', detail: 'Project not found' }, 'Project not found'],
+  ['a non-string error and a string detail', { error: ['bad'], detail: 'Project not found' }, 'Project not found'],
+  ['a JSON null body', null, null],
+  ['a JSON string body', 'Server error', null],
+]) {
+  for (const [form, statusId, fallback] of [
+    ['manual-draft-form', 'manual-draft-status', 'The coding-manual draft failed.'],
+    ['sheet-draft-form', 'sheet-draft-status', 'The request failed. Please try again.'],
+  ]) {
+    test(`${form} shows a readable message for ${label}`, async t => {
+      const { w, d } = setup(t, 'project', w => {
+        w.fetch = async () => ({ ok: false, text: async () => JSON.stringify(body) });
+      });
+      const target = d.getElementById(form);
+      files(w, target.querySelector('input[type=file]'), ['upload.md']);
+      submit(w, target);
+      await flush();
+      const status = d.getElementById(statusId);
+      assert.equal(status.textContent, expected || fallback);
+      assert.doesNotMatch(status.textContent, /\[object Object\]/);
+    });
+  }
+}
+
 for (const kind of ['run', 'pdf-scan']) {
   test(`${kind} polling handles progress, transient errors, and terminal refresh with unsaved edits`, async t => {
     let timers;
-    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
+    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], retry_error: 'HTTP 503', low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
     let fail = false;
     const { w, d } = setup(t, 'project', w => {
       timers = fakeTimers(w);
@@ -318,7 +349,7 @@ for (const kind of ['run', 'pdf-scan']) {
       assert.match(d.querySelector('[data-run-status-cell]').textContent, /ok · repaired/);
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '12');
       assert.equal(d.querySelector('[data-run-output-tokens]').textContent, '4');
-      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 low-confidence cells: 2/);
+      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 Last retry failed: HTTP 503 low-confidence cells: 2/);
       const warning = root.querySelector('[data-run-warning]');
       assert.equal(warning.classList.contains('hidden'), true);
       current = { status: 'cancelling', total: 0, processed: 0, warning: 'Could not look up the output limit.', pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
@@ -779,4 +810,106 @@ test('manual confidence checkbox reflects the editor data and submits its settin
   sparse.d.getElementById('manual-form').addEventListener('submit', e => e.preventDefault());
   submit(sparse.w, sparse.d.getElementById('manual-form'));
   assert.equal(JSON.parse(sparse.d.getElementById('manual-json-input').value).confidence, false);
+});
+
+// OpenRouter provider routing ---------------------------------------------------
+function routing(t, { saved = '', fallbacks = 'allow', fetch } = {}) {
+  const requests = [];
+  const env = setup(t, 'project', w => {
+    const select = w.document.getElementById('run-openrouter-provider');
+    if (saved) select.append(new w.Option(saved, saved, true, true));
+    w.document.getElementById('run-openrouter-fallbacks').value = fallbacks;
+    w.fetch = (url, options) => { requests.push(url); return fetch(url, options); };
+  });
+  const { w, d } = env;
+  const $ = id => d.getElementById(id);
+  return {
+    ...env, requests,
+    select: $('run-openrouter-provider'),
+    fallbacks: $('run-openrouter-fallbacks'),
+    status: () => $('run-openrouter-provider-status').textContent,
+    hint: () => $('run-openrouter-fallbacks-hint').textContent,
+    options: () => Array.from($('run-openrouter-provider').options).map(o => [o.value, o.textContent]),
+    useOpenRouter: model => {
+      change(w, $('run-provider'), 'openrouter', 'change');
+      if (model !== undefined) change(w, $('run-model'), model, 'change');
+    },
+  };
+}
+const ok = payload => ({ ok: true, json: async () => payload });
+const endpoints = [{ tag: 'akashml/fp8', name: 'AkashML (fp8)' }, { tag: 'deepinfra/turbo', name: '<b>DeepInfra</b> (turbo)' }];
+
+test('OpenRouter routing lists providers, keeps the saved choice, and explains fallbacks', async t => {
+  const r = routing(t, { saved: 'saved/tag', fallbacks: 'deny', fetch: async () => ok(endpoints) });
+  assert.equal(r.d.querySelector('[data-provider-setting="openrouter"]').hidden, true);
+  assert.equal(r.requests.length, 0);
+  assert.equal(r.hint(), 'Only saved/tag is used. Requests fail if it is unavailable.');
+  r.useOpenRouter('vendor/model'); await flush();
+  assert.equal(r.d.querySelector('[data-provider-setting="openrouter"]').hidden, false);
+  assert.equal(r.requests.at(-1), '/test/api/openrouter/endpoints?model=vendor%2Fmodel');
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['akashml/fp8', 'AkashML (fp8)'], ['deepinfra/turbo', '<b>DeepInfra</b> (turbo)'], ['saved/tag', 'saved/tag (not listed for this model)']]);
+  assert.equal(r.select.querySelector('b'), null);
+  assert.equal(r.select.value, 'saved/tag');
+  assert.equal(r.status(), '2 providers serve this model with structured output.');
+  assert.equal(r.hint(), 'Only saved/tag (not listed for this model) is used. Requests fail if it is unavailable.');
+  change(r.w, r.select, 'akashml/fp8', 'change');
+  change(r.w, r.fallbacks, 'allow', 'change');
+  assert.equal(r.hint(), 'Tries AkashML (fp8) first, then other providers if it is unavailable.');
+  change(r.w, r.select, '', 'change');
+  assert.equal(r.hint(), 'OpenRouter picks a provider and tries others if a request fails.');
+  change(r.w, r.fallbacks, 'deny', 'change');
+  assert.equal(r.hint(), "Only OpenRouter's first-choice provider is tried. Requests fail if it is unavailable.");
+  change(r.w, r.d.getElementById('run-provider'), 'gemini', 'change'); await flush();
+  assert.equal(r.d.querySelector('[data-provider-setting="openrouter"]').hidden, true);
+});
+
+test('OpenRouter routing reports empty, single, and failed provider listings', async t => {
+  const replies = [
+    ok([]), ok([endpoints[0]]),
+    { ok: false, json: async () => ({ detail: 'OpenRouter is down' }) },
+    { ok: false, json: async () => { throw new Error('bad json'); } },
+    ok({ unexpected: true }),
+  ];
+  const r = routing(t, { fetch: async () => replies.shift() });
+  r.useOpenRouter(); await flush();
+  assert.equal(r.status(), 'No provider currently serves this model with structured output.');
+  for (const [model, message] of [
+    ['vendor/one', '1 provider serves this model with structured output.'],
+    ['vendor/two', 'OpenRouter is down'],
+    ['vendor/three', 'Providers could not be loaded.'],
+    ['vendor/four', 'Providers could not be loaded.'],
+    ['  ', 'Enter a model ID to see which providers serve it.'],
+  ]) {
+    change(r.w, r.d.getElementById('run-model'), model, 'change'); await flush();
+    assert.equal(r.status(), message);
+  }
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)']]);
+});
+
+test('a network failure listing providers shows its message and keeps the choice', async t => {
+  const r = routing(t, { saved: 'groq', fetch: async () => { throw new Error('offline'); } });
+  r.useOpenRouter('vendor/model'); await flush();
+  assert.equal(r.status(), 'offline');
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['groq', 'groq']]);
+  assert.equal(r.select.value, 'groq');
+});
+
+test('a slow provider listing for an earlier model is ignored', async t => {
+  const pending = [];
+  const r = routing(t, { fetch: url => new Promise(resolve => pending.push({ url, resolve })) });
+  r.useOpenRouter('vendor/first'); await flush();
+  change(r.w, r.d.getElementById('run-model'), 'vendor/second', 'change'); await flush();
+  pending.at(-1).resolve(ok([endpoints[1]])); await flush();
+  pending.at(-2).resolve(ok(endpoints)); await flush();
+  assert.equal(r.select.options.length, 2);
+  change(r.w, r.d.getElementById('run-model'), 'vendor/third', 'change'); await flush();
+  change(r.w, r.d.getElementById('run-model'), 'vendor/fourth', 'change'); await flush();
+  pending.at(-1).resolve(ok([])); await flush();
+  pending.at(-2).resolve({ ok: false, json: async () => ({ detail: 'stale failure' }) }); await flush();
+  assert.equal(r.status(), 'No provider currently serves this model with structured output.');
+});
+
+test('routing controls are optional on the page', t => {
+  const { d } = setup(t, 'project', w => w.document.getElementById('run-openrouter-provider').remove());
+  assert.equal(d.getElementById('run-openrouter-provider'), null);
 });

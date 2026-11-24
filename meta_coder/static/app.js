@@ -45,6 +45,18 @@ var projectEdits = (function () {
   };
 })();
 
+// The message to show for a failed request: the server's `error`, then its
+// `detail`, or the fallback when neither is a non-empty string. FastAPI puts a
+// list of objects in `detail` when form validation fails (HTTP 422), which
+// would otherwise read as "[object Object]".
+function requestErrorMessage(payload, fallback) {
+  var source = payload && typeof payload === "object" ? payload : {};
+  var message = [source.error, source.detail].find(function (value) {
+    return typeof value === "string" && value.trim();
+  });
+  return message || fallback;
+}
+
 // Theme toggle (System/Light/Dark). Mirrors the inline pre-paint script in
 // base.html so the two never disagree about resolution logic; this instance
 // also wires up the dropdown's click handlers and keeps them synced when the
@@ -396,7 +408,7 @@ var projectEdits = (function () {
               payload = {};
             }
             if (!response.ok) {
-              throw new Error(payload.error || payload.detail || "The coding-manual draft failed.");
+              throw new Error(requestErrorMessage(payload, "The coding-manual draft failed."));
             }
             if (!payload || !payload.manual || typeof payload.manual !== "object" ||
                 !Array.isArray(payload.manual.effects) || typeof payload.yaml !== "string" ||
@@ -589,7 +601,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = data.processed + " / " + data.total + " PDFs processed — " + data.status;
+      summary.textContent = data.processed + " / " + data.total + " sources processed — " + data.status;
     }
     if (warningBox) {
       warningBox.querySelector("section").textContent = data.warning || "";
@@ -614,6 +626,7 @@ function initTabGroup(root, opts) {
         if (pdf.error) parts.push(pdf.error);
         if (pdf.missing_ids && pdf.missing_ids.length) parts.push("missing: " + pdf.missing_ids.join(", "));
         if (pdf.extra_ids && pdf.extra_ids.length) parts.push("unexpected: " + pdf.extra_ids.join(", "));
+        if (pdf.retry_error) parts.push("Last retry failed: " + pdf.retry_error);
         if (pdf.low_confidence) parts.push("low-confidence cells: " + pdf.low_confidence);
         detail.textContent = parts.join(" ");
       }
@@ -650,7 +663,7 @@ function initTabGroup(root, opts) {
   setTimeout(poll, 1000);
 })();
 
-// PDF match-scan progress: same polling/reload-on-terminal shape as the run
+// Source match-scan progress: same polling/reload-on-terminal shape as the run
 // progress bar above, but there's no per-row table to update — just the bar
 // and summary line — since the scan only feeds the (server-rendered) match
 // suggestions panel once it's done.
@@ -672,7 +685,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = "Scanning uploaded PDFs for matches — " + (data.processed || 0) + " / " + (data.total || 0);
+      summary.textContent = "Scanning uploaded sources for matches — " + (data.processed || 0) + " / " + (data.total || 0);
     }
   }
 
@@ -751,6 +764,76 @@ function initTabGroup(root, opts) {
   projectEdits.register(settingsForm, function () {
     return JSON.stringify(Array.from(new FormData(settingsForm))) !== savedSettings;
   });
+})();
+
+// OpenRouter provider routing: list the providers serving the chosen model with
+// structured output. A saved provider stays selected even when it is not listed.
+(function () {
+  var select = document.getElementById("run-openrouter-provider");
+  if (!select) return;
+  var provider = document.getElementById("run-provider");
+  var model = document.getElementById("run-model");
+  var fallbacks = document.getElementById("run-openrouter-fallbacks");
+  var status = document.getElementById("run-openrouter-provider-status");
+  var hint = document.getElementById("run-openrouter-fallbacks-hint");
+  var revision = 0;
+
+  function updateHint() {
+    var chosen = select.value ? select.selectedOptions[0].textContent : "";
+    var allow = fallbacks.value === "allow";
+    hint.textContent = chosen
+      ? (allow
+        ? "Tries " + chosen + " first, then other providers if it is unavailable."
+        : "Only " + chosen + " is used. Requests fail if it is unavailable.")
+      : (allow
+        ? "OpenRouter picks a provider and tries others if a request fails."
+        : "Only OpenRouter's first-choice provider is tried. Requests fail if it is unavailable.");
+  }
+
+  function render(endpoints, listed) {
+    var selected = select.value;
+    var options = [{ tag: "", name: "Automatic (OpenRouter chooses)" }].concat(endpoints);
+    if (selected && !endpoints.some(function (item) { return item.tag === selected; })) {
+      options.push({ tag: selected, name: listed ? selected + " (not listed for this model)" : selected });
+    }
+    select.replaceChildren.apply(select, options.map(function (item) { return new Option(item.name, item.tag); }));
+    select.value = selected;
+    updateHint();
+  }
+
+  async function load() {
+    var current = ++revision;
+    var id = model.value.trim();
+    render([], false);
+    if (provider.value !== "openrouter" || !id) {
+      status.textContent = "Enter a model ID to see which providers serve it.";
+      return;
+    }
+    status.textContent = "Loading providers…";
+    try {
+      var response = await fetch(select.dataset.endpointsUrl + "?model=" + encodeURIComponent(id), {
+        headers: { Accept: "application/json" },
+      });
+      var payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !Array.isArray(payload)) {
+        throw new Error((payload && payload.detail) || "Providers could not be loaded.");
+      }
+      if (current !== revision) return;
+      render(payload, true);
+      status.textContent = payload.length
+        ? payload.length + (payload.length === 1 ? " provider serves" : " providers serve") + " this model with structured output."
+        : "No provider currently serves this model with structured output.";
+    } catch (error) {
+      if (current !== revision) return;
+      status.textContent = error.message;
+    }
+  }
+
+  provider.addEventListener("change", load);
+  model.addEventListener("change", load);
+  select.addEventListener("change", updateHint);
+  fallbacks.addEventListener("change", updateHint);
+  load();
 })();
 
 (function () {
@@ -896,7 +979,7 @@ function initTabGroup(root, opts) {
         return response.text().then(function (text) {
           var payload;
           try { payload = JSON.parse(text); } catch (_) { payload = {}; }
-          if (!response.ok) throw new Error(payload.error || "The request failed. Please try again.");
+          if (!response.ok) throw new Error(requestErrorMessage(payload, "The request failed. Please try again."));
           return payload;
         });
       });

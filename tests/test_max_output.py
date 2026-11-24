@@ -79,7 +79,8 @@ def test_endpoint_limit_is_the_lowest_structured_output_endpoint(monkeypatch):
     monkeypatch.setattr(openrouter.urllib.request, 'urlopen', request)
     assert openrouter.endpoint_output_limit('vendor/model name:free', api_key='secret', timeout_sec=7) == 7_232
     sent = request.call_args.args[0]
-    assert sent.full_url == 'https://openrouter.ai/api/v1/models/vendor/model%20name/endpoints'
+    # A `:free` variant has its own endpoints, so it is looked up as itself.
+    assert sent.full_url == 'https://openrouter.ai/api/v1/models/vendor/model%20name:free/endpoints'
     assert sent.get_header('Authorization') == 'Bearer secret'
     assert request.call_args.kwargs == {'timeout': 7}
 
@@ -114,7 +115,29 @@ def test_resolution_prefers_the_setting_then_openrouter_endpoints(monkeypatch):
     assert providers.resolve_max_output_tokens('openai_compatible', 'm', 0, api_key='') is None
     lookup.assert_not_called()
     assert providers.resolve_max_output_tokens('openrouter', 'v/m', 0, api_key='k', timeout_sec=9) == 131_072
-    lookup.assert_called_once_with('v/m', api_key='k', timeout_sec=9)
+    lookup.assert_called_once_with('v/m', api_key='k', timeout_sec=9, only_provider='')
+    lookup.reset_mock()
+    providers.resolve_max_output_tokens(
+        'openrouter', 'v/m', 0, api_key='k', openrouter_provider='groq', openrouter_allow_fallbacks=False,
+    )
+    lookup.assert_called_once_with('v/m', api_key='k', timeout_sec=20, only_provider='groq')
+    lookup.reset_mock()
+    providers.resolve_max_output_tokens('openrouter', 'v/m', 0, api_key='k', openrouter_provider='groq')
+    lookup.assert_called_once_with('v/m', api_key='k', timeout_sec=20, only_provider='')
+
+
+def test_a_pinned_provider_without_fallbacks_uses_only_its_endpoints(monkeypatch):
+    listed = [endpoint('deepinfra/fp8', 65_536), endpoint('deepinfra/turbo', 32_768), endpoint('cheap', 4_096)]
+    request = Mock(side_effect=lambda *args, **kwargs: endpoints(*listed))
+    monkeypatch.setattr(openrouter.urllib.request, 'urlopen', request)
+    assert openrouter.endpoint_output_limit('v/m', only_provider='deepinfra') == 32_768
+    assert openrouter.endpoint_output_limit('v/m', only_provider='deepinfra/fp8') == 65_536
+    assert openrouter.endpoint_output_limit('v/m', only_provider='absent') is None
+
+
+def test_a_malformed_model_id_is_a_provider_error_for_the_lookup():
+    with pytest.raises(ProviderError, match='not an OpenRouter model ID'):
+        openrouter.endpoint_output_limit('no-author')
 
 
 # --- Wire payloads ------------------------------------------------------------

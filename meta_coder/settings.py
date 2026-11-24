@@ -10,6 +10,7 @@ key per provider is used across every project in the running session.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -42,6 +43,22 @@ def output_token_limit(value: object) -> int:
     return max(0, min(number, MAX_OUTPUT_TOKENS))
 
 
+# An OpenRouter provider slug, optionally with an endpoint variant, as listed by
+# /models/{model}/endpoints: `deepinfra` or `deepinfra/fp8`.
+OPENROUTER_PROVIDER_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)?")
+
+
+def normalize_openrouter_provider(value: object) -> str:
+    """Return a lower-case OpenRouter provider slug, or "" for automatic routing.
+
+    Raises ValueError for anything that is not a `vendor` or `vendor/variant` slug."""
+
+    slug = str(value or "").strip().lower()
+    if slug and not OPENROUTER_PROVIDER_PATTERN.fullmatch(slug):
+        raise ValueError(f"Invalid OpenRouter provider: {value}")
+    return slug
+
+
 @dataclass
 class RunSettings:
     provider: str = DEFAULT_PROVIDER
@@ -53,6 +70,10 @@ class RunSettings:
     reasoning_effort: str = ""  # OpenRouter/OpenAI-compatible; "" means "provider/model default"
     # 0 means the provider's own limit; see providers.resolve_max_output_tokens.
     max_output_tokens: int = 0
+    # OpenRouter only: the backend provider to route to ("" lets OpenRouter
+    # choose) and whether requests may fall back to other providers.
+    openrouter_provider: str = ""
+    openrouter_allow_fallbacks: bool = True
 
     def clamped(self) -> "RunSettings":
         provider = self.provider if self.provider in PROVIDERS else DEFAULT_PROVIDER
@@ -73,7 +94,16 @@ class RunSettings:
             if (self.reasoning_effort or "").strip().lower() in REASONING_EFFORTS
             else "",
             max_output_tokens=output_token_limit(self.max_output_tokens),
+            openrouter_provider=_valid_openrouter_provider(self.openrouter_provider),
+            openrouter_allow_fallbacks=self.openrouter_allow_fallbacks is not False,
         )
+
+
+def _valid_openrouter_provider(value: object) -> str:
+    try:
+        return normalize_openrouter_provider(value)
+    except ValueError:
+        return ""
 
 
 def _settings_path(project: Project) -> Path:
@@ -97,6 +127,8 @@ def load_run_settings(project: Project) -> RunSettings:
             service_tier=str(raw.get("service_tier") or DEFAULT_SERVICE_TIER),
             reasoning_effort=str(raw.get("reasoning_effort") or ""),
             max_output_tokens=output_token_limit(raw.get("max_output_tokens") or 0),
+            openrouter_provider=str(raw.get("openrouter_provider") or ""),
+            openrouter_allow_fallbacks=raw.get("openrouter_allow_fallbacks", True) is not False,
         ).clamped()
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         return RunSettings().clamped()

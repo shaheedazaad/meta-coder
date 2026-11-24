@@ -47,21 +47,35 @@ def check_model(provider: str, model: str, *, api_key: str, base_url: str = "") 
 
 
 def resolve_max_output_tokens(
-    provider: str, model: str, configured: int, *, api_key: str, timeout_sec: int = 20
+    provider: str,
+    model: str,
+    configured: int,
+    *,
+    api_key: str,
+    timeout_sec: int = 20,
+    openrouter_provider: str = "",
+    openrouter_allow_fallbacks: bool = True,
 ) -> int | None:
     """The output cap a run sends with every request, or None to send none.
 
     A configured value is sent as set. Otherwise OpenRouter gets the lowest
     limit among the model's structured-output endpoints, since some endpoints
     default to a low cap; Gemini (the model's maximum) and OpenAI-compatible
-    servers (their own default) get none. Raises ProviderError when
-    OpenRouter's endpoint list can't be read.
+    servers (their own default) get none. A run pinned to one OpenRouter
+    provider with fallbacks off can only reach that provider's endpoints, so
+    only theirs count. Raises ProviderError when OpenRouter's endpoint list
+    can't be read.
     """
 
     if configured:
         return configured
     if provider == "openrouter":
-        return openrouter.endpoint_output_limit(model, api_key=api_key, timeout_sec=timeout_sec)
+        return openrouter.endpoint_output_limit(
+            model,
+            api_key=api_key,
+            timeout_sec=timeout_sec,
+            only_provider="" if openrouter_allow_fallbacks else openrouter_provider,
+        )
     return None
 
 
@@ -164,8 +178,13 @@ def extract_pdf_effects(
     response_format: str = "json_schema",
     max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
+    openrouter_provider: str = "",
+    openrouter_allow_fallbacks: bool = True,
 ) -> ExtractionResult:
-    """Route to the right adapter. Each adapter keeps its own kwargs (Gemini's
+    """Code one source, PDF or XML (`pdf_path` keeps its historical name),
+    with the selected provider. Each adapter sends an XML source as text.
+
+    Route to the right adapter. Each adapter keeps its own kwargs (Gemini's
     `service_tier`, OpenRouter's `reasoning_effort`) — this function picks out
     only the subset that provider actually accepts rather than forwarding both
     blindly, since neither adapter's signature accepts the other's kwarg."""
@@ -188,6 +207,8 @@ def extract_pdf_effects(
             reasoning_effort=reasoning_effort,
             max_output_tokens=max_output_tokens,
             cancel_event=cancel_event,
+            openrouter_provider=openrouter_provider,
+            allow_fallbacks=openrouter_allow_fallbacks,
         )
     if provider == "gemini":
         return gemini.extract_pdf_effects(

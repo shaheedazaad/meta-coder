@@ -4,8 +4,11 @@ produced it, so a result is reused only while those inputs are unchanged.
 A fingerprint covers what determines the provider's answer: the effective
 coding manual (canonical YAML, so formatting-only edits don't matter), the
 row IDs and locators requested for the PDF, the PDF's bytes, and the
-provider, model and semantic request settings. Pacing, timeouts and service
-tier only affect how a request is sent, so they are excluded.
+provider, model and semantic request settings. Pacing, timeouts, service
+tier and OpenRouter provider routing only affect how a request is sent, so they
+are excluded. (Routing picks which backend serves the same model; automatic
+routing already varies it between requests, and each exchange records the
+provider OpenRouter reports.)
 
 Results saved before fingerprints existed carry none. Their inputs cannot be
 verified, but older versions cleared results whenever the manual changed, so
@@ -129,6 +132,7 @@ class InputChecker:
             missing_pdf = fingerprint is None and bool(self.coding_sheet.rows_for_pdf(name))
             checked[name] = replace(
                 result, status=STALE_STATUS, coded_by_row_id={}, missing_ids=set(), extra_ids=set(),
+                retry_error=None, retry_failed_at=None,
                 error=MISSING_PDF_ERROR if missing_pdf else CHANGED_INPUTS_ERROR,
             )
         return checked

@@ -4,6 +4,7 @@ import pytest
 
 from meta_coder import gemini, openrouter, providers
 from meta_coder.extraction import ProviderError
+from meta_coder.prompts import schema_prompt
 
 
 def test_check_model_dispatches_to_selected_provider(monkeypatch):
@@ -153,7 +154,9 @@ def test_openrouter_manual_draft_request_is_text_only_and_structured(monkeypatch
         prompt="manual text", response_schema={"type": "object"}, api_key="key"
     )
 
-    assert captured["messages"][0]["content"] == [{"type": "text", "text": "manual text"}]
+    assert captured["messages"][0]["content"] == [
+        {"type": "text", "text": "manual text" + schema_prompt({"type": "object"})}
+    ]
     assert captured["response_format"]["json_schema"]["schema"] == {"type": "object"}
 
 

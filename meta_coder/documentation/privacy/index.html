@@ -26,7 +26,7 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="./" aria-current="page"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="./" aria-current="page"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Sources</a><a href="../matching/"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
@@ -49,17 +49,17 @@
 <tr>
 <td>Extraction with Gemini</td>
 <td>Google's Gemini API (<code>generativelanguage.googleapis.com</code>)</td>
-<td>The complete study PDF, plus instructions, your effect definition, coding manual fields, and the row IDs and locators for that PDF</td>
+<td>The complete study PDF, or an XML source's full contents as text, plus instructions, your effect definition, coding manual fields, and the row IDs and locators for that source</td>
 </tr>
 <tr>
 <td>Extraction with OpenRouter</td>
 <td>OpenRouter (<code>openrouter.ai</code>), which forwards the request to a model provider</td>
-<td>The complete study PDF, plus the same instructions and coding details</td>
+<td>The complete study PDF, or an XML source's full contents as text, plus the same instructions and coding details</td>
 </tr>
 <tr>
 <td>Extraction with an OpenAI-compatible endpoint</td>
 <td>The API base URL you entered</td>
-<td>Text extracted from the PDF on your computer, with page numbers, plus the same instructions and coding details. The PDF file itself is not sent</td>
+<td>Text extracted from the PDF on your computer, with page numbers, or an XML source's full contents as text, plus the same instructions and coding details. The PDF file itself is not sent</td>
 </tr>
 <tr>
 <td>AI manual drafting</td>
@@ -69,7 +69,7 @@
 <tr>
 <td>Coding sheet conversion</td>
 <td>Your drafting provider</td>
-<td>The uploaded CSV content, your saved manual, your notes, and the names of uploaded PDFs</td>
+<td>The uploaded CSV content, your saved manual, your notes, and the names of uploaded sources</td>
 </tr>
 <tr>
 <td>Model checks</td>
@@ -85,7 +85,7 @@
 </table>
 <p>Your API key is sent only to the provider it belongs to, to authorise requests. Nothing is sent to the MetaCoder developers.</p>
 <h2 id="what-is-stored-on-your-computer">What is stored on your computer<a class="headerlink" href="#what-is-stored-on-your-computer" title="Permanent link">&para;</a></h2>
-<p>Projects are saved in the app's data folder (see <a href="../projects/#data-locations">Data locations</a>). A project contains your manual, coding sheet, source PDFs, results, and an <code>audit/</code> folder. The <a href="../auditing/">audit history</a> keeps copies of the inputs and the full request sent to the provider, including the encoded PDF or extracted text, and the provider's response.</p>
+<p>Projects are saved in the app's data folder (see <a href="../projects/#data-locations">Data locations</a>). A project contains your manual, coding sheet, sources (PDF or XML), results, and an <code>audit/</code> folder. The <a href="../auditing/">audit history</a> keeps copies of the inputs and the full request sent to the provider, including the encoded PDF, extracted text or XML text, and the provider's response.</p>
 <p>API keys are kept in your operating system's credential store, not in project files or exports. Project and audit ZIP exports do contain your documents, so share them with the same care as the PDFs themselves.</p>
 <h2 id="google-gemini">Google Gemini<a class="headerlink" href="#google-gemini" title="Permanent link">&para;</a></h2>
 <p>Google's <a href="https://ai.google.dev/gemini-api/terms">Gemini API Additional Terms of Service</a> (last modified 28 April 2026) distinguish unpaid and paid use:</p>
@@ -100,8 +100,8 @@
 <p>OpenRouter passes your request to a third-party model provider, so two sets of terms apply.</p>
 <ul>
 <li><strong>OpenRouter itself</strong>: its <a href="https://openrouter.ai/docs/guides/privacy/data-collection">data collection page</a> states that it does not store your prompts or responses unless you opt in to logging. One opt-in lets OpenRouter use inputs and outputs in exchange for a discount; leave it off for research documents.</li>
-<li><strong>The model provider</strong>: policies differ by provider. In your <a href="https://openrouter.ai/settings/privacy">OpenRouter privacy settings</a> you can exclude providers that may store inputs for training, and you can require <a href="https://openrouter.ai/docs/guides/features/zdr">Zero Data Retention (ZDR)</a> endpoints. OpenRouter says that where it cannot establish a provider's policy it assumes the endpoint "both retains and trains on data". MetaCoder does not send per-request routing preferences, so your account settings decide which providers are eligible.</li>
-<li><strong>PDF handling</strong>: if a model accepts files directly, OpenRouter passes the PDF to it. If not, OpenRouter converts the PDF first. Its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a> names the parsing engines it uses; at the time of checking, the default for models without native file input was a third-party OCR service charged per page. MetaCoder warns when you select a model without native file input.</li>
+<li><strong>The model provider</strong>: policies differ by provider. In your <a href="https://openrouter.ai/settings/privacy">OpenRouter privacy settings</a> you can exclude providers that may store inputs for training, and you can require <a href="https://openrouter.ai/docs/guides/features/zdr">Zero Data Retention (ZDR)</a> endpoints. OpenRouter says that where it cannot establish a provider's policy it assumes the endpoint "both retains and trains on data". Unless you <a href="../settings/#route-openrouter-requests-to-one-provider">route a project to one provider</a>, MetaCoder sends no per-request routing preferences, so your account settings decide which providers are eligible. Choosing a provider does not override those account settings.</li>
+<li><strong>PDF handling</strong>: XML sources are sent as text and never go through this conversion. If a model accepts files directly, OpenRouter passes the PDF to it. If not, OpenRouter converts the PDF first. Its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a> names the parsing engines it uses; at the time of checking, the default for models without native file input was a third-party OCR service charged per page. MetaCoder warns when you select a model without native file input.</li>
 </ul>
 <h2 id="openai-compatible-endpoints">OpenAI-compatible endpoints<a class="headerlink" href="#openai-compatible-endpoints" title="Permanent link">&para;</a></h2>
 <p>Data handling depends entirely on the endpoint. A local server such as Ollama or LM Studio on <code>http://localhost</code> keeps the extracted text on your computer. A university-hosted service or commercial API is governed by its own terms and your institution's agreement. Ask the service owner whether inputs are logged, retained, or used for training.</p>
@@ -109,7 +109,7 @@
 <ul>
 <li><strong>Ethics approval and consent.</strong> Most meta-analyses code published articles, but check your protocol or ethics approval if you code unpublished manuscripts, grey literature, data shared by authors, or documents containing participant information.</li>
 <li><strong>Unpublished or confidential manuscripts.</strong> Material shared under confidentiality, such as reviewer copies or author-supplied reports, should only go to a service whose terms you and the owner accept. Prefer paid Gemini access, OpenRouter with ZDR, or a local endpoint.</li>
-<li><strong>Copyrighted articles.</strong> Uploading licensed PDFs to a third-party service may be restricted by your library's licence terms. Ask your library if you are unsure.</li>
+<li><strong>Copyrighted articles.</strong> Uploading licensed PDFs or XML full text to a third-party service may be restricted by your library's licence terms. Ask your library if you are unsure.</li>
 <li><strong>Avoid the unpaid Gemini tier</strong> for anything you would not publish, unless the EEA, Swiss, or UK terms apply to you.</li>
 <li><strong>Record your choice.</strong> Note the provider, model, and service tier in your methods section; see <a href="../validation/#report-your-methods">Validating the coding</a>.</li>
 </ul>

@@ -151,6 +151,7 @@ def audited_call(project, operation, function, *, audit_inputs=None, audit_setti
     settings = {k: v for k, v in kwargs.items() if k in {
         'provider', 'model', 'timeout_sec', 'service_tier', 'reasoning_effort', 'base_url', 'response_format',
         'max_output_tokens',
+        'openrouter_provider', 'openrouter_allow_fallbacks',
     }}
     settings.update(audit_settings or {})
     audit = AuditOperation(project, operation, settings, secrets=(kwargs.get('api_key', ''),))

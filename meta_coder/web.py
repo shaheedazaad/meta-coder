@@ -44,6 +44,7 @@ from .pdf_matching import (
     unmatched_paper_ids,
 )
 from .extraction import ProviderError, redact_secret
+from .openrouter import list_model_endpoints
 from .manual import (
     ManualError,
     manual_from_editor_payload,
@@ -78,10 +79,11 @@ from .runner import (
 )
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
 from .settings import (
-    MAX_OUTPUT_TOKENS, REASONING_EFFORTS, RunSettings, load_run_settings, output_token_limit, save_run_settings,
+    MAX_OUTPUT_TOKENS, REASONING_EFFORTS, RunSettings, load_run_settings, normalize_openrouter_provider,
+    output_token_limit, save_run_settings,
 )
-from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
-from .uploads import list_uploaded_pdfs, save_pdf_upload
+from .sources import SOURCE_ACCEPT, source_format
+from .uploads import list_uploaded_sources, save_source_uploads, upload_summary
 import yaml
 
 
@@ -140,7 +142,9 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
     ``results`` may be the in-memory progress entries during a run or persisted
     extraction results after a restart. Both represent the same result fields.
     ``kept_success`` names PDFs whose latest attempt failed while an earlier
-    successful result for the same inputs is still used. ``rated`` names the
+    successful result for the same inputs is still used. A needs-review result
+    kept after a failed retry is shown itself, with ``retry_error`` set and a
+    raw link to that result rather than the failed attempt. ``rated`` names the
     fields whose low confidence ratings are counted (see results.rated_fields).
     """
 
@@ -151,8 +155,9 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
     rows = []
     for pdf in results:
         sheet_row = first_row_by_pdf.get(pdf.source_pdf)
+        retry_error = getattr(pdf, "retry_error", None)
         raw_path = attempt_json_path(project, pdf.source_pdf)
-        if not raw_path.is_file():
+        if retry_error or not raw_path.is_file():
             raw_path = raw_json_path_for_read(project, pdf.source_pdf)
         audit_path = audit_yaml_path(project, pdf.source_pdf)
         rows.append(
@@ -174,6 +179,7 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
                 "audit_filename": audit_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
                 "kept_success": pdf.source_pdf in kept_success,
+                "retry_error": retry_error,
                 # Live progress carries the count; a persisted result is counted here.
                 "low_confidence": pdf.low_confidence
                 if hasattr(pdf, "low_confidence")
@@ -222,7 +228,7 @@ def _home_view(projects: list[Project], *, q: str = "", sort: str = "newest", pa
     else:
         matching.sort(key=lambda project: (project.created_at, project.project_id), reverse=sort == "newest")
     page_projects, page, total_pages = _paginate(matching, page)
-    pdf_counts = {project.project_id: len(list_uploaded_pdfs(project.sources_dir)) for project in page_projects}
+    pdf_counts = {project.project_id: len(list_uploaded_sources(project.sources_dir)) for project in page_projects}
     return {
         "projects": page_projects, "total_projects": len(projects), "matching_count": len(matching),
         "pdf_counts": pdf_counts, "q": q, "sort": sort,
@@ -382,7 +388,7 @@ def _project_view(
     # "reset to default" recovery action instead of rendering the editor.
     manual_editor_json = _embeddable_json(manual_to_editor_payload(manual)) if manual else None
 
-    uploaded = list_uploaded_pdfs(project.sources_dir)
+    uploaded = list_uploaded_sources(project.sources_dir)
     uploaded_names = {p.name for p in uploaded}
 
     # No longer depends on `manual` — the coding sheet's columns are a fixed
@@ -527,14 +533,20 @@ def _project_view(
     run_sort = run_sort if run_sort in RUN_SORT_COLUMNS else "source_pdf"
     run_dir = run_dir if run_dir in ("asc", "desc") else "asc"
     # The table shows each PDF's latest attempt, which can be a failed retry
-    # of a PDF whose earlier success is still used.
+    # of a PDF whose earlier success is still used. A needs-review result kept
+    # after a failed retry is shown instead, since it is the one to review; it
+    # notes the failed retry itself. Any later result replacing it clears
+    # that note, and an outdated result loses it.
     table_results = dict(persisted_results)
     latest_attempts = input_checker.check(load_latest_attempts(project))
     kept_success = {
         name for name, attempt in latest_attempts.items()
         if keeps_success(persisted_results.get(name), attempt)
     }
-    table_results.update(latest_attempts)
+    table_results.update({
+        name: attempt for name, attempt in latest_attempts.items()
+        if not getattr(persisted_results.get(name), "retry_error", None)
+    })
     if run_state:
         # A retry's in-memory state includes only its target PDFs. Overlay it
         # on the persisted history rather than hiding earlier outcomes. After
@@ -566,6 +578,7 @@ def _project_view(
         "manual_error": manual_error,
         "manual_editor_json": manual_editor_json,
         "uploaded_pdfs": sources_page_rows,
+        "source_accept": SOURCE_ACCEPT,
         "uploaded_pdfs_count": len(uploaded),
         "sources_page": sources_page,
         "sources_total_pages": sources_total_pages,
@@ -653,7 +666,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         if runtime.runner.is_running(project_id):
             raise HTTPException(status_code=409, detail=detail)
         if include_pdf_scan and runtime.pdf_scanner.is_running(project_id):
-            raise HTTPException(status_code=409, detail="Wait for the PDF scan to finish first.")
+            raise HTTPException(status_code=409, detail="Wait for the source scan to finish first.")
 
     @app.get(f"/{token}/updates")
     def update_status():
@@ -784,6 +797,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         project_id: str,
         error: str | None = None,
         warning: str | None = None,
+        notice: str | None = None,
         tab: str | None = None,
         run_sort: str | None = None,
         run_dir: str | None = None,
@@ -804,6 +818,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             "token": token,
             "error": error,
             "warning": warning,
+            "notice": notice,
             "force_tab": tab or ("sources" if error else None),
             **_project_view(
                 runtime,
@@ -906,6 +921,21 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         ))
         return RedirectResponse(f"/{token}/settings", status_code=303)
 
+    @app.get(f"/{token}/api/openrouter/endpoints")
+    async def openrouter_endpoints(model: str = ""):
+        """Providers serving an OpenRouter model with structured output.
+
+        The listing is public. Send a key only if one is already unlocked this
+        session; a page interaction must never prompt for keychain access."""
+        try:
+            return await run_in_threadpool(
+                list_model_endpoints, model, api_key=runtime.api_key("openrouter") or ""
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except ProviderError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
     @app.post(f"/{token}/projects/{{project_id}}/settings")
     async def save_project_settings(
         project_id: str,
@@ -919,8 +949,16 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         reasoning_effort: str = Form(""),
         # Text, not int: an empty field means the provider's own limit.
         max_output_tokens: str = Form(""),
+        openrouter_provider: str = Form(""),
+        openrouter_fallbacks: str = Form("allow"),
     ):
         project = runtime.project(project_id)
+        if openrouter_fallbacks not in ("allow", "deny"):
+            raise HTTPException(status_code=400, detail="OpenRouter fallbacks must be `allow` or `deny`.")
+        try:
+            routed_provider = normalize_openrouter_provider(openrouter_provider)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         settings = RunSettings(
             provider=provider,
             model=model if provider == "openai_compatible" or provider == previous_provider else "",
@@ -930,6 +968,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             service_tier=service_tier,
             reasoning_effort=reasoning_effort,
             max_output_tokens=output_token_limit(max_output_tokens),
+            openrouter_provider=routed_provider,
+            openrouter_allow_fallbacks=openrouter_fallbacks == "allow",
         ).clamped()
         setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
         problems = [setup_error] if setup_error else await run_in_threadpool(check_model,
@@ -1061,7 +1101,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             text = raw.decode("utf-8-sig")
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=400, detail="Save the CSV as UTF-8 and try again.") from exc
-        sheet = parse_coding_sheet_csv(text, uploaded_filenames={p.name for p in list_uploaded_pdfs(project.sources_dir)})
+        sheet = parse_coding_sheet_csv(text, uploaded_filenames={p.name for p in list_uploaded_sources(project.sources_dir)})
         if sheet.sheet_issues:
             raise HTTPException(status_code=400, detail="; ".join(issue.message for issue in sheet.sheet_issues))
         _reject_if_busy(project_id, "Wait for the active run to finish before replacing the sheet.")
@@ -1092,7 +1132,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 audited_call, project, "sheet_conversion", draft_coding_sheet, provider=provider, source=source,
                 audit_inputs={"uploaded/" + Path(file.filename or "sheet.csv").name: source_bytes},
                 manual=manual_to_yaml_text(manual), notes=notes,
-                filenames=[path.name for path in list_uploaded_pdfs(project.sources_dir)],
+                filenames=[path.name for path in list_uploaded_sources(project.sources_dir)],
                 api_key=runtime.api_key(provider) or "", model=settings.manual_generator_model,
                 **endpoint_options(provider, settings),
             )
@@ -1125,7 +1165,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         _reject_if_busy(project_id)
         paper_keys = form.getlist("paper_key")
         filenames = form.getlist("filename")
-        uploaded_filenames = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
+        uploaded_filenames = {path.name for path in list_uploaded_sources(project.sources_dir)}
         mapping = {
             paper_key: filename
             for paper_key, filename in zip(paper_keys, filenames)
@@ -1142,7 +1182,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     async def unmatch_coding_sheet_pdf(project_id: str, source_pdf: str = Form(...)):
         project = runtime.project(project_id)
         _reject_if_busy(project_id)
-        uploaded_filenames = {path.name for path in list_uploaded_pdfs(project.sources_dir)}
+        uploaded_filenames = {path.name for path in list_uploaded_sources(project.sources_dir)}
         if source_pdf in uploaded_filenames and project.coding_sheet_path.is_file():
             apply_source_pdf_matches(project.coding_sheet_path, {source_pdf: ""})
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=identify", status_code=303)
@@ -1151,27 +1191,20 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     async def upload_pdfs(project_id: str, files: list[UploadFile] = File(...)):
         project = runtime.project(project_id)
         app_settings = load_app_settings()
-        errors = []
-        saved: list[Path] = []
-        for upload in files:
-            try:
-                saved.append(
-                    save_pdf_upload(
-                        project.sources_dir,
-                        upload.filename or "",
-                        upload.file,
-                        max_bytes=app_settings.upload_size_cap_bytes,
-                    )
-                )
-            except UploadProjectError as exc:
-                errors.append(str(exc))
-        if saved:
-            runtime.pdf_scanner.scan_async(project, saved, grobid_url=app_settings.grobid_url)
-        if errors:
-            return RedirectResponse(
-                f"/{token}/projects/{project_id}?error={quote('; '.join(errors))}", status_code=303
-            )
-        return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
+        result = save_source_uploads(
+            project.sources_dir,
+            [(upload.filename or "", upload.file) for upload in files],
+            max_bytes=app_settings.upload_size_cap_bytes,
+        )
+        if result.saved:
+            runtime.pdf_scanner.scan_async(project, result.saved, grobid_url=app_settings.grobid_url)
+        params = []
+        if result.errors:
+            params.append(f"error={quote('; '.join(result.errors))}")
+        if result.skipped:
+            params.append(f"tab=sources&notice={quote(upload_summary(result))}")
+        query = f"?{'&'.join(params)}" if params else ""
+        return RedirectResponse(f"/{token}/projects/{project_id}{query}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/uploads/delete")
     async def delete_pdf(project_id: str, filename: str = Form(...)):
@@ -1179,9 +1212,34 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         _reject_if_busy(project_id)
         safe = Path(filename).name
         target = project.sources_dir / safe
-        if target.is_file() and target.suffix.lower() == ".pdf":
+        if target.is_file() and source_format(target) is not None:
             target.unlink()
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
+
+    @app.get(f"/{token}/projects/{{project_id}}/sources/{{filename}}")
+    async def open_source(project_id: str, filename: str):
+        project = runtime.project(project_id)
+        # Only a source directly inside sources/: the resolved path's parent must
+        # be the real sources folder, so ".." and symlinks pointing elsewhere 404.
+        path = (project.sources_dir / Path(filename).name).resolve()
+        kind = source_format(path)
+        if (
+            Path(filename).name != filename
+            or kind is None
+            or path.parent != project.sources_dir.resolve()
+            or not path.is_file()
+        ):
+            raise HTTPException(status_code=404, detail="Source not found.")
+        # XML is shown as plain text so the browser never renders its markup
+        # (which could run scripts); nosniff stops it guessing another type.
+        media_type = "application/pdf" if kind == "pdf" else "text/plain; charset=utf-8"
+        return FileResponse(
+            path,
+            media_type=media_type,
+            filename=filename,
+            content_disposition_type="inline",
+            headers={"X-Content-Type-Options": "nosniff"},
+        )
 
     def _runnable_view(project: Project) -> dict:
         """A fresh view of the project's inputs, validated for a full run."""
@@ -1273,6 +1331,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 service_tier=settings.service_tier,
                 reasoning_effort=settings.reasoning_effort,
                 max_output_tokens=settings.max_output_tokens,
+                openrouter_provider=settings.openrouter_provider,
+                openrouter_allow_fallbacks=settings.openrouter_allow_fallbacks,
                 only_pdfs=only_pdfs,
             )
         except RuntimeError as exc:
@@ -1374,7 +1434,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         path = project.output_dir / filename
         if not path.is_file():
             raise HTTPException(status_code=404, detail="No results yet.")
-        data = spreadsheet_csv((await run_in_threadpool(path.read_bytes)).decode("utf-8"))
+        # Read and convert off the event loop: a large project's CSV would otherwise
+        # stall other requests, including run-status polling.
+        data = await run_in_threadpool(lambda: spreadsheet_csv(path.read_bytes().decode("utf-8")))
         return _csv_attachment(data, f"{project.name}-{Path(filename).stem}-spreadsheet.csv")
 
     @app.get(f"/{token}/projects/{{project_id}}/download/provenance")

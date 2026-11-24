@@ -25,6 +25,9 @@
   {% if warning %}
   <div class="alert" data-variant="warning" role="status" style="margin-bottom:var(--sp-6)"><section>{{ warning }}</section></div>
   {% endif %}
+  {% if notice %}
+  <div class="alert" data-variant="info" role="status" style="margin-bottom:var(--sp-6)"><section>{{ notice }}</section></div>
+  {% endif %}
 
   <div id="unsaved-changes" class="alert hidden workflow-notice" data-variant="info" role="status">
     <section>You have unsaved changes. Save them in the edited section before running extraction.</section>
@@ -56,23 +59,23 @@
       {{ workflow_icon("coding-sheet") }}<span class="project-tab-copy"><span>Coding sheet</span>
       {% set sheet_issue_count = coding_sheet.sheet_issues | length %}
       {% if sheet_issue_count %}{{ sidebar_status('%s sheet issue%s' | format(sheet_issue_count, '' if sheet_issue_count == 1 else 's'), 'error') }}
-      {% elif coding_sheet.pdf_issues %}{{ sidebar_status('Needs PDF matching', 'warning') }}
+      {% elif coding_sheet.pdf_issues %}{{ sidebar_status('Needs source matching', 'warning') }}
       {% elif coding_sheet.rows %}{{ sidebar_status('%s row%s ready' | format(coding_sheet.rows | length, '' if coding_sheet.rows | length == 1 else 's'), 'success') }}
       {% else %}{{ sidebar_status('No rows yet') }}{% endif %}
       </span>
     </button>
     <button type="button" role="tab" data-tab-link="sources">
-      {{ workflow_icon("sources") }}<span class="project-tab-copy"><span>Source PDFs</span>
-      {% if uploaded_pdfs_count %}{{ sidebar_status('%s PDF%s uploaded' | format(uploaded_pdfs_count, '' if uploaded_pdfs_count == 1 else 's')) }}
-      {% else %}{{ sidebar_status('No PDFs yet') }}{% endif %}
+      {{ workflow_icon("sources") }}<span class="project-tab-copy"><span>Sources</span>
+      {% if uploaded_pdfs_count %}{{ sidebar_status('%s source%s uploaded' | format(uploaded_pdfs_count, '' if uploaded_pdfs_count == 1 else 's')) }}
+      {% else %}{{ sidebar_status('No sources yet') }}{% endif %}
       </span>
     </button>
     <button type="button" role="tab" data-tab-link="identify">
-      {{ workflow_icon("identify") }}<span class="project-tab-copy"><span>PDF matching</span>
+      {{ workflow_icon("identify") }}<span class="project-tab-copy"><span>Source matching</span>
       {% set pdf_attn = coding_sheet.pdf_issues | length + orphan_pdfs_count %}
-      {% if pdf_scanning %}{{ sidebar_status('Scanning PDFs', 'info') }}
+      {% if pdf_scanning %}{{ sidebar_status('Scanning sources', 'info') }}
       {% elif pdf_attn %}{{ sidebar_status('Needs review', 'warning') }}
-      {% elif matched_papers_count %}{{ sidebar_status('%s PDF%s matched' | format(matched_papers_count, '' if matched_papers_count == 1 else 's'), 'success') }}
+      {% elif matched_papers_count %}{{ sidebar_status('%s source%s matched' | format(matched_papers_count, '' if matched_papers_count == 1 else 's'), 'success') }}
       {% else %}{{ sidebar_status('No matches yet') }}{% endif %}
       </span>
     </button>
@@ -81,7 +84,7 @@
       {% if is_running %}{{ sidebar_status('Running', 'info') }}
       {% elif can_run %}{{ sidebar_status('Ready to run', 'success') }}
       {% elif not api_key_set %}{{ sidebar_status('Connection needed', 'warning') }}
-      {% elif matched_pdf_count and not pending_pdf_count %}{{ sidebar_status('All matched PDFs coded', 'success') }}
+      {% elif matched_pdf_count and not pending_pdf_count %}{{ sidebar_status('All matched sources coded', 'success') }}
       {% else %}{{ sidebar_status('Setup needed', 'warning') }}{% endif %}
       </span>
     </button>
@@ -396,7 +399,7 @@
       <details class="disclosure" open><summary>CSV format and template</summary><div class="disclosure-body stack-sm">
       <ul class="u-sm u-muted" style="margin:0; padding-left:1.2rem">
         <li><code>row_id</code> — effect ID: a short, unique identifier you invent for this row.</li>
-        <li><code>source_pdf</code> — which uploaded PDF this effect comes from (exact filename).</li>
+        <li><code>source_pdf</code> — which uploaded source (PDF or XML file) this effect comes from (exact filename).</li>
         <li><code>locator</code> — effect location, e.g. "Table 2, Experiment 1, DV: accuracy".</li>
         <li><code>authors</code> — paper identification.</li>
         <li><code>year</code> — paper identification.</li>
@@ -466,7 +469,7 @@
               <textarea id="sheet-draft-csv" name="csv_text" class="textarea u-mono" rows="10" required spellcheck="false"></textarea>
               <p class="u-xs u-muted">The table above shows the generated draft. Edits here are saved; keep the column headers unchanged.</p>
             </div>
-            <p class="u-xs u-muted">Saving replaces the current coding sheet and clears existing extraction results if the sheet changes. Unmatched PDFs can be identified afterward.</p>
+            <p class="u-xs u-muted">Saving replaces the current coding sheet and clears existing extraction results if the sheet changes. Unmatched sources can be identified afterward.</p>
             <div class="cluster">
               <button type="submit" class="btn" data-size="sm" {% if is_running %}disabled{% endif %}>Save converted sheet</button>
               <button type="button" id="sheet-draft-discard" class="btn" data-variant="outline" data-size="sm">Discard draft</button>
@@ -491,8 +494,8 @@
 
       {% if coding_sheet.pdf_issues %}
       <div class="alert" data-variant="warning">
-        <section>{{ coding_sheet.pdf_issues | length }} row(s) still need a matching PDF — see the
-          <a href="#" data-tab-jump="identify">PDF matching</a> tab.</section>
+        <section>{{ coding_sheet.pdf_issues | length }} row(s) still need a matching source — see the
+          <a href="#" data-tab-jump="identify">Source matching</a> tab.</section>
       </div>
       {% endif %}
 
@@ -521,11 +524,11 @@
     </div>
   </section>
 
-  <!-- PDF uploads -->
+  <!-- Source uploads -->
   <section class="tab-panel hidden" data-tab-panel="sources">
     <div class="section-head">
-      <a class="btn docs-help-link" data-variant="ghost" data-size="sm" href="/{{ token }}/docs/sources/" target="_blank" rel="noopener">Source PDF guide ↗<span class="u-visually-hidden"> (opens in a new tab)</span></a>
-      <div><h2>{{ workflow_icon("sources") }}Source PDFs</h2><p>Add the studies you want to code. You can upload several PDFs at once.</p></div>
+      <a class="btn docs-help-link" data-variant="ghost" data-size="sm" href="/{{ token }}/docs/sources/" target="_blank" rel="noopener">Sources guide ↗<span class="u-visually-hidden"> (opens in a new tab)</span></a>
+      <div><h2>{{ workflow_icon("sources") }}Sources</h2><p>Add the studies you want to code, as PDF or XML (JATS) files. You can upload several at once.</p></div>
       <span class="badge" data-variant="outline">{{ uploaded_pdfs_count }} uploaded</span>
     </div>
 
@@ -533,10 +536,10 @@
       <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/uploads" enctype="multipart/form-data">
         <div class="dropzone js-upload" data-dropzone>
           <label for="sources-files">
-            <span>Drop PDF files here, or click to browse — uploads immediately</span>
+            <span>Drop PDF or XML files here, or click to browse — uploads immediately</span>
             <span data-dropzone-filename class="dropzone-filename"></span>
           </label>
-          <input class="u-visually-hidden" id="sources-files" name="files" type="file" accept=".pdf" multiple required>
+          <input class="u-visually-hidden" id="sources-files" name="files" type="file" accept="{{ source_accept }}" multiple required>
         </div>
       </form>
 
@@ -553,10 +556,13 @@
                 <td>{{ pdf.name }}</td>
                 <td class="u-mono u-sm">{{ (pdf.stat().st_size / 1024) | round(1) }} KB</td>
                 <td>
-                  <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/uploads/delete">
-                    <input type="hidden" name="filename" value="{{ pdf.name }}">
-                    <button type="submit" class="btn" data-variant="ghost" data-size="sm">Remove</button>
-                  </form>
+                  <div class="row-actions">
+                    <a class="btn" data-variant="outline" data-size="sm" href="/{{ token }}/projects/{{ project.project_id }}/sources/{{ pdf.name | urlencode }}" target="_blank" rel="noopener">Open<span class="u-visually-hidden"> {{ pdf.name }} (opens in a new tab)</span></a>
+                    <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/uploads/delete">
+                      <input type="hidden" name="filename" value="{{ pdf.name }}">
+                      <button type="submit" class="btn" data-variant="ghost" data-size="sm">Remove</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% endfor %}
@@ -564,21 +570,21 @@
           </table>
         </div>
       </div>
-      {{ pager(sources_page, sources_total_pages, uploaded_pdfs_count, 'PDF',
+      {{ pager(sources_page, sources_total_pages, uploaded_pdfs_count, 'source',
           page_url('sources', run_page, id_issues_page, id_matches_page, id_saved_page, id_orphans_page, sources_page - 1),
           page_url('sources', run_page, id_issues_page, id_matches_page, id_saved_page, id_orphans_page, sources_page + 1)) }}
       {% else %}
-      <div class="empty"><p class="empty-title">No source PDFs yet</p><p class="empty-text">Upload the articles referenced by your coding sheet. Filenames help match each study.</p></div>
+      <div class="empty"><p class="empty-title">No sources yet</p><p class="empty-text">Upload the articles referenced by your coding sheet. Filenames help match each study.</p></div>
       {% endif %}
     </div>
   </section>
 
-  <!-- PDF matching -->
+  <!-- Source matching -->
   <section class="tab-panel hidden" data-tab-panel="identify">
     <div class="section-head">
-      <a class="btn docs-help-link" data-variant="ghost" data-size="sm" href="/{{ token }}/docs/matching/" target="_blank" rel="noopener">PDF matching guide ↗<span class="u-visually-hidden"> (opens in a new tab)</span></a>
+      <a class="btn docs-help-link" data-variant="ghost" data-size="sm" href="/{{ token }}/docs/matching/" target="_blank" rel="noopener">Source matching guide ↗<span class="u-visually-hidden"> (opens in a new tab)</span></a>
       <div>
-        <h2>{{ workflow_icon("identify") }}PDF matching</h2>
+        <h2>{{ workflow_icon("identify") }}Source matching</h2>
         <p>
           Connect coding sheet rows to their source documents. Review suggested matches before applying them.
         </p>
@@ -593,7 +599,7 @@
              data-running="true">
           <div class="cluster-between u-sm" style="margin-bottom:var(--sp-1)">
             <span data-progress-summary aria-live="polite" aria-atomic="true">
-              Scanning uploaded PDFs for matches — {{ pdf_scan_state.processed if pdf_scan_state else 0 }} / {{ pdf_scan_state.total if pdf_scan_state else 0 }}
+              Scanning uploaded sources for matches — {{ pdf_scan_state.processed if pdf_scan_state else 0 }} / {{ pdf_scan_state.total if pdf_scan_state else 0 }}
             </span>
           </div>
           {% set scan_total = (pdf_scan_state.total if pdf_scan_state else 0) or 1 %}
@@ -607,12 +613,12 @@
       {% endif %}
 
       {% if not pdf_scanning and not pdf_issues_count and not pdf_match_suggestions_count and not matched_papers_count and not orphan_pdfs_count %}
-      <div class="empty"><p class="empty-title">No matches to review</p><p class="empty-text">Add your coding sheet and source PDFs to match studies here.</p></div>
+      <div class="empty"><p class="empty-title">No matches to review</p><p class="empty-text">Add your coding sheet and sources to match studies here.</p></div>
       {% elif not pdf_scanning %}
       <div id="identify-subtabs">
-        <div class="subtabbar" role="tablist" aria-label="PDF matching sections" style="margin-bottom:var(--sp-4)">
+        <div class="subtabbar" role="tablist" aria-label="Source matching sections" style="margin-bottom:var(--sp-4)">
           <button type="button" role="tab" data-subtab-link="needs-pdf">
-            Needs a PDF
+            Needs a source
             <span class="badge" data-variant="{{ 'destructive' if pdf_issues_count else 'outline' }}">{{ pdf_issues_count }}</span>
           </button>
           <button type="button" role="tab" data-subtab-link="suggestions">
@@ -624,7 +630,7 @@
             <span class="badge" data-variant="{{ 'success' if matched_papers_count else 'outline' }}">{{ matched_papers_count }}</span>
           </button>
           <button type="button" role="tab" data-subtab-link="orphans">
-            Orphaned PDFs
+            Orphaned sources
             <span class="badge" data-variant="{{ 'warning' if orphan_pdfs_count else 'outline' }}">{{ orphan_pdfs_count }}</span>
           </button>
         </div>
@@ -633,7 +639,7 @@
           {% if pdf_issues_count %}
           <div class="alert" data-variant="destructive">
             <section>
-              <strong>Coding sheet rows needing a PDF:</strong>
+              <strong>Coding sheet rows needing a source:</strong>
               <ul>
                 {% for issue in pdf_issues %}
                 <li>{% if issue.row_number %}Row {{ issue.row_number }}: {% endif %}{{ issue.message }}</li>
@@ -681,7 +687,7 @@
                           {% endfor %}
                         </select>
                         {% else %}
-                        <span class="u-sm u-muted">No uploaded PDF</span>
+                        <span class="u-sm u-muted">No uploaded source</span>
                         {% endif %}
                       </td>
                       <td>
@@ -713,7 +719,7 @@
           <div class="panel">
             <div class="table-container" tabindex="0" role="region" aria-label="Scrollable data table">
               <table class="table table-compact">
-                <thead><tr><th>Paper</th><th>PDF</th><th><span class="u-visually-hidden">Actions</span></th></tr></thead>
+                <thead><tr><th>Paper</th><th>Source</th><th><span class="u-visually-hidden">Actions</span></th></tr></thead>
                 <tbody>
                   {% for paper in matched_papers %}
                   <tr>
@@ -745,14 +751,14 @@
         <div class="hidden" data-subtab-panel="orphans">
           {% if orphan_pdfs_count %}
           <div class="alert" data-variant="warning">
-            <section>{{ orphan_pdfs_count }} uploaded PDF(s) have no coding sheet rows and will be
+            <section>{{ orphan_pdfs_count }} uploaded source(s) have no coding sheet rows and will be
               skipped: {{ orphan_pdfs | join(', ') }}</section>
           </div>
-          {{ pager(id_orphans_page, id_orphans_total_pages, orphan_pdfs_count, 'PDF',
+          {{ pager(id_orphans_page, id_orphans_total_pages, orphan_pdfs_count, 'source',
               page_url('identify', run_page, id_issues_page, id_matches_page, id_saved_page, id_orphans_page - 1, sources_page),
               page_url('identify', run_page, id_issues_page, id_matches_page, id_saved_page, id_orphans_page + 1, sources_page)) }}
           {% else %}
-          <p class="u-sm u-muted" style="margin:0">No orphaned PDFs — every uploaded file is used by at least one row.</p>
+          <p class="u-sm u-muted" style="margin:0">No orphaned sources — every uploaded file is used by at least one row.</p>
           {% endif %}
         </div>
       </div>
@@ -769,7 +775,7 @@
     {% if manual_error %}{% set _ = blockers.append("Fix the coding manual.") %}{% endif %}
     {% if manual and not manual.is_complete %}{% set _ = blockers.append("Fill in the effect definition in Define your analysis.") %}{% endif %}
     {% if coding_sheet.sheet_issues %}{% set _ = blockers.append("Fix the coding sheet issues.") %}{% endif %}
-    {% if not coding_sheet.sheet_issues and not coding_sheet.rows %}{% set _ = blockers.append("Match at least one coding-sheet row to an uploaded PDF.") %}{% endif %}
+    {% if not coding_sheet.sheet_issues and not coding_sheet.rows %}{% set _ = blockers.append("Match at least one coding-sheet row to an uploaded source.") %}{% endif %}
     {% if blockers and not is_running %}
     <div class="alert" data-variant="warning" style="margin-bottom:var(--sp-4)">
       <section>
@@ -815,7 +821,7 @@
                   {% endfor %}
                 </select>
                 <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">
-                  Gemini sends PDFs natively; OpenRouter supports PDF input. OpenAI-compatible endpoints use extracted PDF text and the base URL in Settings.
+                  Gemini sends PDFs natively; OpenRouter supports PDF input. OpenAI-compatible endpoints use extracted PDF text and the base URL in Settings. Every provider receives XML sources as text.
                 </p>
               </div>
               <div class="field">
@@ -877,6 +883,25 @@
                 </select>
               </div>
             </div>
+            <div class="grid-2" data-provider-setting="openrouter" {% if run_settings.provider != 'openrouter' %}hidden{% endif %}>
+              <div class="field">
+                <label for="run-openrouter-provider">Route to provider</label>
+                <select id="run-openrouter-provider" name="openrouter_provider" class="select"
+                        data-endpoints-url="/{{ token }}/api/openrouter/endpoints" {% if is_running %}disabled{% endif %}>
+                  <option value="">Automatic (OpenRouter chooses)</option>
+                  {% if run_settings.openrouter_provider %}<option value="{{ run_settings.openrouter_provider }}" selected>{{ run_settings.openrouter_provider }}</option>{% endif %}
+                </select>
+                <p id="run-openrouter-provider-status" class="u-xs u-muted" style="margin:var(--sp-1) 0 0" role="status">Providers that serve this model with structured output.</p>
+              </div>
+              <div class="field">
+                <label for="run-openrouter-fallbacks">Fallbacks</label>
+                <select id="run-openrouter-fallbacks" name="openrouter_fallbacks" class="select" {% if is_running %}disabled{% endif %}>
+                  <option value="allow" {% if run_settings.openrouter_allow_fallbacks %}selected{% endif %}>Allow other providers</option>
+                  <option value="deny" {% if not run_settings.openrouter_allow_fallbacks %}selected{% endif %}>Don't fall back</option>
+                </select>
+                <p id="run-openrouter-fallbacks-hint" class="u-xs u-muted" style="margin:var(--sp-1) 0 0"></p>
+              </div>
+            </div>
 
             </div></details>
             <div class="cluster" style="justify-content:flex-end">
@@ -888,13 +913,13 @@
         <div class="stack">
           <div>
             <h3 style="margin:0; font-size:var(--text-lg); font-weight:600">Run extraction</h3>
-            <p class="u-sm u-muted" style="margin:var(--sp-1) 0 0">Processes {{ pending_pdf_count }} matched PDF{{ 's' if pending_pdf_count != 1 else '' }} still needing coding. Unmatched rows are skipped; completed articles are not re-run.</p>
+            <p class="u-sm u-muted" style="margin:var(--sp-1) 0 0">Processes {{ pending_pdf_count }} matched source{{ 's' if pending_pdf_count != 1 else '' }} still needing coding. Unmatched rows are skipped; completed articles are not re-run.</p>
           </div>
 
           <div class="run-actions-row">
             <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/run">
               <button type="submit" class="btn" data-size="sm" data-requires-saved-manual {% if not can_run %}disabled{% endif %}>
-                {% if is_running %}<span class="spinner" aria-hidden="true" style="margin-right:var(--sp-1)"></span>Running…{% else %}Run matched PDFs{% endif %}
+                {% if is_running %}<span class="spinner" aria-hidden="true" style="margin-right:var(--sp-1)"></span>Running…{% else %}Run matched sources{% endif %}
               </button>
             </form>
             {% if is_running %}
@@ -914,7 +939,7 @@
                data-status-url="/{{ token }}/projects/{{ project.project_id }}/status"
                data-running="{{ 'true' if is_running else 'false' }}">
             <div class="cluster-between u-sm" style="margin-bottom:var(--sp-1)">
-              <span data-progress-summary aria-live="polite" aria-atomic="true">{{ run_state.processed }} / {{ run_state.total }} PDFs processed — {{ run_state.status }}</span>
+              <span data-progress-summary aria-live="polite" aria-atomic="true">{{ run_state.processed }} / {{ run_state.total }} sources processed — {{ run_state.status }}</span>
             </div>
             <div class="run-progress" data-progress-bar role="progressbar" aria-label="Processing progress" aria-valuemin="0"
                  aria-valuemax="{{ run_state.total or 1 }}" aria-valuenow="{{ run_state.processed }}">
@@ -947,19 +972,19 @@
       <p class="u-xs"><a href="/{{ token }}/docs/auditing/" target="_blank" rel="noopener">What is recorded and how to verify it ↗<span class="u-visually-hidden"> (opens in a new tab)</span></a></p>
     </div>
     {% if not has_results %}
-    <div class="panel empty"><p class="empty-title">Your results will appear here</p><p class="empty-text">Prepare your manual, coding sheet, and PDFs, then run extraction.</p><a class="btn" data-variant="outline" href="?tab=run" data-tab-jump="run">Go to Run</a></div>
+    <div class="panel empty"><p class="empty-title">Your results will appear here</p><p class="empty-text">Prepare your manual, coding sheet, and sources, then run extraction.</p><a class="btn" data-variant="outline" href="?tab=run" data-tab-jump="run">Go to Run</a></div>
     {% endif %}
     {% if result_files_available %}
     <div class="panel panel-pad stack" style="margin-bottom:var(--sp-4)">
       {% if stale_result_count %}
       <div class="alert" data-variant="warning"><section>
-        {{ stale_result_count }} result{{ 's are' if stale_result_count != 1 else ' is' }} outdated because the manual, coding sheet, PDF or model settings changed. These CSV files are from the last run; run extraction again to recode outdated PDFs and update them.
+        {{ stale_result_count }} result{{ 's are' if stale_result_count != 1 else ' is' }} outdated because the manual, coding sheet, source file or model settings changed. These CSV files are from the last run; run extraction again to recode outdated sources and update them.
       </section></div>
       {% endif %}
       <p class="u-sm u-muted">
         <code>evidence.csv</code> has the same shape as <code>coded_data.csv</code>, with each
-        cell replaced by the page/quote that supports it — verify a few rows against the source
-        PDF before trusting the coded values.
+        cell replaced by the page, section or quote that supports it — verify a few rows against the
+        source before trusting the coded values.
       </p>
       <div class="cluster">
         <a href="/{{ token }}/projects/{{ project.project_id }}/download/coded" class="btn" data-variant="outline" data-size="sm">
@@ -1030,6 +1055,7 @@
                 {% if pdf.missing_ids %} missing: {{ pdf.missing_ids | join(', ') }}{% endif %}
                 {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}
                 {% if pdf.kept_success %} The earlier successful result is still used.{% endif %}
+                {% if pdf.retry_error %} Last retry failed: {{ pdf.retry_error }}{% endif %}
                 {% if pdf.unverified %} Coded before MetaCoder recorded each result's inputs, so later changes to them can't be detected.{% endif %}
                 {% if pdf.low_confidence %} low-confidence cells: {{ pdf.low_confidence }}{% endif %}</span>
                 <div class="cluster" style="margin-top:var(--sp-1)">
@@ -1044,7 +1070,7 @@
                   {% if pdf.retryable and not is_running %}
                   <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/run/retry">
                     <input type="hidden" name="source_pdf" value="{{ pdf.source_pdf }}">
-                    <button type="submit" class="u-xs" style="color:var(--primary); background:none; border:0; cursor:pointer; padding:0" data-requires-saved-manual>retry this PDF</button>
+                    <button type="submit" class="u-xs" style="color:var(--primary); background:none; border:0; cursor:pointer; padding:0" data-requires-saved-manual>retry this source</button>
                   </form>
                   {% endif %}
                 </div>
@@ -1087,8 +1113,8 @@
       <div>
         <h3 style="margin:0 0 var(--sp-2); font-size:var(--text-sm); font-weight:600; color:var(--muted-foreground)">Generated data</h3>
         <p class="u-sm u-muted" style="margin:0 0 var(--sp-2)">
-          Deletes the raw model output, per-PDF audit files, and <code>coded_data.csv</code>/
-          <code>evidence.csv</code> — keeps the coding manual, coding sheet, uploaded PDFs, and persistent audit history.
+          Deletes the raw model output, per-source audit files, and <code>coded_data.csv</code>/
+          <code>evidence.csv</code> — keeps the coding manual, coding sheet, uploaded sources, and persistent audit history.
         </p>
         <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/clear-output"
               onsubmit="return confirm('Clear all generated data for this project? This cannot be undone.');">
@@ -1103,7 +1129,7 @@
 
       <div class="danger-section">
         <h3 style="margin:0 0 var(--sp-2); font-size:var(--text-sm); font-weight:600; color:var(--destructive)">Delete project</h3>
-        <p class="u-sm u-muted" style="margin-bottom:var(--sp-3)">Permanently remove this project, its source PDFs, all results, and audit history. Export the audit ZIP first if you need to retain it.</p>
+        <p class="u-sm u-muted" style="margin-bottom:var(--sp-3)">Permanently remove this project, its sources, all results, and audit history. Export the audit ZIP first if you need to retain it.</p>
         <form method="post" action="/{{ token }}/projects/{{ project.project_id }}/delete"
               onsubmit="return confirm('Delete this project and all its files? This cannot be undone.');">
           <button type="submit" class="btn" data-variant="destructive" data-size="sm" {% if is_running %}disabled{% endif %}>
