@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="A practical guide to coding studies with MetaCoder.">
-  <title>Source PDFs · MetaCoder Guide</title>
+  <title>Sources · MetaCoder Guide</title>
   <script src="../theme.js"></script>
   <link rel="stylesheet" href="../assets/vendor/basecoat.min.css">
   <link rel="stylesheet" href="../assets/app.css">
@@ -26,29 +26,40 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="./" aria-current="page"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="./" aria-current="page"><span class="docs-nav-number">07</span>Sources</a><a href="../matching/"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
     </aside>
     <main id="main" class="docs-article">
       <p class="docs-eyebrow">METACODER / USER GUIDE</p>
-      <h1 id="source-pdfs">Source PDFs<a class="headerlink" href="#source-pdfs" title="Permanent link">&para;</a></h1>
-<p>Upload the study reports that contain the effects listed in your coding sheet. Use recognizable filenames so you can match and review them later.</p>
-<p><a href="../assets/screenshots/sources.png"><img alt="Source PDFs with the upload control and a demonstration study" src="../assets/screenshots/sources.png" /></a></p>
+      <h1 id="sources">Sources<a class="headerlink" href="#sources" title="Permanent link">&para;</a></h1>
+<p>Upload the study reports that contain the effects listed in your coding sheet, as PDF files or as XML full text. Use recognizable filenames so you can match and review them later.</p>
+<p><a href="../assets/screenshots/sources.png"><img alt="Sources with the upload control and a demonstration study" src="../assets/screenshots/sources.png" /></a></p>
 <h2 id="add-studies">Add studies<a class="headerlink" href="#add-studies" title="Permanent link">&para;</a></h2>
-<p>Open <strong>Source PDFs</strong>, choose one or more PDF files, and upload them. The list shows the files stored in the project. A filename in the coding sheet must exactly match an uploaded filename.</p>
-<p>Next, open <a href="../matching/">PDF matching</a> to resolve missing matches. A PDF with no coding-sheet rows is not processed during extraction.</p>
+<p>Open <strong>Sources</strong>, choose one or more PDF or XML files, and upload them. A project can mix both. The list shows the files stored in the project. A filename in the coding sheet's <code>source_pdf</code> column must exactly match an uploaded filename, including <code>.pdf</code> or <code>.xml</code>; the column keeps its name whatever the format.</p>
+<p>If a new file has the same name as one already in the project but different contents, it is saved with a numbered suffix, such as <code>paper (2).pdf</code>, rather than replacing the original. A file whose contents are identical to a source already in the project is skipped, even under a different name, and so is a repeat of a file earlier in the same upload. A message on <strong>Sources</strong> lists the skipped files, for example: <code>Added 1 file. Skipped 2 already in this project: a.pdf, copy.pdf.</code></p>
+<p>Next, open <a href="../matching/">Source matching</a> to resolve missing matches. A source with no coding-sheet rows is not processed during extraction.</p>
+<h2 id="xml-jats-full-text">XML (JATS) full text<a class="headerlink" href="#xml-jats-full-text" title="Permanent link">&para;</a></h2>
+<p>Many publishers and PubMed Central provide articles as JATS XML. Using the XML avoids PDF parsing errors and keeps the article's structure.</p>
+<ul>
+<li><strong>Upload checks.</strong> An XML file must be UTF-8 text that starts with markup (<code>&lt;</code>). Empty, binary or differently encoded files are rejected with a message saying what to fix.</li>
+<li><strong>What the model receives.</strong> Every provider receives the XML file's contents as text, markup included, after the instructions. MetaCoder does not parse, shorten or convert it, and no file upload or PDF parser is involved. See <a href="../privacy/">Privacy</a> for where it goes.</li>
+<li><strong>Evidence locations.</strong> An XML article has no page numbers, so for XML sources the model is asked to cite the section heading path (for example <code>Results &gt; Study 2</code>) or a table's label, row and column instead, with a short quotation.</li>
+<li><strong>Matching.</strong> For JATS files, matching reads the article's title, author surnames, publication year and DOI from the front matter. A DOI in the coding sheet that equals the article's DOI is a certain match, even when the filename says nothing about the study. See <a href="../matching/">Source matching</a>.</li>
+<li><strong>Size.</strong> Markup takes tokens too, so an XML article usually costs more input tokens than the same article's text. A very long article can exceed a model's context window; the provider then reports an error for that source.</li>
+</ul>
+<p>Other publishers' XML formats can be uploaded too. They are sent to the model in the same way; matching then uses the opening text of the file instead of JATS front matter.</p>
 <h2 id="check-document-quality">Check document quality<a class="headerlink" href="#check-document-quality" title="Permanent link">&para;</a></h2>
-<p>For OpenAI-compatible extraction, MetaCoder extracts text on your computer and adds page numbers. Image-only scans and figures may not provide enough text. Use searchable PDFs, OCR the documents, or choose an appropriate provider with native PDF support.</p>
+<p>For OpenAI-compatible extraction, MetaCoder extracts a PDF's text on your computer and adds page numbers. Image-only scans and figures may not provide enough text. Use searchable PDFs, OCR the documents, use the article's XML, or choose an appropriate provider with native PDF support.</p>
 <h2 id="remove-a-source">Remove a source<a class="headerlink" href="#remove-a-source" title="Permanent link">&para;</a></h2>
-<p>Use the file's removal control only when it is no longer needed. Review affected coding-sheet rows afterward: removing a source can leave rows without a matching PDF. Keep a <a href="../projects/">project backup</a> before reorganizing a completed project.</p>
+<p>Use the file's removal control only when it is no longer needed. Review affected coding-sheet rows afterward: removing a source can leave rows without a matching source. Keep a <a href="../projects/">project backup</a> before reorganizing a completed project.</p>
       <nav class="docs-pagination" aria-label="Adjacent pages">
         <a href="../coding-sheet/"><small>Previous</small>Coding sheet ←</a>
-        <a href="../matching/"><small>Next</small>PDF matching →</a>
+        <a href="../matching/"><small>Next</small>Source matching →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#add-studies">Add studies</a><a href="#check-document-quality">Check document quality</a><a href="#remove-a-source">Remove a source</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#add-studies">Add studies</a><a href="#xml-jats-full-text">XML (JATS) full text</a><a href="#check-document-quality">Check document quality</a><a href="#remove-a-source">Remove a source</a></nav></aside>
   </div>
 </body>
 </html>

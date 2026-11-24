@@ -81,7 +81,7 @@ Your projects, settings, saved API keys and Pixi (the tool the installer uses to
 3. [Define your analysis](analysis.md): state exactly which comparison counts as an effect.
 4. [Build your coding manual](manual.md): define the fields and categories to extract.
 5. [Add a coding sheet](coding-sheet.md): identify each effect with a unique row ID and locator.
-6. [Upload source PDFs](sources.md), then [review PDF matches](matching.md).
+6. [Upload sources](sources.md) (PDF or XML), then [review source matches](matching.md).
 7. [Run extraction](run.md) with your selected provider and model.
 8. [Review results and export](results.md), checking coded values against their supporting evidence.
 9. [Validate the coding](validation.md) against human coding on a sample of studies.

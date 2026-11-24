@@ -10,9 +10,9 @@ MetaCoder codes moderators and other study characteristics for each effect row o
 ## What it does
 
 - Builds a coding manual in a structured editor, imports an existing `manual.yml`, or drafts one from a PDF, DOCX, RTF or Markdown document.
-- Takes a coding sheet with one row per effect, or converts a CSV in another layout with AI, and matches its rows to your study PDFs.
-- Codes every row for a PDF in one request to Gemini, OpenRouter or an OpenAI-compatible endpoint, and flags responses with mismatched row IDs or cut-short or repaired output for review instead of accepting them.
-- Exports `coded_data.csv` with a matching `evidence.csv` of supporting pages and quotes, readable per-PDF YAML, and an audit ZIP of every request and response.
+- Takes a coding sheet with one row per effect, or converts a CSV in another layout with AI, and matches its rows to your study PDFs or XML (JATS) full text.
+- Codes every row for a source in one request to Gemini, OpenRouter or an OpenAI-compatible endpoint, and flags responses with mismatched row IDs or cut-short or repaired output for review instead of accepting them.
+- Exports `coded_data.csv` with a matching `evidence.csv` of supporting pages and quotes, readable per-source YAML, and an audit ZIP of every request and response.
 - Keeps projects on your computer and API keys in your operating system's credential store.
 
 ## Install or update

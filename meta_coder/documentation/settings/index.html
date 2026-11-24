@@ -26,7 +26,7 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="./" aria-current="page"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="./" aria-current="page"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Sources</a><a href="../matching/"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
@@ -44,6 +44,7 @@
 <th>Provider</th>
 <th>Connection</th>
 <th>Study PDF handling</th>
+<th>XML source handling</th>
 </tr>
 </thead>
 <tbody>
@@ -51,25 +52,29 @@
 <td>Gemini</td>
 <td>Save a Gemini API key</td>
 <td>Native PDF input</td>
+<td>Sent as text</td>
 </tr>
 <tr>
 <td>OpenRouter</td>
 <td>Save an OpenRouter API key</td>
 <td>PDF input through the provider</td>
+<td>Sent as text, no PDF parser</td>
 </tr>
 <tr>
 <td>OpenAI-compatible</td>
 <td>Save the API base URL and a key if required</td>
 <td>Text extracted on your computer, with page numbers</td>
+<td>Sent as text</td>
 </tr>
 </tbody>
 </table>
 <p>If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. MetaCoder warns about this when you save such a model in a project's Run settings. Information shown only in figures or unusual table layouts may be lost.</p>
+<p>The parser can occasionally succeed yet return no text, or text for only a few pages. When it returns no text at all, or no text for more than half the pages of a multi-page PDF, MetaCoder sends the PDF once more and asks OpenRouter to use its <code>cloudflare-ai</code> parser instead. That parser has no per-page charge, but the model's tokens are charged again for the second request. If the second parse is still empty, the PDF is reported as an error rather than coded from nothing. If it is still mostly empty, the coded values are kept but marked for review with a reason such as "PDF parser returned no text for 11 of 12 pages". Both requests appear in the <a href="../auditing/">audit history</a>.</p>
 <h2 id="openai-compatible-endpoints">OpenAI-compatible endpoints<a class="headerlink" href="#openai-compatible-endpoints" title="Permanent link">&para;</a></h2>
 <p>Enter the endpoint's API base URL, for example <code>http://localhost:8000/v1</code> or <code>https://api.openai.com/v1</code>. Include the API prefix such as <code>/v1</code>, without <code>/chat/completions</code>, which MetaCoder appends. The endpoint is shared by all projects and by AI drafting. To use it for extraction, select <strong>OpenAI-compatible</strong> on a project's <a href="../run/">Run tab</a>, enter the exact model ID your endpoint serves, and save. AI drafting has its own provider and model under <strong>Drafting model</strong>. MetaCoder does not need the endpoint to list its models; the model ID is checked when a request runs.</p>
 <p>Save an API key under <strong>OpenAI-compatible</strong> if the server requires one; a local server can run without a key. The key is kept in the same credential store as the other providers' keys and read when an action needs it. When changing endpoints, replace or remove the old key too.</p>
 <p>Choose a JSON output mode supported by the endpoint: <strong>Strict JSON schema</strong> (the default), <strong>JSON object</strong>, or <strong>Prompt only</strong>. These correspond to the <a href="https://developers.openai.com/api/docs/guides/structured-outputs">Chat Completions structured-output modes</a>; <strong>Prompt only</strong> sends no <code>response_format</code>. MetaCoder checks the row IDs and fields of every response in every mode.</p>
-<p>This provider extracts each PDF's text on your computer and sends it with page numbers instead of attaching the PDF. Figures and scanned pages are not interpreted: run OCR first or use a provider with native PDF support. A PDF with no extractable text fails with an explicit error. Timeouts, cancellation, automatic retries of temporary errors, raw-response review and token-usage reporting work as they do for the other providers.</p>
+<p>This provider extracts each PDF's text on your computer and sends it with page numbers instead of attaching the PDF. Figures and scanned pages are not interpreted: run OCR first or use a provider with native PDF support. A PDF with no extractable text fails with an explicit error. XML sources are sent as they are, markup included. Timeouts, cancellation, automatic retries of temporary errors, raw-response review and token-usage reporting work as they do for the other providers.</p>
 <h2 id="choose-a-drafting-model">Choose a drafting model<a class="headerlink" href="#choose-a-drafting-model" title="Permanent link">&para;</a></h2>
 <p>Under <strong>Drafting model</strong>, select the provider and model for document-to-manual drafts and coding sheet conversion. Choose <strong>Save drafting preferences</strong>. This does not change a project's extraction provider or model.</p>
 <p>The maximum document upload size is configurable here, from 1 to 1,024 MB.</p>

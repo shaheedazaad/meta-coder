@@ -8,13 +8,15 @@ Open **Settings** in the app header to configure provider connections and the mo
 
 Expand a provider under **Provider configuration**, enter its API key, then save. Before choosing a provider, read [Privacy and data sharing](privacy.md): data use differs between providers and, for Gemini, between free and paid access. Get a Gemini key from [Google AI Studio](https://aistudio.google.com/app/apikey) or an OpenRouter key from [openrouter.ai](https://openrouter.ai/settings/keys). Keys are stored in your computer's operating system credential store (macOS Keychain, Windows Credential Locker or Linux Secret Service). After restarting the app, access is requested when an action needs the key, rather than on launch. There is no separate unlock step and no fallback that saves keys in a plain file.
 
-| Provider | Connection | Study PDF handling |
-| --- | --- | --- |
-| Gemini | Save a Gemini API key | Native PDF input |
-| OpenRouter | Save an OpenRouter API key | PDF input through the provider |
-| OpenAI-compatible | Save the API base URL and a key if required | Text extracted on your computer, with page numbers |
+| Provider | Connection | Study PDF handling | XML source handling |
+| --- | --- | --- | --- |
+| Gemini | Save a Gemini API key | Native PDF input | Sent as text |
+| OpenRouter | Save an OpenRouter API key | PDF input through the provider | Sent as text, no PDF parser |
+| OpenAI-compatible | Save the API base URL and a key if required | Text extracted on your computer, with page numbers | Sent as text |
 
 If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. MetaCoder warns about this when you save such a model in a project's Run settings. Information shown only in figures or unusual table layouts may be lost.
+
+The parser can occasionally succeed yet return no text, or text for only a few pages. When it returns no text at all, or no text for more than half the pages of a multi-page PDF, MetaCoder sends the PDF once more and asks OpenRouter to use its `cloudflare-ai` parser instead. That parser has no per-page charge, but the model's tokens are charged again for the second request. If the second parse is still empty, the PDF is reported as an error rather than coded from nothing. If it is still mostly empty, the coded values are kept but marked for review with a reason such as "PDF parser returned no text for 11 of 12 pages". Both requests appear in the [audit history](auditing.md).
 
 ## OpenAI-compatible endpoints
 
@@ -24,7 +26,7 @@ Save an API key under **OpenAI-compatible** if the server requires one; a local 
 
 Choose a JSON output mode supported by the endpoint: **Strict JSON schema** (the default), **JSON object**, or **Prompt only**. These correspond to the [Chat Completions structured-output modes](https://developers.openai.com/api/docs/guides/structured-outputs); **Prompt only** sends no `response_format`. MetaCoder checks the row IDs and fields of every response in every mode.
 
-This provider extracts each PDF's text on your computer and sends it with page numbers instead of attaching the PDF. Figures and scanned pages are not interpreted: run OCR first or use a provider with native PDF support. A PDF with no extractable text fails with an explicit error. Timeouts, cancellation, automatic retries of temporary errors, raw-response review and token-usage reporting work as they do for the other providers.
+This provider extracts each PDF's text on your computer and sends it with page numbers instead of attaching the PDF. Figures and scanned pages are not interpreted: run OCR first or use a provider with native PDF support. A PDF with no extractable text fails with an explicit error. XML sources are sent as they are, markup included. Timeouts, cancellation, automatic retries of temporary errors, raw-response review and token-usage reporting work as they do for the other providers.
 
 ## Choose a drafting model
 
