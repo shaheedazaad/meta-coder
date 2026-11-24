@@ -8,6 +8,8 @@ Upload the study reports that contain the effects listed in your coding sheet, a
 
 Open **Sources**, choose one or more PDF or XML files, and upload them. A project can mix both. The list shows the files stored in the project. A filename in the coding sheet's `source_pdf` column must exactly match an uploaded filename, including `.pdf` or `.xml`; the column keeps its name whatever the format.
 
+If a new file has the same name as one already in the project but different contents, it is saved with a numbered suffix, such as `paper (2).pdf`, rather than replacing the original. A file whose contents are identical to a source already in the project is skipped, even under a different name, and so is a repeat of a file earlier in the same upload. A message on **Sources** lists the skipped files, for example: `Added 1 file. Skipped 2 already in this project: a.pdf, copy.pdf.`
+
 Next, open [Source matching](matching.md) to resolve missing matches. A source with no coding-sheet rows is not processed during extraction.
 
 ## XML (JATS) full text

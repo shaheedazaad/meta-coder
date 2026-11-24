@@ -25,6 +25,9 @@
   {% if warning %}
   <div class="alert" data-variant="warning" role="status" style="margin-bottom:var(--sp-6)"><section>{{ warning }}</section></div>
   {% endif %}
+  {% if notice %}
+  <div class="alert" data-variant="info" role="status" style="margin-bottom:var(--sp-6)"><section>{{ notice }}</section></div>
+  {% endif %}
 
   <div id="unsaved-changes" class="alert hidden workflow-notice" data-variant="info" role="status">
     <section>You have unsaved changes. Save them in the edited section before running extraction.</section>

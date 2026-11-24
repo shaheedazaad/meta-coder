@@ -78,9 +78,8 @@ from .runner import (
 )
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
 from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, save_run_settings
-from .uploads import ProjectError as UploadProjectError  # re-export alias, same type
 from .sources import SOURCE_ACCEPT, source_format
-from .uploads import list_uploaded_sources, save_source_upload
+from .uploads import list_uploaded_sources, save_source_uploads, upload_summary
 import yaml
 
 
@@ -793,6 +792,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         project_id: str,
         error: str | None = None,
         warning: str | None = None,
+        notice: str | None = None,
         tab: str | None = None,
         run_sort: str | None = None,
         run_dir: str | None = None,
@@ -813,6 +813,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             "token": token,
             "error": error,
             "warning": warning,
+            "notice": notice,
             "force_tab": tab or ("sources" if error else None),
             **_project_view(
                 runtime,
@@ -1157,27 +1158,20 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     async def upload_pdfs(project_id: str, files: list[UploadFile] = File(...)):
         project = runtime.project(project_id)
         app_settings = load_app_settings()
-        errors = []
-        saved: list[Path] = []
-        for upload in files:
-            try:
-                saved.append(
-                    save_source_upload(
-                        project.sources_dir,
-                        upload.filename or "",
-                        upload.file,
-                        max_bytes=app_settings.upload_size_cap_bytes,
-                    )
-                )
-            except UploadProjectError as exc:
-                errors.append(str(exc))
-        if saved:
-            runtime.pdf_scanner.scan_async(project, saved, grobid_url=app_settings.grobid_url)
-        if errors:
-            return RedirectResponse(
-                f"/{token}/projects/{project_id}?error={quote('; '.join(errors))}", status_code=303
-            )
-        return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
+        result = save_source_uploads(
+            project.sources_dir,
+            [(upload.filename or "", upload.file) for upload in files],
+            max_bytes=app_settings.upload_size_cap_bytes,
+        )
+        if result.saved:
+            runtime.pdf_scanner.scan_async(project, result.saved, grobid_url=app_settings.grobid_url)
+        params = []
+        if result.errors:
+            params.append(f"error={quote('; '.join(result.errors))}")
+        if result.skipped:
+            params.append(f"tab=sources&notice={quote(upload_summary(result))}")
+        query = f"?{'&'.join(params)}" if params else ""
+        return RedirectResponse(f"/{token}/projects/{project_id}{query}", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/uploads/delete")
     async def delete_pdf(project_id: str, filename: str = Form(...)):
