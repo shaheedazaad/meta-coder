@@ -42,13 +42,20 @@ def safe_source_name(filename: str) -> str:
     cleaned = SAFE_NAME_RE.sub("_", unicodedata.normalize("NFC", basename)).strip(" .")
     if not cleaned or cleaned in {".", ".."}:
         raise ProjectError("A PDF or XML filename is required.")
-    if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
-        cleaned = "_" + cleaned
     if len(cleaned.encode("utf-8")) > 180:
-        stem = Path(cleaned).stem
+        full_stem = Path(cleaned).stem
+        stem = full_stem
         while len(stem.encode("utf-8")) > 160:
             stem = stem[:-1]
-        cleaned = stem + Path(cleaned).suffix
+        # Do not separate a base letter from the marks (categories Mn, Mc, Me)
+        # that follow it; drop the whole combining sequence instead.
+        kept = stem
+        while kept and len(kept) < len(full_stem) and unicodedata.category(full_stem[len(kept)]).startswith("M"):
+            kept = kept[:-1]
+        cleaned = (kept or stem) + Path(cleaned).suffix
+    # After shortening: dropping a combining sequence can leave a device name.
+    if WINDOWS_DEVICE_RE.fullmatch(cleaned.split(".", 1)[0].rstrip(" ")):
+        cleaned = "_" + cleaned
     if source_format(cleaned) is None:
         raise ProjectError(f"{basename or 'File'} is not a PDF or XML file.")
     return cleaned

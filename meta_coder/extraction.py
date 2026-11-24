@@ -181,3 +181,7 @@ class ExtractionResult:
     # Model the provider reports as having served the response; may differ from
     # the requested model when the provider routes an alias or deprecated ID.
     served_model: str | None = None
+    # Set on a kept needs-review result when a later retry of it failed or
+    # was cancelled; a result that replaces it starts without them.
+    retry_error: str | None = None
+    retry_failed_at: str | None = None

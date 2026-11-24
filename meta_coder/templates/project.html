@@ -1020,6 +1020,7 @@
                 {% if pdf.missing_ids %} missing: {{ pdf.missing_ids | join(', ') }}{% endif %}
                 {% if pdf.extra_ids %} unexpected: {{ pdf.extra_ids | join(', ') }}{% endif %}
                 {% if pdf.kept_success %} The earlier successful result is still used.{% endif %}
+                {% if pdf.retry_error %} Last retry failed: {{ pdf.retry_error }}{% endif %}
                 {% if pdf.unverified %} Coded before MetaCoder recorded each result's inputs, so later changes to them can't be detected.{% endif %}
                 {% if pdf.low_confidence %} low-confidence cells: {{ pdf.low_confidence }}{% endif %}</span>
                 <div class="cluster" style="margin-top:var(--sp-1)">

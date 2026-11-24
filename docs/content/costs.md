@@ -15,7 +15,7 @@ Providers charge per token, a unit of text roughly the size of a short word. Inp
 - **Retries and re-runs.** Requests to every provider are retried automatically, up to three attempts, after temporary errors such as rate limits or server overload; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.
 - **Drafting.** AI manual drafting and coding sheet conversion are separate, usually small, requests.
 
-OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs).
+OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs). Its default parser, Mistral OCR, is charged per page. If that conversion comes back blank or mostly blank, MetaCoder sends the PDF once more with OpenRouter's free `cloudflare-ai` parser, so the model's tokens are charged twice for that PDF (see [Settings](settings.md)). The token counts shown in **Results** include both requests.
 
 ## Estimate before a full run
 
