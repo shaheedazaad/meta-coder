@@ -46,6 +46,11 @@
 <pre><code class="language-powershell">irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/install.ps1 | iex
 </code></pre>
 <p>Wait for the installation to finish and follow any instructions it displays.</p>
+<p>To install a particular version rather than the latest, set <code>META_CODER_VERSION</code> to a release number such as <code>0.1.0</code> when you run the installer:</p>
+<pre><code class="language-bash">curl -fsSL https://github.com/shaheedazaad/meta-coder/releases/latest/download/install.sh | META_CODER_VERSION=0.1.0 bash
+</code></pre>
+<pre><code class="language-powershell">$env:META_CODER_VERSION = &quot;0.1.0&quot;; irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/install.ps1 | iex
+</code></pre>
 <h2 id="open-metacoder">Open MetaCoder<a class="headerlink" href="#open-metacoder" title="Permanent link">&para;</a></h2>
 <p>Open a new Terminal or PowerShell window, type the following, and press <strong>Enter</strong>:</p>
 <pre><code class="language-text">meta-coder
@@ -55,7 +60,17 @@
 <p>Use <strong>Documentation</strong> in the app header to open this guide. Each project section also links to the relevant page. The guide is included with the app on your computer, so you can read it without an internet connection.</p>
 <h2 id="update-metacoder">Update MetaCoder<a class="headerlink" href="#update-metacoder" title="Permanent link">&para;</a></h2>
 <p>When an update is available, MetaCoder displays a notification. Stop the app, repeat the installation command above for your operating system, and open MetaCoder again. Your projects, preferences, and saved API keys are kept. Export a project ZIP first if you want a backup.</p>
-<p>MetaCoder checks for updates when you open a page, at most once every six hours. Checking for updates does not send your research documents or API keys. If you are offline, you can continue working with the installed version; AI requests still need a connection to your chosen provider.</p>
+<p>MetaCoder checks GitHub for a newer stable release when you open a page, at most once every six hours, and shows an available update as an informational banner. The check reads public release information without a GitHub login and does not send your project data, research documents or API keys. If you are offline, the check fails silently and you can continue working with the installed version; AI requests still need a connection to your chosen provider.</p>
+<h2 id="uninstall-metacoder">Uninstall MetaCoder<a class="headerlink" href="#uninstall-metacoder" title="Permanent link">&para;</a></h2>
+<p>Stop MetaCoder, then run the uninstaller for your operating system.</p>
+<p><strong>macOS / Linux</strong> — in <strong>Terminal</strong>:</p>
+<pre><code class="language-bash">curl -fsSL https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.sh | bash
+</code></pre>
+<p><strong>Windows</strong> — in <strong>PowerShell</strong>:</p>
+<pre><code class="language-powershell">irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.ps1 | iex
+</code></pre>
+<p>The uninstaller removes every installed version of MetaCoder and the <code>meta-coder</code> command the installer created. A <code>meta-coder</code> command from another installation is left alone. On Windows it also removes the PATH entry the installer added. Running it again after uninstalling is safe.</p>
+<p>Your projects, settings, saved API keys and Pixi (the tool the installer uses to manage Python) are kept. If you set <code>META_CODER_HOME</code> to store your data elsewhere, that folder is left untouched. On Linux, run the uninstaller with the same <code>XDG_DATA_HOME</code> value you used when installing. See <a href="projects/#data-locations">Data locations</a> if you also want to delete your projects.</p>
 <h2 id="your-first-project">Your first project<a class="headerlink" href="#your-first-project" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Enter a name on <strong>Projects</strong> and choose <strong>Create project</strong>.</li>
@@ -79,7 +94,7 @@
         <a href="settings/"><small>Next</small>Connections and settings →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#install-or-update">Install or update</a><a href="#open-metacoder">Open MetaCoder</a><a href="#update-metacoder">Update MetaCoder</a><a href="#your-first-project">Your first project</a><a href="#where-your-work-lives">Where your work lives</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#install-or-update">Install or update</a><a href="#open-metacoder">Open MetaCoder</a><a href="#update-metacoder">Update MetaCoder</a><a href="#uninstall-metacoder">Uninstall MetaCoder</a><a href="#your-first-project">Your first project</a><a href="#where-your-work-lives">Where your work lives</a></nav></aside>
   </div>
 </body>
 </html>
