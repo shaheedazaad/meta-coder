@@ -47,7 +47,7 @@
 <li><strong>Retries and re-runs.</strong> Requests to every provider are retried automatically, up to three attempts, after temporary errors such as rate limits or server overload; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.</li>
 <li><strong>Drafting.</strong> AI manual drafting and coding sheet conversion are separate, usually small, requests.</li>
 </ul>
-<p>OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a>.</p>
+<p>OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its <a href="https://openrouter.ai/docs/guides/overview/multimodal/pdfs">PDF documentation</a>. Its default parser, Mistral OCR, is charged per page. If that conversion comes back blank or mostly blank, MetaCoder sends the PDF once more with OpenRouter's free <code>cloudflare-ai</code> parser, so the model's tokens are charged twice for that PDF (see <a href="../settings/">Settings</a>). The token counts shown in <strong>Results</strong> include both requests.</p>
 <h2 id="estimate-before-a-full-run">Estimate before a full run<a class="headerlink" href="#estimate-before-a-full-run" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Upload only three to five typical PDFs at first, including a long one, and run extraction. A run processes only matched PDFs, so the remaining coding-sheet rows are skipped for now. Upload the other PDFs later; the next run codes only studies that still need coding.</li>
