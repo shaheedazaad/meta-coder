@@ -510,7 +510,7 @@ def test_results_table_shows_a_kept_needs_review_result_with_its_failed_retry(si
     row = paper_row()
     assert 'needs review' in row and 'Response was cut short' in row and 'Last retry failed: HTTP 503' in row
     assert raw_json_path(project, 'paper.pdf').name in row and '.attempt.json' not in row  # the result to review
-    assert 'retry this PDF' in row
+    assert 'retry this source' in row
     # The finished run's progress reports the kept result the same way.
     runtime.runner._states[project.project_id] = RunState(status='complete', pdfs=[PdfProgress(
         'paper.pdf', status='needs_review', error='Response was cut short', retry_error='HTTP 503')])
