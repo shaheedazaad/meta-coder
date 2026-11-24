@@ -212,6 +212,77 @@ def load_latest_attempts(project: Project) -> dict[str, ExtractionResult]:
     return results
 
 
+def write_collated_outputs(
+    project: Project, manual: CodingManual, coding_sheet: CodingSheet, results_by_pdf: dict[str, ExtractionResult]
+) -> list[str]:
+    """Write coded_data.csv, evidence.csv and, when the manual asks for
+    ratings, confidence.csv from `results_by_pdf`. Returns the names written."""
+
+    coded_rows, evidence_rows = collate_results(manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf)
+    atomic_write(project.output_dir / "coded_data.csv", rows_to_csv(coded_rows, manual).encode("utf-8"))
+    atomic_write(project.output_dir / "evidence.csv", rows_to_csv(evidence_rows, manual).encode("utf-8"))
+    output_names = ["coded_data.csv", "evidence.csv"]
+    confidence_csv = project.output_dir / CONFIDENCE_CSV
+    if manual.confidence:
+        confidence_rows = collate_field_key(
+            "confidence", manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf
+        )
+        atomic_write(confidence_csv, rows_to_csv(confidence_rows, manual).encode("utf-8"))
+        output_names.append(CONFIDENCE_CSV)
+    else:
+        # Ratings from an earlier manual would no longer match coded_data.csv.
+        confidence_csv.unlink(missing_ok=True)
+    return output_names
+
+
+def _pdf_output_files(project: Project, source_pdf: str) -> list[Path]:
+    """Every saved output file of one PDF: its selected result, latest attempt
+    and audit YAML. A legacy lossy-stem result counts only when it records
+    this PDF, since another PDF's name can map to the same stem."""
+
+    files = [raw_json_path(project, source_pdf), attempt_json_path(project, source_pdf), audit_yaml_path(project, source_pdf)]
+    legacy = project.raw_dir / f"{_safe_stem(source_pdf)}.json"
+    result = _result_from_raw_json(legacy)
+    if result is not None and result.source_pdf == source_pdf:
+        files.append(legacy)
+    return [path for path in files if path.is_file()]
+
+
+def delete_pdf_outputs(
+    project: Project, source_pdfs: list[str], *, manual: CodingManual, coding_sheet: CodingSheet, checker: InputChecker
+) -> list[str]:
+    """Delete the saved output of each named PDF, so it is coded again by the
+    next run, and re-collate the result CSVs from the PDFs that remain.
+
+    The deleted files and the re-collated CSVs are kept in a `delete_output`
+    audit operation. Returns the PDFs that had output to delete; with none,
+    nothing is changed or recorded."""
+
+    files_by_pdf = {name: _pdf_output_files(project, name) for name in source_pdfs}
+    deleted = [name for name, files in files_by_pdf.items() if files]
+    if not deleted:
+        return []
+    audit = AuditOperation(project, "delete_output", {"source_pdfs": deleted})
+    try:
+        for name in deleted:
+            for path in files_by_pdf[name]:
+                audit.input("deleted/" + path.relative_to(project.path).as_posix(), path.read_bytes())
+                path.unlink()
+        results = checker.check(load_persisted_results(project))
+        if results:
+            for name in write_collated_outputs(project, manual, coding_sheet, results):
+                audit.input(name, (project.output_dir / name).read_bytes())
+        else:
+            # Nothing is left to collate: no result files, as before a first run.
+            for name in ("coded_data.csv", "evidence.csv", CONFIDENCE_CSV):
+                (project.output_dir / name).unlink(missing_ok=True)
+    except Exception as exc:
+        audit.finish(error=exc)
+        raise
+    audit.finish(result={"deleted": deleted}, status="complete")
+    return deleted
+
+
 class _RequestPacer:
     """Enforces a minimum interval between request *starts*, shared across every
     worker thread — not a per-worker delay, a global one."""
@@ -556,22 +627,7 @@ class Runner:
                     future.result()  # process_one never raises; this only ever
                     # surfaces a genuine framework-level bug, not a per-PDF failure
 
-            coded_rows, evidence_rows = collate_results(
-                manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf
-            )
-            atomic_write(project.output_dir / "coded_data.csv", rows_to_csv(coded_rows, manual).encode("utf-8"))
-            atomic_write(project.output_dir / "evidence.csv", rows_to_csv(evidence_rows, manual).encode("utf-8"))
-            output_names = ["coded_data.csv", "evidence.csv"]
-            confidence_csv = project.output_dir / CONFIDENCE_CSV
-            if manual.confidence:
-                confidence_rows = collate_field_key(
-                    "confidence", manual=manual, coding_sheet=coding_sheet, results_by_pdf=results_by_pdf
-                )
-                atomic_write(confidence_csv, rows_to_csv(confidence_rows, manual).encode("utf-8"))
-                output_names.append(CONFIDENCE_CSV)
-            else:
-                # Ratings from an earlier manual would no longer match coded_data.csv.
-                confidence_csv.unlink(missing_ok=True)
+            output_names = write_collated_outputs(project, manual, coding_sheet, results_by_pdf)
             if state.audit_run:
                 for name in output_names:
                     state.audit_run.input(name, (project.output_dir / name).read_bytes())

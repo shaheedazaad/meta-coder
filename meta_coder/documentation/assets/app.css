@@ -314,6 +314,22 @@
     border-top: 1px solid var(--border);
   }
 
+  /* Results tab: status filter and the bulk actions for selected PDFs. */
+  .results-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    border-bottom: 1px solid var(--border);
+  }
+  .results-toolbar .select { width: auto; }
+  .results-toolbar-note { margin: 0; padding: var(--sp-2) var(--sp-4); border-bottom: 1px solid var(--border); }
+  .selection-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+  .selection-bar[hidden] { display: none; }
+  .select-cell { width: 1%; padding-inline-end: 0; }
+
   /* Project navigation uses app.js rather than Basecoat's tabs component. */
   .project-layout {
     display: grid;
