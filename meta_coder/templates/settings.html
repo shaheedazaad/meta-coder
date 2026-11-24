@@ -1,13 +1,140 @@
 {% extends "base.html" %}
 {% from "_icons.html" import workflow_icon %}
 {% block title %}Settings · MetaCoder{% endblock %}
+
+{% macro extractor_fields(prefix, e, editing) %}
+  <div class="grid-2">
+    <div class="field">
+      <label for="{{ prefix }}-name">Name</label>
+      <input type="text" id="{{ prefix }}-name" name="name" value="{{ e.name }}" maxlength="60" class="input" required
+             placeholder="For example: Gemini lab key">
+    </div>
+    <div class="field">
+      <label for="{{ prefix }}-provider">Provider</label>
+      {% if editing %}
+      <input type="hidden" name="provider" value="{{ e.provider }}">
+      <input type="text" id="{{ prefix }}-provider" value="{{ provider_labels.get(e.provider, e.provider) }}" class="input" disabled>
+      {% else %}
+      <select id="{{ prefix }}-provider" name="provider" class="select js-extractor-provider">
+        {% for provider in providers %}
+        <option value="{{ provider }}" {% if e.provider == provider %}selected{% endif %}>{{ provider_labels.get(provider, provider) }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="field">
+      <label for="{{ prefix }}-model">Model</label>
+      <input type="text" id="{{ prefix }}-model" name="model" value="{{ e.model }}" list="{{ prefix }}-models"
+             class="input u-mono js-extractor-model" required autocomplete="off">
+      <datalist id="{{ prefix }}-models"></datalist>
+      <div class="cluster" style="gap:var(--sp-2)">
+        <button type="button" class="btn js-load-models" data-variant="outline" data-size="sm"
+                data-models-url="/{{ token }}/api/models" {% if editing %}data-extractor-id="{{ e.id }}"{% endif %}>Show available models</button>
+        <span class="u-xs u-muted" data-models-status role="status" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="{{ prefix }}-api-key">{{ 'Replace API key' if editing else 'API key' }}<span data-provider-setting="openai_compatible" {% if e.provider != 'openai_compatible' %}hidden{% endif %}> (if your server requires one)</span></label>
+      <input type="password" id="{{ prefix }}-api-key" name="api_key" autocomplete="off" class="input"
+             placeholder="{{ 'Saved — leave blank to keep it' if editing and e.has_saved_key else 'Paste the API key' }}"
+             {% if not keyring_available %}disabled{% endif %}>
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">
+        <span data-provider-setting="gemini" {% if e.provider != 'gemini' %}hidden{% endif %}>Get a key at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--primary)">Google AI Studio</a>.</span>
+        <span data-provider-setting="openrouter" {% if e.provider != 'openrouter' %}hidden{% endif %}>Get a key at <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener" style="color:var(--primary)">openrouter.ai</a>.</span>
+        Saved in your computer's credential store, never in a file.
+      </p>
+    </div>
+  </div>
+  <div class="grid-2" data-provider-setting="openai_compatible" {% if e.provider != 'openai_compatible' %}hidden{% endif %}>
+    <div class="field">
+      <label for="{{ prefix }}-base-url">API base URL</label>
+      <input type="url" id="{{ prefix }}-base-url" name="base_url" value="{{ e.base_url }}"
+             placeholder="http://localhost:8000/v1" class="input u-mono js-extractor-base-url">
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">Include the API prefix (such as /v1), without /chat/completions.</p>
+    </div>
+    <div class="field">
+      <label for="{{ prefix }}-response-format">JSON output mode</label>
+      <select id="{{ prefix }}-response-format" name="response_format" class="select">
+        {% for value, label in response_format_labels.items() %}
+        <option value="{{ value }}" {% if e.response_format == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">Use a mode your endpoint supports. PDF text is extracted on your computer and sent with page numbers. XML sources are sent as they are.</p>
+    </div>
+  </div>
+  <details class="disclosure"><summary>Request settings</summary><div class="disclosure-body stack">
+    <div class="grid-3">
+      <div class="field">
+        <label for="{{ prefix }}-parallel">Parallel requests</label>
+        <input type="number" id="{{ prefix }}-parallel" name="parallel_requests" value="{{ e.parallel_requests }}" min="1" max="32" class="input">
+      </div>
+      <div class="field">
+        <label for="{{ prefix }}-delay">Request delay (s)</label>
+        <input type="number" id="{{ prefix }}-delay" name="request_delay_sec" value="{{ e.request_delay_sec }}" min="0" max="3600" class="input">
+      </div>
+      <div class="field">
+        <label for="{{ prefix }}-timeout">Request timeout (s)</label>
+        <input type="number" id="{{ prefix }}-timeout" name="request_timeout_sec" value="{{ e.request_timeout_sec }}" min="30" max="3600" class="input">
+      </div>
+    </div>
+    <div class="field field-max" data-provider-setting="gemini" {% if e.provider != 'gemini' %}hidden{% endif %}>
+      <label for="{{ prefix }}-service-tier">Service tier</label>
+      <select id="{{ prefix }}-service-tier" name="service_tier" class="select">
+        {% for tier in service_tiers %}
+        <option value="{{ tier }}" {% if e.service_tier == tier %}selected{% endif %}>{{ tier }}</option>
+        {% endfor %}
+      </select>
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">"flex" is cheaper with variable latency.</p>
+    </div>
+    <div class="field field-max" data-provider-setting="openrouter openai_compatible" {% if e.provider == 'gemini' %}hidden{% endif %}>
+      <label for="{{ prefix }}-reasoning-effort">Reasoning effort</label>
+      <select id="{{ prefix }}-reasoning-effort" name="reasoning_effort" class="select">
+        {% for effort in reasoning_efforts %}
+        <option value="{{ effort }}" {% if e.reasoning_effort == effort %}selected{% endif %}>{{ effort or "(model default)" }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field field-max">
+      <label for="{{ prefix }}-max-output">Maximum output (tokens)</label>
+      <input type="number" id="{{ prefix }}-max-output" name="max_output_tokens"
+             value="{{ e.max_output_tokens or '' }}" placeholder="Provider's limit"
+             min="1" max="{{ max_output_tokens_limit }}" class="input">
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">
+        The most the model may write for one article, reasoning included. Leave empty to use
+        <span data-provider-setting="gemini" {% if e.provider != 'gemini' %}hidden{% endif %}>the model's maximum.</span><span data-provider-setting="openrouter" {% if e.provider != 'openrouter' %}hidden{% endif %}>the lowest limit among the model's OpenRouter endpoints, looked up when each run starts.</span><span data-provider-setting="openai_compatible" {% if e.provider != 'openai_compatible' %}hidden{% endif %}>the server's default.</span>
+      </p>
+    </div>
+    <div class="grid-2 js-openrouter-routing" data-provider-setting="openrouter" {% if e.provider != 'openrouter' %}hidden{% endif %}>
+      <div class="field">
+        <label for="{{ prefix }}-openrouter-provider">Route to provider</label>
+        <select id="{{ prefix }}-openrouter-provider" name="openrouter_provider" class="select js-openrouter-provider"
+                data-endpoints-url="/{{ token }}/api/openrouter/endpoints" {% if editing %}data-extractor-id="{{ e.id }}"{% endif %}>
+          <option value="">Automatic (OpenRouter chooses)</option>
+          {% if e.openrouter_provider %}<option value="{{ e.openrouter_provider }}" selected>{{ e.openrouter_provider }}</option>{% endif %}
+        </select>
+        <p class="u-xs u-muted js-openrouter-provider-status" style="margin:var(--sp-1) 0 0" role="status">Providers that serve this model with structured output.</p>
+      </div>
+      <div class="field">
+        <label for="{{ prefix }}-openrouter-fallbacks">Fallbacks</label>
+        <select id="{{ prefix }}-openrouter-fallbacks" name="openrouter_allow_fallbacks" class="select js-openrouter-fallbacks">
+          <option value="allow" {% if e.openrouter_allow_fallbacks %}selected{% endif %}>Allow other providers</option>
+          <option value="deny" {% if not e.openrouter_allow_fallbacks %}selected{% endif %}>Don't fall back</option>
+        </select>
+        <p class="u-xs u-muted js-openrouter-fallbacks-hint" style="margin:var(--sp-1) 0 0"></p>
+      </div>
+    </div>
+  </div></details>
+{% endmacro %}
+
 {% block content %}
 <div class="page page-narrow settings-page">
   <div class="page-head">
     <a class="btn docs-help-link" data-variant="ghost" data-size="sm" href="/{{ token }}/docs/settings/" target="_blank" rel="noopener">Settings guide ↗<span class="u-visually-hidden"> (opens in a new tab)</span></a>
     <div>
       <h1 class="icon-heading">{{ workflow_icon("manage") }}Settings</h1>
-      <p>Connections and drafting preferences shared across your projects.</p>
+      <p>Extractors and drafting preferences shared across your projects.</p>
     </div>
   </div>
 
@@ -16,127 +143,106 @@
     <section>{{ error }}</section>
   </div>
   {% endif %}
+  {% if notice %}
+  <div class="alert" data-variant="success" role="status" style="margin-bottom:var(--sp-6)">
+    <section>{{ notice }}</section>
+  </div>
+  {% endif %}
 
   <section class="section accent-section accent-cyan">
     <div class="section-head">
       <div>
-        <h2 class="icon-heading">{{ workflow_icon("key") }}Provider configuration</h2>
+        <h2 class="icon-heading">{{ workflow_icon("key") }}Extractors</h2>
         <p>
-          Connect the providers you use. API keys are saved in your computer's system credential store.
+          An extractor is a saved setup for reaching a model: provider, model, endpoint, API key and request settings.
+          Each project chooses one. You can keep several, including several for the same provider.
           {% if keyring_available %}
-          Keychain access is requested when you run an action that needs a key, never on launch.
+          API keys are saved in your computer's credential store, which is asked for access when an action first needs a key, never on launch.
           {% else %}
-          Your computer's system credential store is currently unavailable, so API keys cannot be added.
+          Your computer's credential store is currently unavailable, so API keys cannot be added.
           {% endif %}
         </p>
       </div>
     </div>
 
-    <div class="panel" id="provider-configuration">
-      {% for provider in providers %}
-      <details class="provider-disclosure provider-{{ provider }}" id="config-{{ provider }}">
+    <div class="panel" id="extractors">
+      {% for e in extractors %}
+      <details class="provider-disclosure provider-{{ e.provider }}" id="extractor-{{ e.id }}">
         <summary class="cluster-between">
-          <h3 id="heading-{{ provider }}" class="provider-heading">{{ workflow_icon("key") }}{{ provider_labels.get(provider, provider) }}</h3>
-          {% if keys[provider] %}
-          <span class="badge" data-variant="success">Saved</span>
-          {% elif saved_keys[provider] %}
-          <span class="badge" data-variant="success">Saved</span>
+          <h3 class="provider-heading">{{ workflow_icon("key") }}{{ e.name }}
+            <span class="u-xs u-muted" style="font-weight:400">{{ e.provider_label }} · <span class="u-mono">{{ e.model or "no model" }}</span></span></h3>
+          {% if e.setup_error %}
+          <span class="badge" data-variant="outline">Setup needed</span>
+          {% elif e.has_key %}
+          <span class="badge" data-variant="success">Key saved</span>
           {% else %}
-          <span class="badge" data-variant="outline">Not set</span>
+          <span class="badge" data-variant="success">Ready</span>
           {% endif %}
         </summary>
-        <div class="provider-body stack-sm">
-        {% if provider == "gemini" %}
-        <p class="u-xs u-muted" style="margin:0">
-          Get a key at <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--primary)">Google AI Studio</a>.
-        </p>
-        {% elif provider == "openai_compatible" %}
-        <p class="u-xs u-muted">Save an API key here if your endpoint requires authentication. Leave it unset only for servers that allow keyless requests. Configure the API base URL below.</p>
-        {% elif provider == "openrouter" %}
-        <p class="u-xs u-muted" style="margin:0">
-          Get a key at <a href="https://openrouter.ai/settings/keys" target="_blank" style="color:var(--primary)">openrouter.ai</a>.
-        </p>
-        {% endif %}
-
-        {% if saved_keys[provider] %}
-        <p class="u-xs u-muted" style="margin:0">Saved in Keychain. Access will be requested when needed. Leave the key field blank to keep it.</p>
-        {% endif %}
-        <form method="post" action="/{{ token }}/settings/{{ 'openai-compatible' if provider == 'openai_compatible' else 'api-key' }}" class="provider-key-form {{ 'provider-endpoint-form' if provider == 'openai_compatible' else 'provider-simple-form' }}">
-          <input type="hidden" name="provider" value="{{ provider }}">
-          <div class="field">
-            <label for="api-key-{{ provider }}">API key{% if provider == 'openai_compatible' %} (if required by your server){% endif %}</label>
-            <input type="password" id="api-key-{{ provider }}" name="api_key" autocomplete="off"
-                   placeholder="{{ 'Saved in Keychain — enter a new key to replace' if saved_keys[provider] else 'Paste your API key' }}"
-                   class="input" {% if provider != 'openai_compatible' %}required{% endif %} {% if not keyring_available %}disabled{% endif %}>
-          </div>
-          {% if provider == "openai_compatible" %}
-        <div class="field">
-          <label for="openai-base-url">OpenAI-compatible API base URL</label>
-          <input type="url" id="openai-base-url" name="openai_base_url" value="{{ app_settings.openai_base_url }}"
-                 placeholder="http://localhost:8000/v1" class="input u-mono">
-          <p class="u-xs u-muted">Shared by extraction and manual drafting. Include the API prefix (such as /v1), without /chat/completions. Enter the exact model ID in the model field. When switching endpoints, replace or remove the saved key too.</p>
-        </div>
-        <div class="field">
-          <label for="openai-response-format">OpenAI-compatible JSON output mode</label>
-          <select id="openai-response-format" name="openai_response_format" class="select">
-            {% for value, label in [('json_schema', 'Strict JSON schema'), ('json_object', 'JSON object'), ('none', 'Prompt only')] %}
-            <option value="{{ value }}" {% if app_settings.openai_response_format == value %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-          <p class="u-xs u-muted">Use a mode supported by your endpoint. All responses are validated. PDF text is extracted on your computer and sent with page numbers; figures and scanned pages need OCR or a provider with native PDF support. XML sources are sent as they are.</p>
-        </div>
-          {% endif %}
-          <div>
-            <button type="submit" class="btn" data-size="sm" {% if not keyring_available and provider != 'openai_compatible' %}disabled{% endif %}>
-              {{ 'Save endpoint and key' if provider == 'openai_compatible' else 'Save key to Keychain' }}
-            </button>
-          </div>
-        </form>
-
-        {% if keys[provider] or saved_keys[provider] %}
-        <details>
-          <summary class="u-xs u-muted">Key removal</summary>
-          <form method="post" action="/{{ token }}/settings/api-key/clear" style="margin-top:var(--sp-2)"
-                onsubmit="return confirm('Remove this saved API key from Keychain? This cannot be undone.');">
-            <input type="hidden" name="provider" value="{{ provider }}">
-            <button type="submit" class="btn" data-variant="destructive" data-size="sm">Remove saved key</button>
+        <div class="provider-body stack">
+          {% if e.setup_error %}<p class="u-xs u-warning">{{ e.setup_error }}</p>{% endif %}
+          <form method="post" action="/{{ token }}/extractors/{{ e.id }}" class="stack js-extractor-form">
+            {{ extractor_fields("extractor-" ~ e.id, e.fields, True) }}
+            <div class="cluster" style="justify-content:flex-end">
+              <button type="submit" class="btn" data-size="sm">Save extractor</button>
+            </div>
           </form>
-        </details>
-        {% endif %}
+          <div class="cluster" style="gap:var(--sp-2)">
+            <form method="post" action="/{{ token }}/extractors/{{ e.id }}/duplicate">
+              <button type="submit" class="btn" data-variant="outline" data-size="sm">Duplicate</button>
+            </form>
+            {% if e.has_key %}
+            <form method="post" action="/{{ token }}/extractors/{{ e.id }}/key/delete"
+                  onsubmit="return confirm('Remove this extractor\'s saved API key? This cannot be undone.');">
+              <button type="submit" class="btn" data-variant="outline" data-size="sm">Remove key</button>
+            </form>
+            {% endif %}
+            <form method="post" action="/{{ token }}/extractors/{{ e.id }}/delete" class="js-delete-extractor"
+                  data-uses-url="/{{ token }}/api/extractors/{{ e.id }}/projects" data-extractor-name="{{ e.name }}">
+              <button type="submit" class="btn" data-variant="destructive" data-size="sm">Delete</button>
+            </form>
+          </div>
         </div>
       </details>
+      {% else %}
+      <p class="provider-body u-sm u-muted" id="no-extractors">No extractors yet. Add one below to start coding.</p>
       {% endfor %}
+      <details class="provider-disclosure" id="add-extractor" {% if not extractors %}open{% endif %}>
+        <summary class="cluster-between">
+          <h3 class="provider-heading">{{ workflow_icon("plus") }}Add an extractor</h3>
+        </summary>
+        <div class="provider-body">
+          <form method="post" action="/{{ token }}/extractors" class="stack js-extractor-form">
+            <script type="application/json" data-provider-defaults>{{ provider_default_models | tojson }}</script>
+            {{ extractor_fields("new-extractor", new_extractor, False) }}
+            <div class="cluster" style="justify-content:flex-end">
+              <button type="submit" class="btn" data-size="sm">Add extractor</button>
+            </div>
+          </form>
+        </div>
+      </details>
     </div>
   </section>
 
-  <section class="section accent-section accent-purple">
+  <section class="section accent-section accent-purple" id="drafting">
     <div class="section-head">
       <div>
-        <h2 class="icon-heading">{{ workflow_icon("spark") }}Drafting model</h2>
+        <h2 class="icon-heading">{{ workflow_icon("spark") }}Drafting</h2>
         <p>
-          Used for document-to-manual drafts and coding sheet conversion. Extraction is configured separately in each project.
+          The extractor used to draft coding manuals from documents and convert coding sheets. Each project chooses its own extractor for coding.
         </p>
       </div>
     </div>
     <div class="panel panel-pad">
-      <form method="post" action="/{{ token }}/settings/app" class="stack" id="manual-generator-settings">
-        <script id="manual-provider-defaults" type="application/json">{{ provider_default_models | tojson }}</script>
-        <div class="grid-2">
-          <div class="field">
-            <label for="manual-generator-provider">Provider</label>
-            <select id="manual-generator-provider" name="manual_generator_provider" class="select">
-              {% for provider in providers %}
-              <option value="{{ provider }}" {% if app_settings.manual_generator_provider == provider %}selected{% endif %}>
-                {{ provider_labels.get(provider, provider) }}
-              </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="field">
-            <label for="manual-generator-model">Model</label>
-            <input type="text" id="manual-generator-model" name="manual_generator_model"
-                   value="{{ app_settings.manual_generator_model }}" class="input u-mono" required>
-          </div>
+      <form method="post" action="/{{ token }}/settings/app" class="stack" id="drafting-settings">
+        <div class="field">
+          <label for="drafting-extractor">Drafting extractor</label>
+          <select id="drafting-extractor" name="drafting_extractor_id" class="select">
+            <option value="" {% if not drafting_extractor %}selected{% endif %}>Choose an extractor…</option>
+            {% for e in extractors %}
+            <option value="{{ e.id }}" {% if drafting_extractor and drafting_extractor.id == e.id %}selected{% endif %}>{{ e.name }} ({{ e.provider_label }} · {{ e.model or "no model" }})</option>
+            {% endfor %}
+          </select>
         </div>
         {% if grobid_settings_enabled %}
         <div class="field">

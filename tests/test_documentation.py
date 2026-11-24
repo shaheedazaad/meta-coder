@@ -24,8 +24,7 @@ class Links(HTMLParser):
 def test_bundled_documentation_and_contextual_links(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path))
     project = create_project('Help test', root=tmp_path / 'projects')
-    with patch('meta_coder.web.credentials.saved_key_configured', return_value=False):
-        app = create_app(token='help-token', projects_root=tmp_path / 'projects')
+    app = create_app(token='help-token', projects_root=tmp_path / 'projects')
     with TestClient(app, base_url='http://localhost') as client:
         doc_links = set()
         for path in ['/', '/settings', f'/projects/{project.project_id}']:

@@ -125,16 +125,13 @@ def request(app, path, *, body=b'', content_type=b'application/x-www-form-urlenc
 
 
 @pytest.fixture
-def project_app(tmp_path, monkeypatch):
-    monkeypatch.setattr('meta_coder.app_settings.app_data_dir', lambda: tmp_path)
-    monkeypatch.setattr('meta_coder.web.credentials.saved_key_configured', lambda p: False)
-    monkeypatch.setattr('meta_coder.web.credentials.keyring_available', lambda: False)
-    monkeypatch.setattr('meta_coder.web.Runtime.provider_setup_error', lambda *a: None)
+def project_app(tmp_path, monkeypatch, drafting_extractor):
     project = create_project('Sheet conversion', root=tmp_path / 'projects')
     write_manual(project, parse_coding_manual('effect_definition: Compare RT\neffects:\n  age: {type: number}\n'))
     project.coding_sheet_path.write_text('original sheet')
     (project.output_dir / 'coded_data.csv').write_text('original results')
     app = create_app(token='test', projects_root=tmp_path / 'projects')
+    app.state.runtime.vault._keys = {drafting_extractor.id: 'test-key'}
     return project, app
 
 

@@ -7,12 +7,12 @@ Choose **Download audit ZIP** on Results, or **Download project and audit** in P
 | Record | Included information |
 | --- | --- |
 | Application | App version, a copy of the application code, and details of the software environment used |
-| Run | Selected PDFs, provider/model, pacing and parallelism, settings (including the maximum output setting and the limit actually sent, or why a lookup failed), final statuses, coded-data and evidence CSV snapshots |
+| Run | Selected PDFs, the extractor's id, name and a snapshot of its settings, provider/model, pacing and parallelism, the maximum output setting and the limit actually sent (or why a lookup failed), any OpenRouter provider routing, final statuses, coded-data and evidence CSV snapshots |
 | Inputs | Saved manual and coding sheet plus effective inputs passed to the action, original study PDFs or XML files, or uploaded draft documents, conversion notes |
 | Each request | Start and finish times (UTC), provider address, exact instructions and requested output format, selected model, and settings sent to the provider |
 | Each response | Original response and any model version, request identifier, or usage details supplied by the provider |
 | Outcomes | Validated result, any response-format repairs, errors, retries, and links between results and the actions that produced them |
-| Export | Export timestamp, project identity, current run settings, and SHA-256 checksums for every other file in the ZIP |
+| Export | Export timestamp, project identity, the last run's settings (including its extractor snapshot), and SHA-256 checksums for every other file in the ZIP |
 
 All roles and prompts the app sends are in the request body. Native PDF request bodies include the encoded PDF; text-based requests include the extracted text or XML exactly as sent. Each extraction record's settings, each result file and per-source YAML, and the provenance CSV note the source format (`pdf` or `xml`). Server-side prompts or processing that a provider does not return cannot be captured.
 

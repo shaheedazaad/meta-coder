@@ -1,50 +1,73 @@
-# Connections and settings
+# Extractors and settings
 
-Open **Settings** in the app header to configure provider connections and the model used for AI drafts. Extraction settings belong to each project's [Run tab](run.md).
+Open **Settings** in the app header to manage **extractors** and drafting preferences. Each project then chooses one extractor on its [Run tab](run.md).
 
-[![Provider configuration and drafting preferences in Settings](assets/screenshots/settings.png)](assets/screenshots/settings.png)
+[![Extractors and drafting preferences in Settings](assets/screenshots/settings.png)](assets/screenshots/settings.png)
 
-## Connect a provider
+## What an extractor is
 
-Expand a provider under **Provider configuration**, enter its API key, then save. Before choosing a provider, read [Privacy and data sharing](privacy.md): data use differs between providers and, for Gemini, between free and paid access. Get a Gemini key from [Google AI Studio](https://aistudio.google.com/app/apikey) or an OpenRouter key from [openrouter.ai](https://openrouter.ai/settings/keys). Keys are stored in your computer's operating system credential store (macOS Keychain, Windows Credential Locker or Linux Secret Service). After restarting the app, access is requested when an action needs the key, rather than on launch. There is no separate unlock step and no fallback that saves keys in a plain file.
+An extractor is a named, saved setup for reaching a model: its provider, model, endpoint, API key and request settings. You can keep several, including several for the same provider, for example two OpenRouter keys or two OpenAI-compatible servers. Before choosing a provider, read [Privacy and data sharing](privacy.md): data use differs between providers and, for Gemini, between free and paid access.
 
 | Provider | Connection | Study PDF handling | XML source handling |
 | --- | --- | --- | --- |
-| Gemini | Save a Gemini API key | Native PDF input | Sent as text |
-| OpenRouter | Save an OpenRouter API key | PDF input through the provider | Sent as text, no PDF parser |
-| OpenAI-compatible | Save the API base URL and a key if required | Text extracted on your computer, with page numbers | Sent as text |
+| Gemini | An API key | Native PDF input | Sent as text |
+| OpenRouter | An API key | PDF input through the provider | Sent as text, no PDF parser |
+| OpenAI-compatible | The API base URL, and a key if the server requires one | Text extracted on your computer, with page numbers | Sent as text |
 
-If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. MetaCoder warns about this when you save such a model in a project's Run settings. Information shown only in figures or unusual table layouts may be lost.
+## Add an extractor
+
+1. Expand **Add an extractor**.
+2. Give it a name you will recognise, such as "Gemini lab key", and choose a provider.
+3. Enter the model ID. **Show available models** asks the provider for its model list, using the key you typed. It loads only when you click it; the typed key is sent to the provider for that one request and is not stored unless you save the extractor.
+4. Paste the API key. For an OpenAI-compatible server, also enter the API base URL (include the prefix such as `/v1`, without `/chat/completions`) and a JSON output mode the server supports: **Strict JSON schema**, **JSON object**, or **Prompt only**. Responses are validated in every mode. This provider extracts each PDF's text on your computer and sends it with page numbers; figures and scanned pages need OCR first. XML sources are sent as they are, markup included.
+5. Optionally expand **Request settings** to change parallel requests, the delay between requests, the request timeout, the [maximum output](run.md#maximum-output), the Gemini service tier or the reasoning effort, or to [route OpenRouter requests to one provider](#route-openrouter-requests-to-one-provider).
+6. Choose **Add extractor**.
+
+When you save with a key, MetaCoder asks the provider whether the model can be used and shows any warning. If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. Information shown only in figures or unusual table layouts may be lost.
 
 The parser can occasionally succeed yet return no text, or text for only a few pages. When it returns no text at all, or no text for more than half the pages of a multi-page PDF, MetaCoder sends the PDF once more and asks OpenRouter to use its `cloudflare-ai` parser instead. That parser has no per-page charge, but the model's tokens are charged again for the second request. If the second parse is still empty, the PDF is reported as an error rather than coded from nothing. If it is still mostly empty, the coded values are kept but marked for review with a reason such as "PDF parser returned no text for 11 of 12 pages". Both requests appear in the [audit history](auditing.md).
 
-## OpenAI-compatible endpoints
-
-Enter the endpoint's API base URL, for example `http://localhost:8000/v1` or `https://api.openai.com/v1`. Include the API prefix such as `/v1`, without `/chat/completions`, which MetaCoder appends. The endpoint is shared by all projects and by AI drafting. To use it for extraction, select **OpenAI-compatible** on a project's [Run tab](run.md), enter the exact model ID your endpoint serves, and save. AI drafting has its own provider and model under **Drafting model**. MetaCoder does not need the endpoint to list its models; the model ID is checked when a request runs.
-
-Save an API key under **OpenAI-compatible** if the server requires one; a local server can run without a key. The key is kept in the same credential store as the other providers' keys and read when an action needs it. When changing endpoints, replace or remove the old key too.
-
-Choose a JSON output mode supported by the endpoint: **Strict JSON schema** (the default), **JSON object**, or **Prompt only**. These correspond to the [Chat Completions structured-output modes](https://developers.openai.com/api/docs/guides/structured-outputs); **Prompt only** sends no `response_format`. MetaCoder checks the row IDs and fields of every response in every mode.
-
-This provider extracts each PDF's text on your computer and sends it with page numbers instead of attaching the PDF. Figures and scanned pages are not interpreted: run OCR first or use a provider with native PDF support. A PDF with no extractable text fails with an explicit error. XML sources are sent as they are, markup included. Timeouts, cancellation, automatic retries of temporary errors, raw-response review and token-usage reporting work as they do for the other providers.
-
 ## Route OpenRouter requests to one provider
 
-OpenRouter serves each model through several backend providers, which can differ in quantization, speed, price and output limits. By default OpenRouter chooses one for each request, so PDFs in the same run can be coded by different providers. When a project uses OpenRouter, two more controls appear under **Advanced run settings** on its [Run tab](run.md#control-throughput):
+OpenRouter serves each model through several backend providers, which can differ in quantization, speed, price and output limits. By default OpenRouter chooses one for each request, so PDFs in the same run can be coded by different providers. An OpenRouter extractor has two more controls under **Request settings**:
 
-- **Route to provider** lists the providers that currently serve the project's model with structured output, such as `DeepInfra (turbo, fp8)`. The list reloads when you change the model. Leave it on **Automatic (OpenRouter chooses)** to keep OpenRouter's choice, or pick a provider to send every request to it first. If a provider you saved stops serving the model, it stays selected and is marked **(not listed for this model)**; choose another provider or **Automatic** if requests start failing.
-- **Fallbacks** decides what happens when that provider is unavailable. **Allow other providers** lets OpenRouter retry elsewhere. **Don't fall back** fails the request instead, so every result comes from the provider you chose. With **Automatic**, it limits each request to OpenRouter's first choice. A hint under the control describes the current combination.
+- **Route to provider** lists the providers that currently serve the extractor's model with structured output, such as `DeepInfra (turbo, fp8)`. The list loads when you open **Request settings** and reloads when you change the model. It is public, so no key is needed; if the extractor's key is already unlocked this session it is sent too, but the list never opens the credential store. Leave it on **Automatic (OpenRouter chooses)** to keep OpenRouter's choice, or pick a provider to send every request to it first. If a provider you saved stops serving the model, it stays selected and is marked **(not listed for this model)**; choose another provider or **Automatic** if requests start failing.
+- **Fallbacks** decides what happens when that provider is unavailable. **Allow other providers** lets OpenRouter retry elsewhere. **Don't fall back** fails the request instead, so every result comes from the provider you chose. With **Automatic**, **Don't fall back** limits each request to OpenRouter's first choice. A hint under the control describes the current combination.
 
-Both are saved with the project's run settings and recorded in each run's [audit record](auditing.md). Changing them does not mark existing results as outdated: they choose who serves the same model, not what is asked of it, so PDFs already coded are not coded again. The new routing applies to the PDFs coded from then on. Your [OpenRouter privacy settings](privacy.md#openrouter) still apply, so a provider they exclude cannot be used.
+Both are saved with the extractor and recorded in each run's [audit record](auditing.md). Changing them does not mark existing results as outdated: they choose who serves the same model, not what is asked of it, so PDFs already coded are not coded again. The new routing applies to the PDFs coded from then on. Your [OpenRouter privacy settings](privacy.md#openrouter) still apply, so a provider they exclude cannot be used.
 
-## Choose a drafting model
+## Edit, duplicate or delete
 
-Under **Drafting model**, select the provider and model for document-to-manual drafts and coding sheet conversion. Choose **Save drafting preferences**. This does not change a project's extraction provider or model.
+Expand an extractor to edit it. Its provider can't change; add another extractor instead. Leave the key field blank to keep the saved key, or paste a new one to replace it. **Remove key** deletes only the key.
+
+**Duplicate** copies every setting except the key, which is never copied. Add the copy's key before running with it.
+
+**Delete** first lists the projects that use the extractor, and says whether it is the drafting extractor, before asking you to confirm. Those projects must choose another extractor before they can run. Deleting an extractor also deletes its saved key. Your projects and their results are not affected.
+
+Editing an extractor changes what its projects use from their next run. A result coded with a different model or endpoint is marked outdated; see [Run extraction](run.md#cancel-and-retry).
+
+## API keys
+
+Keys are saved in your computer's operating system credential store (macOS Keychain, Windows Credential Locker or the Linux Secret Service), in one item holding every extractor's key. They are never written to MetaCoder's files, pages or exports, and known keys are removed from any error message.
+
+MetaCoder never opens the credential store when it starts or shows a page. The first action that needs a key, such as a run, a draft or a model check, reads the item once; your computer may ask you to allow access. The keys then stay in memory until you quit. If access is refused or the item can't be read, the action stops with a message and the item is left untouched, so you can try again.
+
+If your computer's credential store is unavailable, key entry is disabled. Restore access to your operating system's credential service and restart the app. An OpenAI-compatible server that genuinely allows keyless requests can still be used without a key.
+
+## Choose the drafting extractor
+
+Under **Drafting**, choose the extractor used for document-to-manual drafts and coding-sheet conversion, then choose **Save drafting preferences**. This does not change any project's extractor.
 
 The maximum document upload size is configurable here, from 1 to 1,024 MB.
 
-## Credential store unavailable
+## Upgrading from an earlier version
 
-If your computer's system credential store is unavailable, key entry is disabled. Restore access to your operating system's credential service and restart the app. An OpenAI-compatible endpoint that genuinely allows keyless requests can still be configured without a saved key.
+Earlier versions kept one key per provider plus a model and request settings in each project. The first time a newer version starts, it turns these into extractors:
 
-To remove a saved key, expand **Key removal** under its provider. Removing a key does not delete your projects.
+- Each provider with a saved key, and an OpenAI-compatible server with a base URL, becomes an extractor named after the provider.
+- Each project keeps the provider, model and request settings it had, including any maximum output and OpenRouter provider routing. Projects with identical settings share an extractor; a project with different settings gets its own, named after the project, which uses the same key.
+- The drafting provider and model become the drafting extractor.
+- Settings left at the defaults with no saved key are skipped. A project whose provider had no key or endpoint keeps its last settings on record but needs an extractor chosen before it can run.
+- A saved key whose settings were missing or unusable is kept on an extractor that asks for its model or base URL.
+
+Migration does not open the credential store. Old per-provider keys move into the new credential item the first time a key is needed, and the old items are deleted only after the new one is saved. You may be asked to allow access once.

@@ -13,8 +13,7 @@ def test_view_raw_output_renders_stored_response(tmp_path):
     (project.raw_dir / "response.json").write_text(
         '{"answer": "Stored model response"}', encoding="utf-8"
     )
-    with patch("meta_coder.web.credentials.saved_key_configured", return_value=False):
-        app = create_app(token="test-token", projects_root=tmp_path)
+    app = create_app(token="test-token", projects_root=tmp_path)
 
     async def get_raw_output():
         messages = []

@@ -462,7 +462,6 @@ def test_runner_writes_no_confidence_csv_when_off(tmp_path, monkeypatch):
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     monkeypatch.setattr(web.credentials, 'keyring_available', lambda: False)
     app = web.create_app(token='test', projects_root=tmp_path / 'projects')
     project = create_project('Field confidence', root=tmp_path / 'projects')

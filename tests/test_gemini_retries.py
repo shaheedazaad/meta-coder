@@ -125,7 +125,6 @@ def test_cancel_before_first_attempt_sends_nothing(monkeypatch):
 @pytest.fixture
 def project(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     p = create_project('Retry project', root=tmp_path / 'projects')
     write_manual(p, parse_coding_manual('effect_definition: Treatment versus control\neffects:\n  count: {type: number}\n'))
     return p

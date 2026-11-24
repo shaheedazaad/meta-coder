@@ -8,7 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from meta_coder import runner as runner_module
-from meta_coder import web
+from meta_coder import extractors, web
+from meta_coder.providers import default_model
 from meta_coder.extraction import ExtractionResult
 from meta_coder.fingerprints import InputChecker
 from meta_coder.manual import parse_coding_manual
@@ -23,7 +24,7 @@ from meta_coder.runner import (
     write_raw_result,
 )
 from meta_coder.coding_sheet import read_coding_sheet
-from meta_coder.settings import load_run_settings
+from meta_coder.settings import load_run_settings, save_project_extractor_id
 
 MANUAL = 'effect_definition: comparison\neffects:\n  estimate: {type: number}\n'
 RATED_MANUAL = 'effect_definition: comparison\nconfidence: true\neffects:\n  estimate: {type: number}\n'
@@ -33,13 +34,21 @@ PDFS = ['a.pdf', 'b.pdf', 'c.pdf']
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     monkeypatch.setattr(web.credentials, 'keyring_available', lambda: False)
     app = web.create_app(token='test', projects_root=tmp_path / 'projects')
     project = create_project('Selection study', root=tmp_path / 'projects')
     monkeypatch.setattr(app.state.runtime.pdf_scanner, 'scan_async', Mock())
     with TestClient(app, base_url='http://localhost', follow_redirects=False) as client:
         yield client, project, app.state.runtime
+
+
+def ready(runtime, project):
+    """Choose a Gemini extractor for the project and hold its key for the session."""
+    chosen = extractors.add_extractor(extractors.validate_new_extractor(
+        {'name': 'Selection', 'provider': 'gemini', 'model': default_model('gemini')}))
+    save_project_extractor_id(project, chosen.id)
+    runtime.vault._keys = {**(runtime.vault._keys or {}), chosen.id: 'fake-test-key'}
+    return chosen
 
 
 def url(project, suffix=''):
@@ -187,7 +196,7 @@ def test_delete_route_is_blocked_during_a_run(site, status):
 def test_retry_selected_recodes_exactly_the_chosen_pdfs_whatever_their_status(site, monkeypatch):
     client, project, runtime = site
     setup_results(project)
-    runtime._session_keys['gemini'] = 'fake-test-key'
+    ready(runtime, project)
     start = Mock()
     monkeypatch.setattr(runtime.runner, 'start', start)
     response = client.post(url(project, '/run/retry'), data={'source_pdfs': json.dumps(['a.pdf', 'b.pdf', 'a.pdf'])})
@@ -205,7 +214,7 @@ def test_retry_selected_recodes_exactly_the_chosen_pdfs_whatever_their_status(si
 def test_results_filter_counts_statuses_and_keeps_the_filter_while_paging(site):
     client, project, runtime = site
     setup_results(project, statuses=('ok', 'needs_review', 'error'))
-    runtime._session_keys['gemini'] = 'fake-test-key'
+    ready(runtime, project)
 
     view = web._project_view(runtime, project, run_status='error')
     assert view['run_status'] == 'error'
@@ -257,8 +266,8 @@ def test_selection_actions_reflect_run_and_setup_state(site):
     page = client.get(url(project, '?tab=results')).text
     # No provider key yet: deleting works, retrying needs setup.
     assert re.search(r'data-selection-retry[^>]*\s+disabled>Retry selected', page)
-    assert 'To retry PDFs, set up the provider' in page
-    runtime._session_keys['gemini'] = 'fake-test-key'
+    assert 'To retry PDFs, choose a ready extractor' in page
+    ready(runtime, project)
     page = client.get(url(project, '?tab=results')).text
     assert not re.search(r'data-selection-retry[^>]*\s+disabled>', page)
     assert 'To retry PDFs' not in page

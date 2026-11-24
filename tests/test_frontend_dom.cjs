@@ -138,35 +138,131 @@ test('tabs remember selection, support keyboard navigation, and respond to compa
   assert.equal(w.sessionStorage.getItem('metaCoderActiveTab:' + d.getElementById('tab-root').dataset.projectId), tabs[0].dataset.tabLink);
 });
 
-test('provider controls update defaults, notices, and unsaved settings state', async t => {
+test('run tab shows the chosen extractor summary and tracks an unsaved choice', async t => {
   const { w, d } = setup(t);
-  const provider = d.getElementById('run-provider');
-  change(w, provider, 'openai_compatible', 'change');
-  assert.equal(d.getElementById('run-model').value, '');
-  assert.match(d.getElementById('run-key-status').textContent, /API key optional/);
-  change(w, provider, 'openrouter', 'change');
-  assert.match(d.getElementById('run-model').value, /\//);
-  // The maximum output hint says what an empty value means for the chosen provider.
-  const outputHints = [...d.getElementById('run-max-output').parentElement.querySelectorAll('[data-provider-setting]')];
-  assert.deepEqual(outputHints.filter(hint => !hint.hidden).map(hint => hint.dataset.providerSetting), ['openrouter']);
-  assert.match(d.getElementById('run-key-status').textContent, /No OpenRouter API key/);
+  const select = d.getElementById('run-extractor');
+  const summary = id => d.querySelector(`[data-extractor-summary="${id}"]`);
+  assert.equal(summary(fixtures.ids.local).hidden, false);
+  assert.equal(summary(fixtures.ids.gemini).hidden, true);
+  change(w, select, fixtures.ids.gemini, 'change');
+  assert.equal(summary(fixtures.ids.local).hidden, true);
+  assert.equal(summary(fixtures.ids.gemini).hidden, false);
   await flush();
   assert.equal(w.projectEdits.dirty(), true);
+  change(w, select, fixtures.ids.local, 'change');
+  await flush();
+  assert.equal(w.projectEdits.dirty(), false);
 });
 
-test('drafting provider remembers independently edited model IDs', t => {
+test('new extractor form shows its provider fields and remembers each provider model', t => {
   const { w, d } = setup(t, 'settings');
-  const provider = d.getElementById('manual-generator-provider');
-  const model = d.getElementById('manual-generator-model');
-  change(w, model, 'custom-local');
-  change(w, provider, 'gemini', 'change');
-  assert.match(model.value, /gemini/);
+  const provider = d.getElementById('new-extractor-provider');
+  const model = d.getElementById('new-extractor-model');
+  const endpoint = d.getElementById('new-extractor-base-url').closest('[data-provider-setting]');
+  const tier = d.getElementById('new-extractor-service-tier').closest('[data-provider-setting]');
+  assert.equal(endpoint.hidden, true);
+  assert.equal(tier.hidden, false);
   change(w, model, 'custom-gemini');
   change(w, provider, 'openai_compatible', 'change');
-  assert.equal(model.value, 'custom-local');
-  assert.match(model.placeholder, /served by your endpoint/);
+  assert.equal(model.value, '');
+  assert.equal(endpoint.hidden, false);
+  assert.equal(tier.hidden, true);
+  change(w, model, 'local-model');
+  change(w, provider, 'openrouter', 'change');
+  assert.match(model.value, /\//);
   change(w, provider, 'gemini', 'change');
   assert.equal(model.value, 'custom-gemini');
+  change(w, provider, 'openai_compatible', 'change');
+  assert.equal(model.value, 'local-model');
+});
+
+function respond(ok, data) {
+  return Promise.resolve({ ok, json: () => Promise.resolve(data) });
+}
+
+test('model suggestions load only on request and send the typed key in the body', async t => {
+  const requests = [];
+  const { w, d } = setup(t, 'settings', w => {
+    w.fetch = (url, options) => {
+      requests.push({ url, body: Object.fromEntries(options.body) });
+      return respond(true, { models: ['m-1', 'm-2'] });
+    };
+  });
+  assert.equal(requests.length, 0);
+  const form = d.getElementById('new-extractor-provider').form;
+  form.elements.api_key.value = 'typed-key';
+  const button = form.querySelector('.js-load-models');
+  button.click();
+  assert.equal(button.disabled, true);
+  await flush();
+  assert.deepEqual(requests[0], {
+    url: '/test/api/models', body: { provider: 'gemini', api_key: 'typed-key', base_url: '', extractor_id: '' },
+  });
+  assert.deepEqual([...d.getElementById('new-extractor-models').options].map(option => option.value), ['m-1', 'm-2']);
+  assert.match(form.querySelector('[data-models-status]').textContent, /^2 models available/);
+  assert.equal(button.disabled, false);
+  // A saved extractor sends its id, so the server can use its saved key.
+  w.fetch = (url, options) => {
+    requests.push({ url, body: Object.fromEntries(options.body) });
+    return respond(true, { models: ['only'] });
+  };
+  const saved = d.getElementById(`extractor-${fixtures.ids.gemini}`);
+  saved.querySelector('.js-load-models').click();
+  await flush();
+  assert.equal(requests[1].body.extractor_id, fixtures.ids.gemini);
+  assert.equal(requests[1].body.provider, 'gemini');
+  assert.match(saved.querySelector('[data-models-status]').textContent, /^1 model available/);
+});
+
+for (const [data, message] of [[{ detail: 'Bad key [redacted]' }, /Bad key \[redacted\]/], [{}, /could not be loaded/]]) {
+  test(`model suggestion failures are explained (${JSON.stringify(data)})`, async t => {
+    const { w, d } = setup(t, 'settings', w => { w.fetch = () => respond(false, data); });
+    const form = d.getElementById('new-extractor-provider').form;
+    form.querySelector('.js-load-models').click();
+    await flush();
+    assert.match(form.querySelector('[data-models-status]').textContent, message);
+    assert.equal(form.querySelector('.js-load-models').disabled, false);
+  });
+}
+
+test('deleting an extractor first names the projects that use it', async t => {
+  const messages = [];
+  const { w, d } = setup(t, 'settings', w => {
+    w.fetch = () => respond(true, { projects: ['Study A', 'Study B'], drafting: true });
+    w.confirm = message => { messages.push(message); return false; };
+  });
+  const form = d.getElementById(`extractor-${fixtures.ids.local}`).querySelector('.js-delete-extractor');
+  let submitted = 0;
+  form.requestSubmit = () => { submitted += 1; };
+  submit(w, form);
+  await flush();
+  assert.match(messages[0], /“Local server”/);
+  assert.match(messages[0], /These projects use it and will need another extractor: Study A, Study B\./);
+  assert.match(messages[0], /It is also the drafting extractor/);
+  assert.equal(submitted, 0);
+  w.fetch = () => respond(true, { projects: [], drafting: false });
+  w.confirm = message => { messages.push(message); return true; };
+  submit(w, form);
+  await flush();
+  assert.match(messages[1], /No projects use it\./);
+  assert.doesNotMatch(messages[1], /drafting/);
+  assert.equal(submitted, 1);
+  const confirmed = new w.Event('submit', { bubbles: true, cancelable: true });
+  form.dispatchEvent(confirmed);
+  assert.equal(confirmed.defaultPrevented, false);
+});
+
+test('a failed usage check stops the deletion and says why', async t => {
+  const alerts = [];
+  const { w, d } = setup(t, 'settings', w => {
+    w.fetch = () => respond(false, {});
+    w.alert = message => alerts.push(message);
+  });
+  const form = d.getElementById(`extractor-${fixtures.ids.gemini}`).querySelector('.js-delete-extractor');
+  form.requestSubmit = () => assert.fail('must not submit');
+  submit(w, form);
+  await flush();
+  assert.match(alerts[0], /Could not check which projects use this extractor/);
 });
 
 test('manual drafting applies an unsaved candidate and releases busy controls', async t => {
@@ -451,14 +547,6 @@ test('tabs tolerate disabled session storage and migrate the legacy metadata tab
   assert.equal(d.querySelector('[data-tab-link="analysis"]').getAttribute('aria-selected'), 'true');
 });
 
-test('malformed provider metadata falls back to readable status', t => {
-  const { w, d } = setup(t, 'project', w => {
-    w.document.getElementById('run-key-status').dataset.providerStatus = '{';
-  });
-  change(w, d.getElementById('run-provider'), 'openrouter', 'change');
-  assert.match(d.getElementById('run-key-status').textContent, /No openrouter API key/);
-});
-
 test('navigation protection ignores only the form currently being saved', async t => {
   const { w, d } = setup(t);
   change(w, d.getElementById('manual-effect-definition'), 'Changed');
@@ -471,7 +559,7 @@ test('navigation protection ignores only the form currently being saved', async 
   const allowed = new w.Event('beforeunload', { cancelable: true });
   w.dispatchEvent(allowed);
   assert.equal(allowed.defaultPrevented, false);
-  change(w, d.getElementById('run-model'), 'changed model');
+  change(w, d.getElementById('run-extractor'), fixtures.ids.gemini, 'change');
   await flush();
   const protectedOtherForm = new w.Event('beforeunload', { cancelable: true });
   w.dispatchEvent(protectedOtherForm);
@@ -613,40 +701,6 @@ test('identify tabs initialize without the surrounding project navigation', t =>
   });
   assert.equal(w.sessionStorage.getItem('metaCoderIdentifySubtab:default'), 'one');
   assert.equal(d.querySelector('[data-subtab-link]').getAttribute('aria-selected'), 'true');
-});
-
-for (const removeStatus of [false, true]) {
-  test(`provider selection tolerates absent metadata (status removed: ${removeStatus})`, t => {
-    const { w, d } = setup(t, 'project', w => {
-      const status = w.document.getElementById('run-key-status');
-      delete status.dataset.providerStatus;
-      delete status.dataset.providerLabels;
-      w.document.getElementById('run-provider-defaults').textContent = '';
-      if (removeStatus) status.remove();
-    });
-    change(w, d.getElementById('run-provider'), 'openrouter', 'change');
-    assert.equal(d.getElementById('run-model').value, '');
-    if (!removeStatus) assert.match(d.getElementById('run-key-status').textContent, /No openrouter API key/);
-  });
-}
-
-test('provider status distinguishes saved keys from unconfigured endpoints', t => {
-  const { w, d } = setup(t, 'project', w => {
-    w.document.getElementById('run-key-status').dataset.providerStatus = JSON.stringify({ gemini: 'saved', openai_compatible: 'unconfigured' });
-  });
-  assert.match(d.getElementById('run-key-status').textContent, /API key is saved/);
-  change(w, d.getElementById('run-provider'), 'openai_compatible', 'change');
-  assert.match(d.getElementById('run-key-status').textContent, /Set the OpenAI-compatible API base URL/);
-});
-
-test('manual endpoint model defaults to blank when no model has been chosen', t => {
-  const { w, d } = setup(t, 'settings', w => {
-    w.document.getElementById('manual-generator-provider').value = 'gemini';
-    w.document.getElementById('manual-generator-model').value = 'gemini-test';
-  });
-  change(w, d.getElementById('manual-generator-provider'), 'openai_compatible', 'change');
-  assert.equal(d.getElementById('manual-generator-model').value, '');
-  assert.match(d.getElementById('manual-generator-model').placeholder, /served by your endpoint/);
 });
 
 for (const kind of ['run', 'pdf-scan']) {
@@ -812,46 +866,56 @@ test('manual confidence checkbox reflects the editor data and submits its settin
   assert.equal(JSON.parse(sparse.d.getElementById('manual-json-input').value).confidence, false);
 });
 
-// OpenRouter provider routing ---------------------------------------------------
-function routing(t, { saved = '', fallbacks = 'allow', fetch } = {}) {
+// OpenRouter provider routing (extractor forms in Settings) ---------------------
+function routing(t, { form = 'new', fetch, open = false } = {}) {
   const requests = [];
-  const env = setup(t, 'project', w => {
-    const select = w.document.getElementById('run-openrouter-provider');
-    if (saved) select.append(new w.Option(saved, saved, true, true));
-    w.document.getElementById('run-openrouter-fallbacks').value = fallbacks;
+  const prefix = form === 'new' ? 'new-extractor' : `extractor-${fixtures.ids.router}`;
+  const env = setup(t, 'settings', w => {
+    if (open) w.document.getElementById(`${prefix}-openrouter-provider`).closest('details').open = true;
     w.fetch = (url, options) => { requests.push(url); return fetch(url, options); };
   });
   const { w, d } = env;
-  const $ = id => d.getElementById(id);
+  const $ = suffix => d.getElementById(`${prefix}-${suffix}`);
+  const select = $('openrouter-provider');
+  const section = select.closest('.js-openrouter-routing');
   return {
-    ...env, requests,
-    select: $('run-openrouter-provider'),
-    fallbacks: $('run-openrouter-fallbacks'),
-    status: () => $('run-openrouter-provider-status').textContent,
-    hint: () => $('run-openrouter-fallbacks-hint').textContent,
-    options: () => Array.from($('run-openrouter-provider').options).map(o => [o.value, o.textContent]),
+    ...env, requests, select, section,
+    disclosure: select.closest('details'),
+    fallbacks: $('openrouter-fallbacks'),
+    model: $('model'),
+    status: () => section.querySelector('.js-openrouter-provider-status').textContent,
+    hint: () => section.querySelector('.js-openrouter-fallbacks-hint').textContent,
+    options: () => Array.from(select.options).map(o => [o.value, o.textContent]),
+    toggle: async isOpen => {
+      env.w.document.getElementById(`${prefix}-openrouter-provider`).closest('details').open = isOpen;
+      select.closest('details').dispatchEvent(new w.Event('toggle'));
+      await flush();
+    },
     useOpenRouter: model => {
-      change(w, $('run-provider'), 'openrouter', 'change');
-      if (model !== undefined) change(w, $('run-model'), model, 'change');
+      change(w, $('provider'), 'openrouter', 'change');
+      if (model !== undefined) change(w, $('model'), model, 'change');
     },
   };
 }
 const ok = payload => ({ ok: true, json: async () => payload });
 const endpoints = [{ tag: 'akashml/fp8', name: 'AkashML (fp8)' }, { tag: 'deepinfra/turbo', name: '<b>DeepInfra</b> (turbo)' }];
 
-test('OpenRouter routing lists providers, keeps the saved choice, and explains fallbacks', async t => {
-  const r = routing(t, { saved: 'saved/tag', fallbacks: 'deny', fetch: async () => ok(endpoints) });
-  assert.equal(r.d.querySelector('[data-provider-setting="openrouter"]').hidden, true);
+test('a saved OpenRouter extractor lists providers once its request settings open', async t => {
+  const r = routing(t, { form: 'saved', fetch: async () => ok(endpoints) });
+  assert.equal(r.section.hidden, false);
   assert.equal(r.requests.length, 0);
   assert.equal(r.hint(), 'Only saved/tag is used. Requests fail if it is unavailable.');
-  r.useOpenRouter('vendor/model'); await flush();
-  assert.equal(r.d.querySelector('[data-provider-setting="openrouter"]').hidden, false);
-  assert.equal(r.requests.at(-1), '/test/api/openrouter/endpoints?model=vendor%2Fmodel');
+  await r.toggle(true);
+  assert.equal(r.requests.length, 1);
+  assert.equal(r.requests[0], `/test/api/openrouter/endpoints?model=vendor%2Fmodel&extractor_id=${fixtures.ids.router}`);
   assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['akashml/fp8', 'AkashML (fp8)'], ['deepinfra/turbo', '<b>DeepInfra</b> (turbo)'], ['saved/tag', 'saved/tag (not listed for this model)']]);
   assert.equal(r.select.querySelector('b'), null);
   assert.equal(r.select.value, 'saved/tag');
   assert.equal(r.status(), '2 providers serve this model with structured output.');
   assert.equal(r.hint(), 'Only saved/tag (not listed for this model) is used. Requests fail if it is unavailable.');
+  await r.toggle(false);
+  await r.toggle(true);
+  assert.equal(r.requests.length, 1);
   change(r.w, r.select, 'akashml/fp8', 'change');
   change(r.w, r.fallbacks, 'allow', 'change');
   assert.equal(r.hint(), 'Tries AkashML (fp8) first, then other providers if it is unavailable.');
@@ -859,8 +923,25 @@ test('OpenRouter routing lists providers, keeps the saved choice, and explains f
   assert.equal(r.hint(), 'OpenRouter picks a provider and tries others if a request fails.');
   change(r.w, r.fallbacks, 'deny', 'change');
   assert.equal(r.hint(), "Only OpenRouter's first-choice provider is tried. Requests fail if it is unavailable.");
-  change(r.w, r.d.getElementById('run-provider'), 'gemini', 'change'); await flush();
-  assert.equal(r.d.querySelector('[data-provider-setting="openrouter"]').hidden, true);
+});
+
+test('routing that is already showing lists providers straight away', async t => {
+  const r = routing(t, { form: 'saved', open: true, fetch: async () => ok([endpoints[0]]) });
+  await flush();
+  assert.equal(r.requests.length, 1);
+  assert.equal(r.status(), '1 provider serves this model with structured output.');
+});
+
+test('a new extractor lists providers for OpenRouter only', async t => {
+  const r = routing(t, { fetch: async () => ok(endpoints) });
+  assert.equal(r.section.hidden, true);
+  r.useOpenRouter('vendor/model'); await flush();
+  assert.equal(r.section.hidden, false);
+  assert.equal(r.requests.at(-1), '/test/api/openrouter/endpoints?model=vendor%2Fmodel');
+  assert.equal(r.select.options.length, 3);
+  change(r.w, r.d.getElementById('new-extractor-provider'), 'gemini', 'change'); await flush();
+  assert.equal(r.section.hidden, true);
+  assert.equal(r.status(), 'Enter a model ID to see which providers serve it.');
 });
 
 test('OpenRouter routing reports empty, single, and failed provider listings', async t => {
@@ -880,38 +961,33 @@ test('OpenRouter routing reports empty, single, and failed provider listings', a
     ['vendor/four', 'Providers could not be loaded.'],
     ['  ', 'Enter a model ID to see which providers serve it.'],
   ]) {
-    change(r.w, r.d.getElementById('run-model'), model, 'change'); await flush();
+    change(r.w, r.model, model, 'change'); await flush();
     assert.equal(r.status(), message);
   }
   assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)']]);
 });
 
 test('a network failure listing providers shows its message and keeps the choice', async t => {
-  const r = routing(t, { saved: 'groq', fetch: async () => { throw new Error('offline'); } });
-  r.useOpenRouter('vendor/model'); await flush();
+  const r = routing(t, { form: 'saved', fetch: async () => { throw new Error('offline'); } });
+  await r.toggle(true);
   assert.equal(r.status(), 'offline');
-  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['groq', 'groq']]);
-  assert.equal(r.select.value, 'groq');
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['saved/tag', 'saved/tag']]);
+  assert.equal(r.select.value, 'saved/tag');
 });
 
 test('a slow provider listing for an earlier model is ignored', async t => {
   const pending = [];
   const r = routing(t, { fetch: url => new Promise(resolve => pending.push({ url, resolve })) });
   r.useOpenRouter('vendor/first'); await flush();
-  change(r.w, r.d.getElementById('run-model'), 'vendor/second', 'change'); await flush();
+  change(r.w, r.model, 'vendor/second', 'change'); await flush();
   pending.at(-1).resolve(ok([endpoints[1]])); await flush();
   pending.at(-2).resolve(ok(endpoints)); await flush();
   assert.equal(r.select.options.length, 2);
-  change(r.w, r.d.getElementById('run-model'), 'vendor/third', 'change'); await flush();
-  change(r.w, r.d.getElementById('run-model'), 'vendor/fourth', 'change'); await flush();
+  change(r.w, r.model, 'vendor/third', 'change'); await flush();
+  change(r.w, r.model, 'vendor/fourth', 'change'); await flush();
   pending.at(-1).resolve(ok([])); await flush();
   pending.at(-2).resolve({ ok: false, json: async () => ({ detail: 'stale failure' }) }); await flush();
   assert.equal(r.status(), 'No provider currently serves this model with structured output.');
-});
-
-test('routing controls are optional on the page', t => {
-  const { d } = setup(t, 'project', w => w.document.getElementById('run-openrouter-provider').remove());
-  assert.equal(d.getElementById('run-openrouter-provider'), null);
 });
 
 function resultsSelection(t, configure = () => {}) {

@@ -8,13 +8,15 @@ from urllib.error import URLError
 import pytest
 from fastapi.testclient import TestClient
 
-from meta_coder import gemini, openai_compatible, openrouter, providers, web
+from meta_coder import extractors, gemini, openai_compatible, openrouter, providers, web
 from meta_coder import runner as runner_module
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
 from meta_coder.extraction import ProviderError
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import create_project, write_manual
-from meta_coder.settings import MAX_OUTPUT_TOKENS, RunSettings, load_run_settings, output_token_limit, save_run_settings
+from meta_coder.settings import (
+    MAX_OUTPUT_TOKENS, RunSettings, load_run_settings, output_token_limit, save_project_extractor_id, save_run_settings,
+)
 
 MANUAL = parse_coding_manual('effect_definition: comparison\neffects:\n  estimate: {type: number}\n')
 SHEET = CodingSheet(rows=[CodingSheetRow(row_id='r1', source_pdf='paper.pdf', locator='exp')], issues=[])
@@ -279,7 +281,6 @@ def test_resolution_without_an_audit_record(monkeypatch):
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     monkeypatch.setattr(web.credentials, 'keyring_available', lambda: False)
     monkeypatch.setattr(web, 'check_model', Mock(return_value=[]))
     app = web.create_app(token='test', projects_root=tmp_path / 'projects')
@@ -289,18 +290,23 @@ def site(tmp_path, monkeypatch):
         yield client, project, app.state.runtime
 
 
-def test_settings_form_saves_and_shows_the_maximum_output(site):
-    client, project, _ = site
-    path = f'/test/projects/{project.project_id}/settings'
-    form = {'provider': 'openrouter', 'previous_provider': 'openrouter', 'model': 'v/m'}
-    assert client.post(path, data={**form, 'max_output_tokens': '65536'}).status_code == 303
-    assert load_run_settings(project).max_output_tokens == 65_536
-    page = client.get(f'/test/projects/{project.project_id}').text
+def test_extractor_form_saves_and_shows_the_maximum_output(site):
+    client, _, _ = site
+    form = {'name': 'Router', 'provider': 'openrouter', 'model': 'v/m'}
+    assert client.post('/test/extractors', data={**form, 'max_output_tokens': '65536'}).status_code == 303
+    (saved,) = extractors.load_extractors()
+    assert saved.max_output_tokens == 65_536
+    assert ('Maximum output', '65,536 tokens') in saved.summary()
+    page = client.get('/test/settings').text
     assert 'name="max_output_tokens"' in page and 'value="65536"' in page
-    assert client.post(path, data={**form, 'max_output_tokens': ''}).status_code == 303
-    assert load_run_settings(project).max_output_tokens == 0
-    assert client.post(path, data=form).status_code == 303
-    assert load_run_settings(project).max_output_tokens == 0
+    edit = f'/test/extractors/{saved.id}'
+    assert client.post(edit, data={**form, 'max_output_tokens': ''}).status_code == 303
+    assert extractors.get_extractor(saved.id).max_output_tokens == 0
+    assert ('Maximum output', "Provider's limit") in extractors.get_extractor(saved.id).summary()
+    for bad in ('-5', 'abc', str(MAX_OUTPUT_TOKENS + 1)):
+        response = client.post(edit, data={**form, 'max_output_tokens': bad})
+        assert 'Maximum+output' in response.headers['location'], bad
+    assert extractors.get_extractor(saved.id).max_output_tokens == 0
 
 
 def test_run_passes_the_setting_and_page_shows_the_lookup_warning(site, monkeypatch):
@@ -308,8 +314,10 @@ def test_run_passes_the_setting_and_page_shows_the_lookup_warning(site, monkeypa
     write_manual(project, MANUAL)
     (project.sources_dir / 'paper.pdf').write_bytes(b'%PDF')
     project.coding_sheet_path.write_text('row_id,source_pdf,locator,authors,year\nr1,paper.pdf,exp1,Smith,2024\n')
-    runtime._session_keys['gemini'] = 'fake-test-key'
-    save_run_settings(project, RunSettings(max_output_tokens=12_345))
+    chosen = extractors.add_extractor(extractors.validate_new_extractor(
+        {'name': 'Gemini', 'provider': 'gemini', 'model': 'm', 'max_output_tokens': '12345'}))
+    save_project_extractor_id(project, chosen.id)
+    runtime.vault._keys = {chosen.id: 'fake-test-key'}
     start = Mock()
     monkeypatch.setattr(runtime.runner, 'start', start)
     assert client.post(f'/test/projects/{project.project_id}/run').status_code == 303

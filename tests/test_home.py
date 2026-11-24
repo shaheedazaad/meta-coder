@@ -49,8 +49,7 @@ def test_home_page_links_preserve_search_and_sort(tmp_path):
 
     for index in range(12):
         create_project(f'Memory & attention {index:02}', root=tmp_path)
-    with patch('meta_coder.web.credentials.saved_key_configured', return_value=False):
-        app = create_app(token='test', projects_root=tmp_path)
+    app = create_app(token='test', projects_root=tmp_path)
     home = next(route.endpoint for route in app.routes if route.path == '/test/')
     request = Request({'type': 'http', 'method': 'GET', 'path': '/test/', 'headers': [], 'query_string': b''})
     with patch.object(Runtime, 'has_any_api_key', return_value=False):

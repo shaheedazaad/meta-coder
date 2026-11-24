@@ -9,14 +9,14 @@ from unittest.mock import Mock
 import pytest
 from fastapi.testclient import TestClient
 
-from meta_coder import openrouter, providers, runner, web
+from meta_coder import extractors, openrouter, providers, runner, web
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
 from meta_coder.extraction import ExtractionResult, ProviderError
 from meta_coder.fingerprints import InputChecker
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import create_project, write_manual
 from meta_coder.settings import (
-    RunSettings, load_run_settings, normalize_openrouter_provider, save_run_settings,
+    RunSettings, load_run_settings, normalize_openrouter_provider, save_project_extractor_id, save_run_settings,
 )
 
 MANUAL = 'effect_definition: comparison\neffects:\n  estimate: {type: number}\n'
@@ -240,7 +240,6 @@ def test_endpoint_listing_failures(monkeypatch, outcome, message):
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
     monkeypatch.setattr(web.credentials, 'keyring_available', lambda: False)
     app = web.create_app(token='test', projects_root=tmp_path / 'projects')
     project = create_project('Routing study', root=tmp_path / 'projects')
@@ -249,36 +248,49 @@ def site(tmp_path, monkeypatch):
     project.coding_sheet_path.write_text('row_id,source_pdf,locator,authors,year\nr1,paper.pdf,exp1,Smith,2024\n')
     monkeypatch.setattr(app.state.runtime.pdf_scanner, 'scan_async', Mock())
     runtime = app.state.runtime
-    runtime._session_keys['openrouter'] = 'session-key'
     monkeypatch.setattr(web, 'check_model', Mock(return_value=[]))
     with TestClient(app, base_url='http://localhost', follow_redirects=False) as client:
         yield client, project, runtime
 
 
-def test_settings_route_saves_keeps_and_validates_routing(site):
-    client, project, _ = site
-    target = f'/test/projects/{project.project_id}/settings'
-    base = {'provider': 'openrouter', 'previous_provider': 'openrouter', 'model': 'vendor/model'}
-    assert client.post(target, data={**base, 'openrouter_provider': 'DeepInfra/FP8', 'openrouter_fallbacks': 'deny'}).status_code == 303
-    settings = load_run_settings(project)
-    assert (settings.openrouter_provider, settings.openrouter_allow_fallbacks) == ('deepinfra/fp8', False)
-    for bad in ({'openrouter_fallbacks': 'maybe'}, {'openrouter_provider': 'bad slug!'}):
-        assert client.post(target, data={**base, **bad}).status_code == 400
-    assert load_run_settings(project).openrouter_provider == 'deepinfra/fp8'
-    page = client.get(f'/test/projects/{project.project_id}?tab=run').text
+def router(**values):
+    return extractors.add_extractor(extractors.validate_new_extractor(
+        {'name': 'Router', 'provider': 'openrouter', 'model': 'vendor/model', **values}))
+
+
+def test_extractor_form_saves_keeps_and_validates_routing(site):
+    client, _, _ = site
+    base = {'name': 'Router', 'provider': 'openrouter', 'model': 'vendor/model'}
+    assert client.post('/test/extractors', data={
+        **base, 'openrouter_provider': 'DeepInfra/FP8', 'openrouter_allow_fallbacks': 'deny',
+    }).status_code == 303
+    (saved,) = extractors.load_extractors()
+    assert (saved.openrouter_provider, saved.openrouter_allow_fallbacks) == ('deepinfra/fp8', False)
+    assert ('Route to provider', 'deepinfra/fp8') in saved.summary()
+    assert ('Fallbacks', 'Not allowed') in saved.summary()
+    edit = f'/test/extractors/{saved.id}'
+    for bad, message in (({'openrouter_allow_fallbacks': 'maybe'}, 'fall+back'), ({'openrouter_provider': 'bad slug!'}, 'route+to')):
+        assert message in client.post(edit, data={**base, **bad}).headers['location']
+    assert extractors.get_extractor(saved.id).openrouter_provider == 'deepinfra/fp8'
+    page = client.get('/test/settings').text
     assert '<option value="deepinfra/fp8" selected>deepinfra/fp8</option>' in page
     assert '<option value="deny" selected>' in page
-    # The form always sends both fields; leaving them out means automatic routing with fallbacks.
-    assert client.post(target, data=base).status_code == 303
-    settings = load_run_settings(project)
-    assert (settings.openrouter_provider, settings.openrouter_allow_fallbacks) == ('', True)
-    page = client.get(f'/test/projects/{project.project_id}?tab=run').text
-    assert '<option value="allow" selected>' in page and 'value="deepinfra/fp8"' not in page
+    # Leaving the fields out means automatic routing with fallbacks.
+    assert client.post(edit, data=base).status_code == 303
+    saved = extractors.get_extractor(saved.id)
+    assert (saved.openrouter_provider, saved.openrouter_allow_fallbacks) == ('', True)
+    assert ('Fallbacks', 'Allowed') in saved.summary()
+    # Routing is OpenRouter-only and never stored for other providers.
+    other = extractors.validate_new_extractor(
+        {'name': 'Gemini', 'provider': 'gemini', 'model': 'm', 'openrouter_provider': 'groq'})
+    assert 'openrouter_provider' not in other.snapshot()
 
 
-def test_run_forwards_saved_routing(site, monkeypatch):
+def test_run_forwards_the_extractors_routing(site, monkeypatch):
     client, project, runtime = site
-    save_run_settings(project, RunSettings(provider='openrouter', model='vendor/model', openrouter_provider='groq', openrouter_allow_fallbacks=False))
+    chosen = router(openrouter_provider='groq', openrouter_allow_fallbacks='deny')
+    save_project_extractor_id(project, chosen.id)
+    runtime.vault._keys = {chosen.id: 'session-key'}
     start = Mock()
     monkeypatch.setattr(runtime.runner, 'start', start)
     assert client.post(f'/test/projects/{project.project_id}/run').status_code == 303
@@ -288,18 +300,21 @@ def test_run_forwards_saved_routing(site, monkeypatch):
 
 def test_endpoint_api_uses_only_a_session_key_and_maps_errors(site, monkeypatch):
     client, _, runtime = site
+    chosen = router()
     listing = [{'tag': 'groq', 'name': 'Groq'}]
-    store = Mock()
-    monkeypatch.setattr(runtime, 'prepare_provider', store)
+    store = Mock(side_effect=AssertionError('credential store opened'))
+    monkeypatch.setattr(runtime.vault, 'get', store)
     endpoints = Mock(return_value=listing)
     monkeypatch.setattr(web, 'list_model_endpoints', endpoints)
-    response = client.get('/test/api/openrouter/endpoints', params={'model': 'vendor/model'})
+    runtime.vault._keys = {chosen.id: 'session-key'}
+    response = client.get('/test/api/openrouter/endpoints', params={'model': 'vendor/model', 'extractor_id': chosen.id})
     assert (response.status_code, response.json()) == (200, listing)
     endpoints.assert_called_once_with('vendor/model', api_key='session-key')
-    runtime._session_keys.clear()
     client.get('/test/api/openrouter/endpoints', params={'model': 'vendor/model'})
     endpoints.assert_called_with('vendor/model', api_key='')
-    store.assert_not_called()
+    runtime.vault._keys = {}
+    client.get('/test/api/openrouter/endpoints', params={'model': 'vendor/model', 'extractor_id': chosen.id})
+    endpoints.assert_called_with('vendor/model', api_key='')
     endpoints.side_effect = ProviderError('OpenRouter is down')
     response = client.get('/test/api/openrouter/endpoints', params={'model': 'vendor/model'})
     assert (response.status_code, response.json()['detail']) == (502, 'OpenRouter is down')

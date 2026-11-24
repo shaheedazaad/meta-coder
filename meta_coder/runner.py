@@ -451,6 +451,7 @@ class Runner:
         max_output_tokens: int = 0,
         openrouter_provider: str = "",
         openrouter_allow_fallbacks: bool = True,
+        extractor: dict | None = None,
     ) -> RunState:
         """`only_pdfs`, when given, restricts the run to that subset of the
         coding sheet's PDFs (todo.md step 11's retry: reprocess only
@@ -499,6 +500,8 @@ class Runner:
             "max_output_tokens": max_output_tokens,
             **(openrouter_routing(openrouter_provider, openrouter_allow_fallbacks) if provider == "openrouter" else {}),
             "selected_pdfs": pdf_names, "retry_selection": only_pdfs,
+            # The extractor's id, name and a snapshot of its settings.
+            "extractor": extractor or {},
         }, secrets=(api_key,))
         state.audit_run.input("effective_manual.json", json_bytes(manual))
         state.audit_run.input("effective_coding_sheet.json", json_bytes(coding_sheet))

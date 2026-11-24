@@ -28,8 +28,28 @@ from starlette.staticfiles import StaticFiles
 from .updates import UpdateChecker
 from . import credentials
 from .provenance import atomic_write, audited_call, export_manifest, json_bytes
-from .app_settings import AppSettings, endpoint_options, load_app_settings, save_app_settings
-from .openai_compatible import normalize_base_url
+from .app_settings import AppSettings, load_app_settings, save_app_settings
+from . import extractors
+from .extractors import (
+    Extractor,
+    ExtractorError,
+    ExtractorsUnreadable,
+    add_extractor,
+    delete_extractor,
+    duplicate_extractor,
+    get_extractor,
+    load_extractors,
+    migrate_legacy_settings,
+    other_claims,
+    project_extractor,
+    projects_using,
+    run_settings_for,
+    set_key_saved,
+    setup_problem,
+    update_extractor,
+    updated_extractor,
+    validate_new_extractor,
+)
 from .coding_sheet import coding_sheet_template_csv, parse_coding_sheet_csv, read_coding_sheet
 from .coding_sheet_drafting import CodingSheetDraftError, read_source_csv, validate_sheet_csv
 from .pdf_matching import (
@@ -43,7 +63,7 @@ from .pdf_matching import (
     suggest_matches_from_score_cache,
     unmatched_paper_ids,
 )
-from .extraction import ProviderError, redact_secret
+from .extraction import ProviderError, redact_secrets
 from .openrouter import list_model_endpoints
 from .manual import (
     ManualError,
@@ -66,7 +86,9 @@ from .projects import (
     reset_manual_to_default,
     write_manual,
 )
-from .providers import PROVIDER_LABELS, PROVIDERS, check_model, default_model, draft_coding_manual, draft_coding_sheet
+from .providers import (
+    PROVIDER_LABELS, PROVIDERS, check_model, default_model, draft_coding_manual, draft_coding_sheet, list_models,
+)
 from .fingerprints import STALE_STATUS, InputChecker
 from .runner import (
     Runner,
@@ -80,8 +102,8 @@ from .runner import (
 )
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
 from .settings import (
-    MAX_OUTPUT_TOKENS, REASONING_EFFORTS, RunSettings, load_run_settings, normalize_openrouter_provider,
-    output_token_limit, save_run_settings,
+    MAX_OUTPUT_TOKENS, REASONING_EFFORTS, RunSettings, load_run_settings, save_project_extractor_id,
+    save_run_settings,
 )
 from .sources import SOURCE_ACCEPT, source_format
 from .uploads import list_uploaded_sources, save_source_uploads, upload_summary
@@ -272,18 +294,20 @@ class LocalSecurityMiddleware(BaseHTTPMiddleware):
 
 
 class Runtime:
-    """One API key slot per provider (todo.md step 9: a second provider means a
-    second key). Every accepted key is persisted in the OS credential store;
-    saved keys are loaded only in response to a user action that needs them."""
+    """Per-session state: the runner, the PDF scanner and the key vault.
+
+    Saved keys are read from the credential store at most once per session,
+    the first time an action needs one, never when the app starts or a page
+    loads (see credentials.KeyVault)."""
 
     def __init__(self, projects_root: Path | None = None) -> None:
         self.projects_root = projects_root
         self.runner = Runner()
         self.pdf_scanner = PdfScanner()
-        self._session_keys: dict[str, str] = {}
-        self._saved_keys: set[str] = {
-            provider for provider in PROVIDERS if credentials.saved_key_configured(provider)
-        }
+        migrate_legacy_settings(projects_root=projects_root)
+        self.vault = credentials.KeyVault(
+            legacy_claims=extractors.legacy_claims, on_legacy_adopted=extractors.record_legacy_adoption,
+        )
 
     def project(self, project_id: str) -> Project:
         try:
@@ -291,74 +315,87 @@ class Runtime:
         except ProjectError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    def api_key(self, provider: str) -> str | None:
-        return self._session_keys.get(provider)
+    def has_key(self, extractor: Extractor) -> bool:
+        """Whether a key is saved for this extractor, without opening the credential store."""
+        return extractor.has_saved_key or self.vault.cached(extractor.id) is not None
 
-    def provider_setup_error(self, provider: str, model: str | None = None) -> str | None:
-        label = PROVIDER_LABELS.get(provider, provider)
-        if provider == "openai_compatible":
-            try:
-                normalize_base_url(load_app_settings().openai_base_url)
-            except ValueError:
-                return "Set a valid OpenAI-compatible API base URL in global Settings."
-        if model is not None and not model.strip():
-            return f"Enter a model ID for {label}."
-        if not self.api_key(provider) and not self.has_saved_key(provider):
-            if provider != "openai_compatible":
-                return f"Save a {label} API key in global Settings."
+    def setup_error(self, extractor: Extractor | None, *, deleted: bool = False, purpose: str = "this project") -> str | None:
+        """Why this extractor can't be used yet, without opening the credential store."""
+        if extractor is None:
+            if deleted:
+                return f"The extractor chosen for {purpose} was deleted. Choose another."
+            return f"Choose an extractor for {purpose}."
+        problem = setup_problem(extractor)
+        if problem:
+            return problem
+        if extractor.requires_key and not self.has_key(extractor):
+            return f"Add an API key for the “{extractor.name}” extractor in Settings."
         return None
 
-    def provider_ready(self, provider: str) -> bool:
-        return self.provider_setup_error(provider) is None
+    def key_for(self, extractor: Extractor) -> str:
+        """Blocking: may open the credential store once. Call via a threadpool from async routes.
 
-    def has_saved_key(self, provider: str) -> bool:
-        return provider in self._saved_keys
+        Raises CredentialStoreError when a saved key can't be read or has gone."""
+        if not extractor.has_saved_key:
+            return self.vault.cached(extractor.id) or ""
+        key = self.vault.get(extractor.id)
+        if key:
+            return key
+        if get_extractor(extractor.id) is not None and not other_claims(extractor):
+            # Repair a stale marker (for example, a vault edited outside the
+            # app) so the next page no longer claims a key is saved.
+            set_key_saved(extractor.id, False)
+        raise credentials.CredentialStoreError(
+            f"The saved API key for the “{extractor.name}” extractor is no longer in the credential "
+            "store. Add it again in Settings."
+        )
 
-    def prepare_provider(self, provider: str, model: str) -> str | None:
-        """Load saved keys for an explicit provider action, never for page rendering."""
-        error = self.provider_setup_error(provider, model)
+    def prepare(self, extractor: Extractor | None, **kwargs) -> tuple[str, str | None]:
+        """Blocking: the extractor's key for an explicit action, and any reason it can't run."""
+        error = self.setup_error(extractor, **kwargs)
         if error:
-            return error
+            return "", error
         try:
-            for saved_provider in PROVIDERS:
-                if self.has_saved_key(saved_provider) and not self.api_key(saved_provider):
-                    found = self.unlock_key(saved_provider)
-                    if saved_provider == provider and not found:
-                        return "The saved API key is no longer in the credential store. Save it again in Settings."
+            return self.key_for(extractor), None
         except credentials.CredentialStoreError as exc:
-            return str(exc)
-        return self.provider_setup_error(provider, model)
+            return "", str(exc)
 
-    def unlock_key(self, provider: str) -> bool:
-        key = credentials.load_key(provider)
-        if not key:
-            # Repair a stale UI marker (for example, a key deleted directly in
-            # Keychain Access) so the next page no longer claims it is saved.
-            credentials.mark_saved_key_configured(provider, False)
-            self._saved_keys.discard(provider)
-            return False
-        self._session_keys[provider] = key
-        credentials.mark_saved_key_configured(provider, True)
-        self._saved_keys.add(provider)
-        return True
+    def secrets(self, *extra: str) -> list[str]:
+        """Every key known this session, for redacting text shown to the user."""
+        return [*self.vault.secrets(), *(value for value in extra if value)]
 
-    def set_api_key(self, provider: str, key: str) -> None:
-        # Persist first. A key that cannot survive restart is never
-        # silently accepted as session-only.
-        credentials.save_key(provider, key)
-        self._session_keys[provider] = key
-        self._saved_keys.add(provider)
-
-    def clear_api_key(self, provider: str) -> None:
-        credentials.clear_key(provider)
-        self._session_keys.pop(provider, None)
-        self._saved_keys.discard(provider)
+    def redact(self, text: object, *extra: str) -> str:
+        return redact_secrets(str(text), self.secrets(*extra))
 
     def has_any_api_key(self) -> bool:
-        """For the global nav badge (base.html), which just needs "is there
-        something set" — per-project/per-provider detail lives on the pages
-        that actually care (the project's Run tab, the Settings page)."""
-        return bool(self._session_keys or self._saved_keys)
+        """For the global nav badge (base.html): is any extractor ready to use?"""
+        return any(self.setup_error(item) is None for item in load_extractors())
+
+
+def _extractor_view(runtime: Runtime, extractor: Extractor) -> dict[str, object]:
+    """What the pages need to show an extractor. Never includes the key."""
+    return {
+        "id": extractor.id,
+        "name": extractor.name,
+        "provider": extractor.provider,
+        "provider_label": extractor.provider_label,
+        "model": extractor.model,
+        "summary": extractor.summary(),
+        "settings": extractor.snapshot(),
+        "fields": extractor,
+        "has_key": runtime.has_key(extractor),
+        "requires_key": extractor.requires_key,
+        "setup_error": runtime.setup_error(extractor),
+    }
+
+
+def _extractor_record(settings: RunSettings) -> dict[str, object]:
+    """The extractor behind a run or draft, for provenance: id, name and a settings snapshot."""
+    return {"id": settings.extractor_id, "name": settings.extractor_name, "settings": settings.extractor}
+
+
+def _drafting_extractor(app_settings: AppSettings, all_extractors: list[Extractor]) -> Extractor | None:
+    return next((item for item in all_extractors if item.id == app_settings.drafting_extractor_id), None)
 
 
 def _project_view(
@@ -411,9 +448,21 @@ def _project_view(
     is_running = runtime.runner.is_running(project.project_id)
 
     orphan_pdfs = sorted(uploaded_names - {row.source_pdf for row in coding_sheet.rows})
-    run_settings = load_run_settings(project)
     app_settings = load_app_settings()
-    generator_provider = app_settings.manual_generator_provider
+    all_extractors = load_extractors()
+    chosen = project_extractor(project, all_extractors)
+    selected = chosen.extractor
+    # What the next run would use; without a usable extractor, the last run's
+    # settings, so saved results are not reported as outdated.
+    run_settings = (
+        run_settings_for(selected) if selected is not None and setup_problem(selected) is None
+        else load_run_settings(project)
+    )
+    run_setup_error = runtime.setup_error(selected, deleted=chosen.deleted)
+    drafting = _drafting_extractor(app_settings, all_extractors)
+    drafting_setup_error = runtime.setup_error(
+        drafting, deleted=bool(app_settings.drafting_extractor_id), purpose="drafting",
+    )
 
     # Only worth matching when there's actually an unmatched (or blank)
     # source_pdf to help with — the common case, once a project is set up, is
@@ -487,27 +536,13 @@ def _project_view(
     sheet_rows, sheet_page, sheet_total_pages = _paginate(coding_sheet.rows, sheet_page)
 
     pdf_scan_state = runtime.pdf_scanner.state(project.project_id)
-    api_key_set = runtime.provider_ready(run_settings.provider)
-    saved_key_available = runtime.has_saved_key(run_settings.provider)
-    provider_key_status = {
-        provider: (
-            "unconfigured"
-            if provider == "openai_compatible" and not load_app_settings().openai_base_url
-            else "optional"
-            if provider == "openai_compatible" and runtime.provider_ready(provider) and not (runtime.api_key(provider) or runtime.has_saved_key(provider))
-            else "saved"
-            if runtime.api_key(provider) or runtime.has_saved_key(provider)
-            else "missing"
-        )
-        for provider in PROVIDERS
-    }
-    keyring_available = credentials.keyring_available()
-
+    api_key_set = run_setup_error is None
     # Saved results only count while their inputs are unchanged; see
     # fingerprints.py.
     input_checker = InputChecker(
         project, manual, coding_sheet, provider=run_settings.provider, model=run_settings.model,
-        reasoning_effort=run_settings.reasoning_effort, **endpoint_options(run_settings.provider),
+        reasoning_effort=run_settings.reasoning_effort, base_url=run_settings.base_url,
+        response_format=run_settings.response_format,
     )
     persisted_results = input_checker.check(load_persisted_results(project))
     completed_pdf_names = {
@@ -529,7 +564,6 @@ def _project_view(
 
     can_run = bool(
         api_key_set
-        and run_settings.model.strip()
         and manual is not None
         and manual.is_complete
         and not coding_sheet.sheet_issues
@@ -581,7 +615,6 @@ def _project_view(
     can_retry_selected = bool(
         not is_running
         and api_key_set
-        and run_settings.model.strip()
         and manual is not None
         and manual.is_complete
         and not coding_sheet.sheet_issues
@@ -630,25 +663,18 @@ def _project_view(
         "failed_result_count": failed_result_count,
         "stale_result_count": stale_result_count,
         "api_key_set": api_key_set,
-        "run_provider_setup_error": runtime.provider_setup_error(run_settings.provider),
-        "saved_key_available": saved_key_available,
-        "provider_key_status": provider_key_status,
-        "provider_default_models": {provider: default_model(provider) for provider in PROVIDERS},
-        "keyring_available": keyring_available,
-        "providers": PROVIDERS,
-        "provider_labels": PROVIDER_LABELS,
-        "reasoning_efforts": REASONING_EFFORTS,
-        "max_output_tokens_limit": MAX_OUTPUT_TOKENS,
+        "run_setup_error": run_setup_error,
+        "extractors": [_extractor_view(runtime, item) for item in all_extractors],
+        "selected_extractor_id": selected.id if selected else "",
+        "selected_extractor_deleted": chosen.deleted,
         "has_results": bool(run_state) or bool(completed_articles) or (coded_csv.is_file() and evidence_csv.is_file()),
         "result_files_available": coded_csv.is_file() and evidence_csv.is_file(),
         "confidence_file_available": (project.output_dir / CONFIDENCE_CSV).is_file(),
         "audit_files": audit_files,
         "run_settings": run_settings,
-        "manual_generator_provider": generator_provider,
-        "manual_generator_model": app_settings.manual_generator_model,
-        "manual_generator_ready": runtime.provider_setup_error(generator_provider, app_settings.manual_generator_model) is None,
-        "manual_generator_setup_error": runtime.provider_setup_error(generator_provider, app_settings.manual_generator_model),
-        "manual_generator_saved_key_available": runtime.has_saved_key(generator_provider),
+        "drafting_extractor": _extractor_view(runtime, drafting) if drafting else None,
+        "drafting_ready": drafting_setup_error is None,
+        "drafting_setup_error": drafting_setup_error,
         "run_rows": run_rows_page,
         "run_rows_all": run_rows_all,
         "run_row_count": len(run_rows_all),
@@ -866,100 +892,244 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         }
         return TEMPLATES.TemplateResponse(request, "project.html", context)
 
+    @app.exception_handler(ExtractorsUnreadable)
+    async def extractors_unreadable(request: Request, exc: ExtractorsUnreadable):
+        # Every page and action that needs extractors stops here, so nothing
+        # overwrites the file before it is fixed.
+        return PlainTextResponse(str(exc), status_code=503)
+
+    def _settings_redirect(*, error: str | None = None, notice: str | None = None, anchor: str = "") -> RedirectResponse:
+        query = {key: value for key, value in (("error", error), ("notice", notice)) if value}
+        return RedirectResponse(
+            f"/{token}/settings" + (f"?{urlencode(query)}" if query else "") + (f"#{anchor}" if anchor else ""),
+            status_code=303,
+        )
+
     @app.get(f"/{token}/settings", response_class=HTMLResponse)
-    async def settings_page(request: Request, error: str | None = None):
+    async def settings_page(request: Request, error: str | None = None, notice: str | None = None):
+        all_extractors = await run_in_threadpool(load_extractors)
+        app_settings = load_app_settings()
         return TEMPLATES.TemplateResponse(
             request,
             "settings.html",
             {
                 "token": token,
                 "api_key_set": runtime.has_any_api_key(),
+                "extractors": [_extractor_view(runtime, item) for item in all_extractors],
                 "providers": PROVIDERS,
                 "provider_labels": PROVIDER_LABELS,
-                "keys": {p: bool(runtime.api_key(p)) for p in PROVIDERS},
-                "saved_keys": {p: runtime.has_saved_key(p) for p in PROVIDERS},
-                "keyring_available": credentials.keyring_available(),
-                "app_settings": load_app_settings(),
                 "provider_default_models": {p: default_model(p) for p in PROVIDERS},
+                "reasoning_efforts": REASONING_EFFORTS,
+                "service_tiers": extractors.SERVICE_TIERS,
+                "response_format_labels": extractors.RESPONSE_FORMAT_LABELS,
+                "max_output_tokens_limit": MAX_OUTPUT_TOKENS,
+                "new_extractor": Extractor(id="", name="", provider="gemini", model=default_model("gemini")),
+                "keyring_available": credentials.keyring_available(),
+                "app_settings": app_settings,
+                "drafting_extractor": _drafting_extractor(app_settings, all_extractors),
                 "grobid_settings_enabled": GROBID_SETTINGS_ENABLED,
                 "error": error,
+                "notice": notice,
             },
         )
 
-    @app.post(f"/{token}/settings/api-key")
-    async def set_api_key(provider: str = Form(...), api_key: str = Form(...)):
-        if provider not in PROVIDERS:
-            raise HTTPException(status_code=400, detail="Unknown provider.")
-        key = api_key.strip()
-        if not key:
-            raise HTTPException(status_code=400, detail="Enter an API key.")
-        try:
-            runtime.set_api_key(provider, key)
-        except credentials.CredentialStoreError as exc:
-            return RedirectResponse(f"/{token}/settings?error={quote(str(exc))}", status_code=303)
-        return RedirectResponse(f"/{token}/settings", status_code=303)
+    def _save_key(extractor: Extractor, api_key: str) -> None:
+        """Blocking: store a key for an extractor in the vault."""
+        runtime.vault.set(extractor.id, api_key)
+        set_key_saved(extractor.id, True)
 
-    @app.post(f"/{token}/settings/api-key/clear")
-    async def clear_api_key(provider: str = Form(...)):
-        if provider not in PROVIDERS:
-            raise HTTPException(status_code=400, detail="Unknown provider.")
-        try:
-            runtime.clear_api_key(provider)
-        except credentials.CredentialStoreError as exc:
-            return RedirectResponse(f"/{token}/settings?error={quote(str(exc))}", status_code=303)
-        return RedirectResponse(f"/{token}/settings", status_code=303)
+    def _model_warning(extractor: Extractor, api_key: str) -> str | None:
+        """Blocking: ask the provider whether the model works, redacting any key."""
+        if extractor.requires_key and not api_key:
+            return "The model will be checked when it runs."
+        problems = check_model(extractor.provider, extractor.model, api_key=api_key, base_url=extractor.base_url)
+        return runtime.redact("; ".join(problems), api_key) if problems else None
 
-    @app.post(f"/{token}/settings/openai-compatible")
-    async def save_endpoint_settings(
-        openai_base_url: str = Form(""),
-        openai_response_format: str = Form("json_schema"),
-        api_key: str = Form(""),
-    ):
+    def _extractor_values(form) -> dict[str, object]:
+        """Extractor settings from a submitted form, without the key."""
+        return {name: value for name, value in form.items() if name != "api_key"}
+
+    def _require_store(api_key: str) -> None:
+        if api_key and not credentials.keyring_available():
+            raise credentials.CredentialStoreError("No operating-system credential store is available.")
+
+    @app.post(f"/{token}/extractors")
+    async def new_extractor(request: Request):
+        form = await request.form()
+        api_key = str(form.get("api_key") or "").strip()
+
+        def create() -> tuple[Extractor, str | None]:
+            extractor = validate_new_extractor(_extractor_values(form))
+            _require_store(api_key)
+            warning = _model_warning(extractor, api_key)
+            add_extractor(extractor)
+            if api_key:
+                try:
+                    _save_key(extractor, api_key)
+                except credentials.CredentialStoreError as exc:
+                    return extractor, f"The extractor was saved without its key. {exc}"
+            return extractor, warning
+
         try:
-            endpoint_url = normalize_base_url(openai_base_url) if openai_base_url.strip() else ""
-            if openai_response_format not in {"json_schema", "json_object", "none"}:
-                raise ValueError("Unknown JSON output mode.")
-        except ValueError as exc:
-            return RedirectResponse(f"/{token}/settings?error={quote(str(exc))}", status_code=303)
-        if api_key.strip():
+            extractor, warning = await run_in_threadpool(create)
+        except (ExtractorError, credentials.CredentialStoreError) as exc:
+            return _settings_redirect(error=runtime.redact(exc, api_key), anchor="add-extractor")
+        return _settings_redirect(
+            notice=f"Saved the “{extractor.name}” extractor." + (f" {warning}" if warning else ""),
+            anchor=f"extractor-{extractor.id}",
+        )
+
+    async def _existing_extractor(extractor_id: str) -> Extractor:
+        extractor = await run_in_threadpool(get_extractor, extractor_id)
+        if extractor is None:
+            raise HTTPException(status_code=404, detail="That extractor no longer exists.")
+        return extractor
+
+    @app.post(f"/{token}/extractors/{{extractor_id}}")
+    async def edit_extractor(extractor_id: str, request: Request):
+        current = await _existing_extractor(extractor_id)
+        form = await request.form()
+        api_key = str(form.get("api_key") or "").strip()
+
+        def edit() -> tuple[Extractor, str | None]:
+            updated = updated_extractor(current, _extractor_values(form))
+            _require_store(api_key)
+            warning = None
+            if api_key or updated.model != current.model or updated.base_url != current.base_url:
+                try:
+                    key = api_key or (runtime.key_for(current) if current.has_saved_key else "")
+                except credentials.CredentialStoreError:
+                    key = ""  # an unreadable key must not block the edit; the run checks again
+                warning = _model_warning(updated, key)
+            updated = update_extractor(extractor_id, _extractor_values(form))
+            if api_key:
+                _save_key(updated, api_key)
+            return updated, warning
+
+        try:
+            updated, warning = await run_in_threadpool(edit)
+        except (ExtractorError, credentials.CredentialStoreError) as exc:
+            return _settings_redirect(error=runtime.redact(exc, api_key), anchor=f"extractor-{extractor_id}")
+        return _settings_redirect(
+            notice=f"Saved the “{updated.name}” extractor." + (f" {warning}" if warning else ""),
+            anchor=f"extractor-{updated.id}",
+        )
+
+    @app.post(f"/{token}/extractors/{{extractor_id}}/duplicate")
+    async def copy_extractor(extractor_id: str):
+        try:
+            copy = await run_in_threadpool(duplicate_extractor, extractor_id)
+        except ExtractorError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        return _settings_redirect(
+            notice=f"Created “{copy.name}”. Keys are not copied: add one before running.",
+            anchor=f"extractor-{copy.id}",
+        )
+
+    def _uses(extractor_id: str) -> dict[str, object]:
+        return {
+            "projects": projects_using(extractor_id, root=runtime.projects_root),
+            "drafting": load_app_settings().drafting_extractor_id == extractor_id,
+        }
+
+    @app.get(f"/{token}/api/extractors/{{extractor_id}}/projects")
+    async def extractor_projects(extractor_id: str):
+        """What would be left without this extractor if it were deleted. Never opens the key vault."""
+        await _existing_extractor(extractor_id)
+        return await run_in_threadpool(_uses, extractor_id)
+
+    def _remove_key(extractor: Extractor) -> None:
+        """Blocking: remove an extractor's key and any old item no other extractor waits for."""
+        legacy = extractor.legacy_credential if extractor.legacy_credential and not other_claims(extractor) else ""
+        runtime.vault.delete(extractor.id, legacy)
+
+    @app.post(f"/{token}/extractors/{{extractor_id}}/delete")
+    async def remove_extractor(extractor_id: str):
+        # Check first so a stale request returns 404 without scanning projects.
+        extractor = await _existing_extractor(extractor_id)
+        uses = await run_in_threadpool(_uses, extractor_id)
+        # The key goes first: if it can't be removed, the extractor stays so
+        # its removal can be retried from Settings.
+        if runtime.has_key(extractor):
             try:
-                runtime.set_api_key("openai_compatible", api_key.strip())
+                await run_in_threadpool(_remove_key, extractor)
             except credentials.CredentialStoreError as exc:
-                return RedirectResponse(f"/{token}/settings?error={quote(str(exc))}", status_code=303)
-        save_app_settings(replace(
-            load_app_settings(),
-            openai_base_url=endpoint_url,
-            openai_response_format=openai_response_format,
-        ))
-        return RedirectResponse(f"/{token}/settings", status_code=303)
+                return _settings_redirect(
+                    error=f"The extractor was not deleted because its saved key could not be removed. {exc}",
+                    anchor=f"extractor-{extractor_id}",
+                )
+        try:
+            await run_in_threadpool(delete_extractor, extractor_id)
+        except ExtractorError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        notice = f"Deleted the “{extractor.name}” extractor."
+        if uses["projects"]:
+            notice += " Choose another extractor for: " + ", ".join(uses["projects"]) + "."
+        if uses["drafting"]:
+            notice += " Choose another extractor for drafting."
+        return _settings_redirect(notice=notice)
+
+    @app.post(f"/{token}/extractors/{{extractor_id}}/key/delete")
+    async def remove_extractor_key(extractor_id: str):
+        extractor = await _existing_extractor(extractor_id)
+        try:
+            await run_in_threadpool(_remove_key, extractor)
+        except credentials.CredentialStoreError as exc:
+            return _settings_redirect(error=str(exc), anchor=f"extractor-{extractor_id}")
+        await run_in_threadpool(set_key_saved, extractor.id, False)
+        return _settings_redirect(notice=f"Removed the key for “{extractor.name}”.", anchor=f"extractor-{extractor_id}")
+
+    @app.post(f"/{token}/api/models")
+    async def model_suggestions(
+        provider: str = Form(...), api_key: str = Form(""), base_url: str = Form(""), extractor_id: str = Form(""),
+    ):
+        """Model IDs for the form's provider: with the key typed into the form, or
+        a saved extractor's key (which may open the credential store once). A
+        typed key is sent to the provider for this request only: never stored,
+        logged, or included in the response or an error message."""
+        key = api_key.strip()
+        if provider not in PROVIDERS:
+            raise HTTPException(status_code=400, detail="Unknown provider.")
+        if not key and extractor_id:
+            extractor = await _existing_extractor(extractor_id)
+            try:
+                key = await run_in_threadpool(runtime.key_for, extractor)
+            except credentials.CredentialStoreError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from None
+        try:
+            models = await run_in_threadpool(list_models, provider, api_key=key, base_url=base_url)
+        except Exception as exc:  # Provider errors vary; any of them must reach the user redacted.
+            raise HTTPException(status_code=502, detail=runtime.redact(exc, key) or "Models could not be loaded.") from None
+        return {"models": models}
 
     @app.post(f"/{token}/settings/app")
     async def save_app_settings_route(
         upload_size_cap_mb: int = Form(...),
-        manual_generator_provider: str = Form(...),
-        manual_generator_model: str = Form(""),
+        drafting_extractor_id: str = Form(""),
         grobid_url: str = Form(""),
     ):
+        if drafting_extractor_id and await run_in_threadpool(get_extractor, drafting_extractor_id) is None:
+            return _settings_redirect(error="That extractor no longer exists. Choose another.", anchor="drafting")
         current_settings = load_app_settings()
         save_app_settings(replace(
             current_settings,
             upload_size_cap_mb=upload_size_cap_mb,
-            manual_generator_provider=manual_generator_provider,
-            manual_generator_model=manual_generator_model,
+            drafting_extractor_id=drafting_extractor_id,
             # A hidden field must never clear an existing advanced setting.
             grobid_url=grobid_url if GROBID_SETTINGS_ENABLED else current_settings.grobid_url,
         ))
-        return RedirectResponse(f"/{token}/settings", status_code=303)
+        return _settings_redirect(notice="Saved drafting preferences.", anchor="drafting")
 
     @app.get(f"/{token}/api/openrouter/endpoints")
-    async def openrouter_endpoints(model: str = ""):
+    async def openrouter_endpoints(model: str = "", extractor_id: str = ""):
         """Providers serving an OpenRouter model with structured output.
 
-        The listing is public. Send a key only if one is already unlocked this
-        session; a page interaction must never prompt for keychain access."""
+        The listing is public. Send the extractor's key only if it is already
+        unlocked this session; a page interaction must never prompt for
+        keychain access."""
         try:
             return await run_in_threadpool(
-                list_model_endpoints, model, api_key=runtime.api_key("openrouter") or ""
+                list_model_endpoints, model, api_key=runtime.vault.cached(extractor_id) or "" if extractor_id else ""
             )
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -967,51 +1137,15 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     @app.post(f"/{token}/projects/{{project_id}}/settings")
-    async def save_project_settings(
-        project_id: str,
-        provider: str = Form(...),
-        previous_provider: str = Form(""),
-        model: str = Form(""),
-        parallel_requests: int = Form(1),
-        request_delay_sec: int = Form(0),
-        request_timeout_sec: int = Form(0),
-        service_tier: str = Form(""),
-        reasoning_effort: str = Form(""),
-        # Text, not int: an empty field means the provider's own limit.
-        max_output_tokens: str = Form(""),
-        openrouter_provider: str = Form(""),
-        openrouter_fallbacks: str = Form("allow"),
-    ):
+    async def save_project_settings(project_id: str, extractor_id: str = Form(...)):
         project = runtime.project(project_id)
-        if openrouter_fallbacks not in ("allow", "deny"):
-            raise HTTPException(status_code=400, detail="OpenRouter fallbacks must be `allow` or `deny`.")
-        try:
-            routed_provider = normalize_openrouter_provider(openrouter_provider)
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        settings = RunSettings(
-            provider=provider,
-            model=model if provider == "openai_compatible" or provider == previous_provider else "",
-            parallel_requests=parallel_requests,
-            request_delay_sec=request_delay_sec,
-            request_timeout_sec=request_timeout_sec,
-            service_tier=service_tier,
-            reasoning_effort=reasoning_effort,
-            max_output_tokens=output_token_limit(max_output_tokens),
-            openrouter_provider=routed_provider,
-            openrouter_allow_fallbacks=openrouter_fallbacks == "allow",
-        ).clamped()
-        setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
-        problems = [setup_error] if setup_error else await run_in_threadpool(check_model,
-            settings.provider, settings.model, api_key=runtime.api_key(settings.provider) or "",
-            **({"base_url": load_app_settings().openai_base_url} if settings.provider == "openai_compatible" else {})
-        )
-        save_run_settings(project, settings)
-        if problems:
+        _reject_if_busy(project_id, "Wait for the active run to finish before changing its extractor.")
+        if await run_in_threadpool(get_extractor, extractor_id) is None:
             return RedirectResponse(
-                f"/{token}/projects/{project_id}?tab=run&warning={quote('; '.join(problems))}",
+                f"/{token}/projects/{project_id}?tab=run&error={quote('That extractor no longer exists. Choose another.')}",
                 status_code=303,
             )
+        save_project_extractor_id(project, extractor_id)
         return RedirectResponse(f"/{token}/projects/{project_id}?tab=run", status_code=303)
 
     @app.post(f"/{token}/projects/{{project_id}}/manual")
@@ -1076,14 +1210,32 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         runtime.runner.discard_finished_state(project_id)
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
+    async def _prepare_drafting(settings: AppSettings) -> tuple[Extractor | None, str, str | None]:
+        """The drafting extractor, its key and any reason it can't be used."""
+        drafting = await run_in_threadpool(get_extractor, settings.drafting_extractor_id)
+        key, error = await run_in_threadpool(
+            lambda: runtime.prepare(drafting, deleted=bool(settings.drafting_extractor_id), purpose="drafting")
+        )
+        return drafting, key, error
+
+    def _drafting_kwargs(drafting: Extractor, key: str) -> dict[str, object]:
+        """Provider arguments for a draft, plus the extractor's snapshot for provenance."""
+        settings = run_settings_for(drafting)
+        return {
+            "provider": settings.provider, "model": settings.model, "api_key": key,
+            "timeout_sec": settings.request_timeout_sec, "service_tier": settings.service_tier,
+            "reasoning_effort": settings.reasoning_effort, "base_url": settings.base_url,
+            "response_format": settings.response_format,
+            "audit_settings": {"extractor": _extractor_record(settings)},
+        }
+
     @app.post(f"/{token}/projects/{{project_id}}/manual/draft", response_class=JSONResponse)
     async def draft_manual(project_id: str, file: UploadFile = File(...)):
         """Return an unsaved editor draft; the browser updates in place."""
 
         project = runtime.project(project_id)
         settings = load_app_settings()
-        provider = settings.manual_generator_provider
-        setup_error = await run_in_threadpool(runtime.prepare_provider, provider, settings.manual_generator_model)
+        drafting, key, setup_error = await _prepare_drafting(settings)
         if setup_error:
             return JSONResponse({"error": setup_error}, status_code=400)
 
@@ -1099,24 +1251,22 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             draft = await run_in_threadpool(
                 audited_call, project, "manual_draft", draft_coding_manual,
                 audit_inputs={"uploaded/" + Path(file.filename or "manual").name: source_bytes},
-                provider=provider,
                 document_text=document_text,
-                api_key=runtime.api_key(provider) or "",
-                model=settings.manual_generator_model,
-                **endpoint_options(provider, settings),
+                **_drafting_kwargs(drafting, key),
             )
         except ManualDraftError as exc:
-            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=400)
+            return JSONResponse({"error": runtime.redact(exc, key)}, status_code=400)
         except ProviderError as exc:
-            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=502)
+            return JSONResponse({"error": runtime.redact(exc, key)}, status_code=502)
 
         return JSONResponse(
             {
                 "manual": manual_to_editor_payload(draft),
                 "yaml": manual_to_yaml_text(draft),
                 "filename": Path(file.filename or "manual document").name,
-                "provider": provider,
-                "model": settings.manual_generator_model,
+                "provider": drafting.provider,
+                "model": drafting.model,
+                "extractor": drafting.name,
             }
         )
 
@@ -1146,8 +1296,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
     async def draft_sheet(project_id: str, file: UploadFile = File(...), notes: str = Form("")):
         project = runtime.project(project_id)
         settings = load_app_settings()
-        provider = settings.manual_generator_provider
-        setup_error = await run_in_threadpool(runtime.prepare_provider, provider, settings.manual_generator_model)
+        drafting, key, setup_error = await _prepare_drafting(settings)
         if setup_error:
             return JSONResponse({"error": setup_error}, status_code=400)
         try:
@@ -1159,17 +1308,16 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             await file.seek(0)
             source_bytes = await file.read()
             draft = await run_in_threadpool(
-                audited_call, project, "sheet_conversion", draft_coding_sheet, provider=provider, source=source,
+                audited_call, project, "sheet_conversion", draft_coding_sheet, source=source,
                 audit_inputs={"uploaded/" + Path(file.filename or "sheet.csv").name: source_bytes},
                 manual=manual_to_yaml_text(manual), notes=notes,
                 filenames=[path.name for path in list_uploaded_sources(project.sources_dir)],
-                api_key=runtime.api_key(provider) or "", model=settings.manual_generator_model,
-                **endpoint_options(provider, settings),
+                **_drafting_kwargs(drafting, key),
             )
         except (CodingSheetDraftError, ManualError) as exc:
-            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=400)
+            return JSONResponse({"error": runtime.redact(exc, key)}, status_code=400)
         except ProviderError as exc:
-            return JSONResponse({"error": redact_secret(str(exc), runtime.api_key(provider) or "")}, status_code=502)
+            return JSONResponse({"error": runtime.redact(exc, key)}, status_code=502)
         return JSONResponse(draft)
 
     @app.post(f"/{token}/projects/{{project_id}}/coding-sheet/draft/save", response_class=JSONResponse)
@@ -1276,16 +1424,10 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
 
         _reject_if_busy(project.project_id, "A run is already in progress.")
         view = _project_view(runtime, project)
-        settings = view["run_settings"]
         if not view["can_run"]:
             reasons = []
-            if settings.provider == "openai_compatible" and (not runtime.provider_ready(settings.provider) or not settings.model.strip()):
-                reasons.append("configure the OpenAI-compatible base URL in Settings and enter a model")
-            elif not runtime.provider_ready(settings.provider):
-                reasons.append(
-                    f"a {PROVIDER_LABELS.get(settings.provider, settings.provider)} API key "
-                    "is required (set it in Settings)"
-                )
+            if view["run_setup_error"]:
+                reasons.append(view["run_setup_error"].rstrip("."))
             if view["manual_error"]:
                 reasons.append("the coding manual has a validation error")
             if view["coding_sheet"].sheet_issues:
@@ -1302,15 +1444,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
 
         _reject_if_busy(project.project_id, "A run is already in progress.")
         view = _project_view(runtime, project)
-        settings = view["run_settings"]
-        if settings.provider == "openai_compatible" and (not runtime.provider_ready(settings.provider) or not settings.model.strip()):
-            raise HTTPException(status_code=400, detail="Configure the OpenAI-compatible base URL and model.")
-        if not runtime.provider_ready(settings.provider):
-            raise HTTPException(
-                status_code=400,
-                detail=f"A {PROVIDER_LABELS.get(settings.provider, settings.provider)} API key "
-                "is required (set it in Settings).",
-            )
+        if view["run_setup_error"]:
+            raise HTTPException(status_code=400, detail=view["run_setup_error"])
         if view["manual_error"] or view["manual"] is None or not view["manual"].is_complete:
             raise HTTPException(status_code=400, detail="Fix the coding manual before retrying.")
         if view["coding_sheet"].sheet_issues:
@@ -1328,31 +1463,32 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         return view, targets
 
     async def _start_run(project: Project, validate) -> None:
-        """Validate, load the provider key, then validate again and start.
+        """Validate, load the extractor's key, then validate again and start.
 
         Loading a saved key runs in a worker thread, so other requests — a
-        second click on Run, or an edit to the manual or coding sheet — can be
-        handled while this one waits. Re-reading and re-validating the inputs
-        afterwards, with no further await before `runner.start`, means the run
-        either starts from the inputs as they are now or is rejected; it never
-        codes a snapshot taken before an edit, and a request that lost the
-        race gets a 409 instead of the runner's "already running" error."""
+        second click on Run, or an edit to the manual, coding sheet or
+        extractor — can be handled while this one waits. Re-reading and
+        re-validating the inputs afterwards, with no further await before
+        `runner.start`, means the run either starts from the inputs as they
+        are now or is rejected; it never codes a snapshot taken before an
+        edit, and a request that lost the race gets a 409 instead of the
+        runner's "already running" error."""
 
         view, only_pdfs = validate()
         settings = view["run_settings"]
-        setup_error = await run_in_threadpool(runtime.prepare_provider, settings.provider, settings.model)
+        extractor = get_extractor(settings.extractor_id)
+        key, setup_error = await run_in_threadpool(runtime.prepare, extractor)
         if setup_error:
             raise HTTPException(status_code=400, detail=setup_error)
         view, only_pdfs = validate()
         if view["run_settings"] != settings:
-            raise HTTPException(status_code=409, detail="The run settings changed while the run was starting. Try again.")
+            raise HTTPException(status_code=409, detail="The extractor changed while the run was starting. Try again.")
         try:
             runtime.runner.start(
                 project=project,
                 manual=view["manual"],
                 coding_sheet=view["coding_sheet"],
-                api_key=runtime.api_key(settings.provider) or "",
-                **endpoint_options(settings.provider),
+                api_key=key,
                 provider=settings.provider,
                 model=settings.model,
                 parallel_requests=settings.parallel_requests,
@@ -1360,6 +1496,9 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 request_timeout_sec=settings.request_timeout_sec,
                 service_tier=settings.service_tier,
                 reasoning_effort=settings.reasoning_effort,
+                base_url=settings.base_url,
+                response_format=settings.response_format,
+                extractor=_extractor_record(settings),
                 max_output_tokens=settings.max_output_tokens,
                 openrouter_provider=settings.openrouter_provider,
                 openrouter_allow_fallbacks=settings.openrouter_allow_fallbacks,
@@ -1368,6 +1507,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         except RuntimeError as exc:
             # The runner's own guards: already running, or nothing to code.
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        # The last run's settings, with a snapshot of the extractor it used.
+        save_run_settings(project, settings)
 
     @app.post(f"/{token}/projects/{{project_id}}/run")
     async def start_run(project_id: str):
@@ -1425,7 +1566,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         settings = load_run_settings(project)
         checker = InputChecker(
             project, manual, coding_sheet, provider=settings.provider, model=settings.model,
-            reasoning_effort=settings.reasoning_effort, **endpoint_options(settings.provider),
+            reasoning_effort=settings.reasoning_effort, base_url=settings.base_url,
+            response_format=settings.response_format,
         )
         if not delete_pdf_outputs(project, selected, manual=manual, coding_sheet=coding_sheet, checker=checker):
             raise HTTPException(status_code=400, detail="None of the selected PDFs have saved output.")

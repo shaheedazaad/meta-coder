@@ -30,7 +30,7 @@ Choose **Validate and save** when the fields and effect definition are ready. Fi
 
 ## Draft from a document
 
-Choose **AI draft from document** and provide a PDF, DOCX, RTF, or Markdown manual. Drafting uses the global [drafting provider and model](settings.md), independently of extraction settings.
+Choose **AI draft from document** and provide a PDF, DOCX, RTF, or Markdown manual. Drafting uses the [drafting extractor](settings.md#choose-the-drafting-extractor) chosen in Settings, independently of the project's extractor.
 
 The generated fields appear in the editor as an unsaved draft. Review the effect definition, field descriptions, types, and categories, then choose **Validate and save draft**. A generated draft does not replace your saved manual until you save it.
 

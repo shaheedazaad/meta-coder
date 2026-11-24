@@ -3,14 +3,15 @@ import io
 import json
 import re
 import zipfile
-from dataclasses import replace
 from urllib.parse import unquote
 from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
-from meta_coder import pdf_matching, web
+from meta_coder import extractors, pdf_matching, web
+from meta_coder.app_settings import AppSettings, save_app_settings
+from meta_coder.settings import load_run_settings, save_project_extractor_id
 from meta_coder.manual import manual_to_editor_payload, parse_coding_manual
 from meta_coder.projects import create_project
 
@@ -18,8 +19,6 @@ from meta_coder.projects import create_project
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     monkeypatch.setenv('META_CODER_HOME', str(tmp_path / 'home'))
-    monkeypatch.setattr(web.credentials, 'saved_key_configured', lambda _: False)
-    monkeypatch.setattr(web.credentials, 'keyring_available', lambda: False)
     app = web.create_app(token='test', projects_root=tmp_path / 'projects')
     project = create_project('Route study', root=tmp_path / 'projects')
     monkeypatch.setattr(app.state.runtime.pdf_scanner, 'scan_async', Mock())
@@ -252,33 +251,30 @@ def ready_project(project, runtime):
     write_manual(project, parse_coding_manual('effect_definition: comparison\neffects:\n  estimate: {type: number}\n'))
     (project.sources_dir / 'paper.pdf').write_bytes(b'%PDF')
     project.coding_sheet_path.write_text('row_id,source_pdf,locator,authors,year\nr1,paper.pdf,exp1,Smith,2024\n')
-    runtime._session_keys['gemini'] = 'fake-test-key'
+    give_key(runtime, choose_extractor(project))
 
 
-def test_key_routes_validate_save_clear_and_surface_store_errors(site, monkeypatch):
-    client, _, runtime = site
-    save = Mock()
-    clear = Mock()
-    monkeypatch.setattr(web.credentials, 'save_key', save)
-    monkeypatch.setattr(web.credentials, 'clear_key', clear)
-    assert client.post('/test/settings/api-key', data={'provider': 'unknown', 'api_key': 'x'}).status_code == 400
-    assert client.post('/test/settings/api-key', data={'provider': 'gemini', 'api_key': ' '}).status_code == 400
-    assert client.post('/test/settings/api-key/clear', data={'provider': 'unknown'}).status_code == 400
-    assert client.post('/test/settings/api-key', data={'provider': 'gemini', 'api_key': ' key '}).status_code == 303
-    save.assert_called_once_with('gemini', 'key')
-    assert runtime.api_key('gemini') == 'key'
-    assert client.post('/test/settings/api-key/clear', data={'provider': 'gemini'}).status_code == 303
-    assert runtime.api_key('gemini') is None and not runtime.has_saved_key('gemini')
-    save.side_effect = web.credentials.CredentialStoreError('locked')
-    response = client.post('/test/settings/api-key', data={'provider': 'gemini', 'api_key': 'key'})
-    assert 'error=locked' in response.headers['location']
-    clear.side_effect = web.credentials.CredentialStoreError('locked')
-    response = client.post('/test/settings/api-key/clear', data={'provider': 'gemini'})
-    assert 'error=locked' in response.headers['location']
-    response = client.post('/test/settings/openai-compatible', data={'openai_base_url': 'http://localhost/v1', 'api_key': 'key'})
-    assert 'error=locked' in response.headers['location']
-    response = client.post('/test/settings/openai-compatible', data={'openai_base_url': 'http://localhost/v1', 'openai_response_format': 'xml'})
-    assert 'error=' in response.headers['location']
+def choose_extractor(project, **values):
+    """The project's extractor, creating and choosing a Gemini one if it has none."""
+    chosen = extractors.project_extractor(project).extractor
+    if chosen is None:
+        chosen = extractors.add_extractor(extractors.validate_new_extractor(
+            {'name': 'Test ' + project.project_id, 'provider': 'gemini', 'model': 'test-model', **values}))
+        save_project_extractor_id(project, chosen.id)
+    return chosen
+
+
+def give_key(runtime, extractor, key='fake-test-key'):
+    """Hold a key in the session's vault, as if it had already been read."""
+    runtime.vault._keys = {**(runtime.vault._keys or {}), extractor.id: key}
+
+
+def drafting_ready(runtime, key='fake'):
+    extractor = extractors.add_extractor(extractors.validate_new_extractor(
+        {'name': 'Drafting', 'provider': 'gemini', 'model': 'draft-model'}))
+    save_app_settings(AppSettings(drafting_extractor_id=extractor.id))
+    give_key(runtime, extractor, key)
+    return extractor
 
 
 def test_manual_draft_returns_unsaved_candidate_and_expected_errors(site, monkeypatch):
@@ -286,8 +282,8 @@ def test_manual_draft_returns_unsaved_candidate_and_expected_errors(site, monkey
     original = project.manual_path.read_text()
     target = url(project, '/manual/draft')
     uploaded = {'file': ('manual.md', b'Human coding instructions')}
-    assert client.post(target, files=uploaded).status_code == 400
-    runtime._session_keys['gemini'] = 'fake'
+    assert 'Choose an extractor for drafting' in client.post(target, files=uploaded).json()['error']
+    drafting_ready(runtime)
     draft = parse_coding_manual('effect_definition: draft comparison\neffects:\n  age: {type: number}\n')
     generate = Mock(return_value=draft)
     monkeypatch.setattr(web, 'draft_coding_manual', generate)
@@ -297,6 +293,9 @@ def test_manual_draft_returns_unsaved_candidate_and_expected_errors(site, monkey
     assert response.json()['filename'] == 'manual.md'
     assert project.manual_path.read_text() == original
     assert generate.call_args.kwargs['document_text'] == 'Human coding instructions'
+    assert generate.call_args.kwargs['model'] == 'draft-model'
+    assert generate.call_args.kwargs['api_key'] == 'fake'
+    assert response.json()['extractor'] == 'Drafting'
     assert client.post(target, files={'file': ('manual.exe', b'bad')}).status_code == 400
     generate.side_effect = web.ProviderError('offline')
     response = client.post(target, files=uploaded)
@@ -308,7 +307,7 @@ def test_sheet_draft_setup_validation_and_provider_errors(site, monkeypatch):
     target = url(project, '/coding-sheet/draft')
     uploaded = {'file': ('sheet.csv', b'citation\nSmith 2024')}
     assert client.post(target, files=uploaded).status_code == 400
-    runtime._session_keys['gemini'] = 'fake'
+    drafting_ready(runtime)
     assert client.post(target, files=uploaded).status_code == 400  # incomplete starter manual
     ready_project(project, runtime)
     monkeypatch.setattr(web, 'draft_coding_sheet', Mock(side_effect=web.ProviderError('offline')))
@@ -336,14 +335,19 @@ def test_start_run_validates_readiness_and_forwards_settings(site, monkeypatch):
     client, project, runtime = site
     target = url(project, '/run')
     response = client.post(target)
-    assert response.status_code == 400 and 'API key' in response.text
+    assert response.status_code == 400 and 'Choose an extractor for this project' in response.text
     ready_project(project, runtime)
     start = Mock()
     monkeypatch.setattr(runtime.runner, 'start', start)
     assert client.post(target).status_code == 303
     assert start.call_args.kwargs['api_key'] == 'fake-test-key'
     assert start.call_args.kwargs['coding_sheet'].rows[0].row_id == 'r1'
-    monkeypatch.setattr(runtime, 'prepare_provider', lambda *a: 'Keychain locked')
+    assert start.call_args.kwargs['model'] == 'test-model'
+    assert start.call_args.kwargs['extractor']['name'] == 'Test ' + project.project_id
+    saved = load_run_settings(project)
+    assert saved.extractor_id == start.call_args.kwargs['extractor']['id']
+    assert saved.extractor['model'] == 'test-model'
+    monkeypatch.setattr(runtime, 'prepare', lambda *a: ('', 'Keychain locked'))
     assert client.post(target).json()['detail'] == 'Keychain locked'
     project.manual_path.write_text('broken')
     assert 'manual has a validation error' in client.post(target).text
@@ -357,8 +361,8 @@ def test_retry_eligibility_and_explicit_or_all_failed_targets(site, monkeypatch)
     from meta_coder.runner import PdfProgress, RunState
     client, project, runtime = site
     target = url(project, '/run/retry')
-    assert client.post(target).status_code == 400  # missing key
-    runtime._session_keys['gemini'] = 'fake'
+    assert client.post(target).status_code == 400  # no extractor
+    give_key(runtime, choose_extractor(project))
     assert 'Fix the coding manual' in client.post(target).text
     ready_project(project, runtime)
     assert 'Nothing to retry' in client.post(target).text
@@ -368,7 +372,7 @@ def test_retry_eligibility_and_explicit_or_all_failed_targets(site, monkeypatch)
     assert client.post(target).status_code == 303
     assert start.call_args.kwargs['only_pdfs'] == ['paper.pdf']
     assert client.post(target, data={'source_pdf': 'paper.pdf'}).status_code == 303
-    monkeypatch.setattr(runtime, 'prepare_provider', lambda *a: 'locked')
+    monkeypatch.setattr(runtime, 'prepare', lambda *a: ('', 'locked'))
     assert client.post(target, data={'source_pdf': 'paper.pdf'}).json()['detail'] == 'locked'
     project.coding_sheet_path.write_text('wrong,header\n')
     assert 'Fix the coding sheet' in client.post(target).text
@@ -377,21 +381,32 @@ def test_retry_eligibility_and_explicit_or_all_failed_targets(site, monkeypatch)
 
 
 def test_endpoint_readiness_rejects_missing_base_url_and_model(site):
-    from meta_coder.settings import RunSettings, save_run_settings
     client, project, runtime = site
     ready_project(project, runtime)
-    save_run_settings(project, RunSettings(provider='openai_compatible'))
-    assert 'configure the OpenAI-compatible' in client.post(url(project, '/run')).text
-    assert 'Configure the OpenAI-compatible' in client.post(url(project, '/run/retry')).text
+    incomplete = extractors.add_extractor(extractors.Extractor(
+        id='endpoint', name='Endpoint', provider='openai_compatible', model='local'))
+    save_project_extractor_id(project, incomplete.id)
+    assert 'Enter the API base URL for the “Endpoint” extractor' in client.post(url(project, '/run')).text
+    assert 'Enter the API base URL' in client.post(url(project, '/run/retry')).text
+    extractors.update_extractor('endpoint', {'name': 'Endpoint', 'model': 'local', 'base_url': 'http://localhost/v1'})
+    assert web._project_view(runtime, project)['run_setup_error'] is None  # no key needed
+    nameless = extractors.add_extractor(extractors.Extractor(id='nameless', name='No model', provider='gemini', model=''))
+    save_project_extractor_id(project, nameless.id)
+    assert 'Choose a model for the “No model” extractor' in client.post(url(project, '/run')).text
+    extractors.delete_extractor('nameless')
+    assert 'chosen for this project was deleted' in client.post(url(project, '/run')).text
 
 
-def test_runtime_setup_rejects_empty_model_and_stale_saved_key(site, monkeypatch):
-    _, _, runtime = site
-    assert 'Enter a model ID' in runtime.provider_setup_error('gemini', '')
-    runtime._saved_keys.add('gemini')
-    monkeypatch.setattr(web.credentials, 'load_key', lambda _: None)
-    monkeypatch.setattr(web.credentials, 'mark_saved_key_configured', lambda *a: True)
-    assert 'no longer in the credential store' in runtime.prepare_provider('gemini', 'model')
+def test_runtime_reports_and_repairs_a_stale_saved_key(site):
+    _, project, runtime = site
+    extractor = choose_extractor(project)
+    extractors.set_key_saved(extractor.id, True)
+    extractor = extractors.get_extractor(extractor.id)
+    assert runtime.setup_error(extractor) is None  # judged without opening the store
+    key, error = runtime.prepare(extractor)
+    assert key == '' and 'no longer in the credential store' in error
+    assert extractors.get_extractor(extractor.id).key_saved is False
+    assert 'Add an API key' in runtime.setup_error(extractors.get_extractor(extractor.id))
 
 
 def test_launch_binds_loopback_and_optionally_opens_browser(monkeypatch, capsys):
@@ -461,15 +476,20 @@ def test_results_table_links_per_pdf_yaml_only_when_written(site):
     assert response.headers['content-type'].startswith('text/plain')
 
 
-def test_valid_project_settings_save_without_warning(site, monkeypatch):
-    from meta_coder.settings import load_run_settings
+def test_project_chooses_an_existing_extractor(site, monkeypatch):
+    from meta_coder.settings import load_project_extractor_id
     client, project, runtime = site
-    ready_project(project, runtime)
-    monkeypatch.setattr(web, 'check_model', Mock(return_value=[]))
-    response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'valid-model', 'parallel_requests': 3})
+    other = extractors.add_extractor(extractors.validate_new_extractor(
+        {'name': 'Other', 'provider': 'openrouter', 'model': 'vendor/model', 'parallel_requests': 3}))
+    response = client.post(url(project, '/settings'), data={'extractor_id': other.id})
     assert response.headers['location'] == url(project, '?tab=run')
-    settings = load_run_settings(project)
-    assert settings.model == 'valid-model' and settings.parallel_requests == 3
+    assert load_project_extractor_id(project) == other.id
+    assert web._project_view(runtime, project)['run_settings'].parallel_requests == 3
+    response = client.post(url(project, '/settings'), data={'extractor_id': 'missing'})
+    assert 'error=' in response.headers['location']
+    assert load_project_extractor_id(project) == other.id
+    monkeypatch.setattr(runtime.runner, 'is_running', lambda _: True)
+    assert client.post(url(project, '/settings'), data={'extractor_id': other.id}).status_code == 409
 
 
 def test_saving_identical_converted_sheet_keeps_results(site):
@@ -489,21 +509,10 @@ def test_all_invalid_uploads_do_not_trigger_scanning(site):
     runtime.pdf_scanner.scan_async.assert_not_called()
 
 
-def test_model_warning_preserves_saved_settings(site, monkeypatch):
-    from meta_coder.settings import load_run_settings
-    client, project, runtime = site
-    ready_project(project, runtime)
-    monkeypatch.setattr(web, 'check_model', Mock(return_value=['Model lacks structured output']))
-    response = client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'})
-    assert response.status_code == 303 and 'warning=' in response.headers['location']
-    assert load_run_settings(project).model == 'model'
-
-
 def test_results_table_shows_latest_attempts_outdated_and_unverified_results(site):
     from meta_coder.extraction import ExtractionResult
     from meta_coder.fingerprints import InputChecker
     from meta_coder.runner import PdfProgress, RunState, write_raw_result
-    from meta_coder.settings import load_run_settings
     client, project, runtime = site
     ready_project(project, runtime)
     (project.sources_dir / 'old.pdf').write_bytes(b'%PDF-old')
@@ -511,7 +520,7 @@ def test_results_table_shows_latest_attempts_outdated_and_unverified_results(sit
     project.coding_sheet_path.write_text(project.coding_sheet_path.read_text()
                                          + 'r2,old.pdf,exp1,Lee,2021\nr3,legacy.pdf,exp1,Kim,2022\n')
     view = web._project_view(runtime, project)
-    settings = load_run_settings(project)
+    settings = view['run_settings']
     checker = InputChecker(project, view['manual'], view['coding_sheet'], provider=settings.provider, model=settings.model)
     for name in ['paper.pdf', 'old.pdf']:
         write_raw_result(project, ExtractionResult(name, 'ok', input_fingerprint=checker.fingerprint(name)),
@@ -541,11 +550,10 @@ def test_results_table_shows_a_kept_needs_review_result_with_its_failed_retry(si
     from meta_coder.extraction import ExtractionResult
     from meta_coder.fingerprints import InputChecker
     from meta_coder.runner import PdfProgress, RunState, raw_json_path, write_raw_result
-    from meta_coder.settings import load_run_settings
     client, project, runtime = site
     ready_project(project, runtime)
     view = web._project_view(runtime, project)
-    settings = load_run_settings(project)
+    settings = view['run_settings']
     current = InputChecker(project, view['manual'], view['coding_sheet'],
                            provider=settings.provider, model=settings.model).fingerprint('paper.pdf')
     write_raw_result(project, ExtractionResult('paper.pdf', 'needs_review', error='Response was cut short',
@@ -685,9 +693,10 @@ def test_second_run_click_during_key_loading_gets_409(site, monkeypatch):
         if not second_click:
             second_click.append(None)
             second_click[0] = client.post(url(project, '/run'))
+        return 'fake-test-key', None
 
     monkeypatch.setattr(runtime.runner, 'start', start)
-    monkeypatch.setattr(runtime, 'prepare_provider', prepare)
+    monkeypatch.setattr(runtime, 'prepare', prepare)
     first_click = client.post(url(project, '/run'))
     assert second_click[0].status_code == 303
     assert first_click.status_code == 409
@@ -705,9 +714,10 @@ def test_input_edit_during_key_loading_is_used_by_the_run(site, monkeypatch):
     def prepare(*args):
         edits.append(client.post(url(project, '/coding-sheet'), files={'file': ('sheet.csv', NEW_SHEET.encode())}))
         edits.append(client.post(url(project, '/manual/import'), files={'file': ('manual.yml', VALID_MANUAL.encode())}))
+        return 'fake-test-key', None
 
     monkeypatch.setattr(runtime.runner, 'start', start)
-    monkeypatch.setattr(runtime, 'prepare_provider', prepare)
+    monkeypatch.setattr(runtime, 'prepare', prepare)
     assert client.post(url(project, '/run')).status_code == 303
     assert [edit.status_code for edit in edits] == [303, 303]
     assert [row.row_id for row in start.call_args.kwargs['coding_sheet'].rows] == ['r2']
@@ -719,22 +729,26 @@ def test_edit_during_key_loading_that_blocks_the_run_rejects_it(site, monkeypatc
     ready_project(project, runtime)
     start = Mock()
     monkeypatch.setattr(runtime.runner, 'start', start)
-    monkeypatch.setattr(runtime, 'prepare_provider', lambda *a: client.post(url(project, '/manual/reset')) and None)
+    monkeypatch.setattr(runtime, 'prepare', lambda *a: (client.post(url(project, '/manual/reset')), ('k', None))[1])
     response = client.post(url(project, '/run'))
     assert response.status_code == 400 and 'Cannot run' in response.json()['detail']
     start.assert_not_called()
 
 
-def test_run_settings_change_during_key_loading_rejects_the_start(site, monkeypatch):
-    from meta_coder.settings import load_run_settings, save_run_settings
+def test_extractor_edit_during_key_loading_rejects_the_start(site, monkeypatch):
     client, project, runtime = site
+    extractor = choose_extractor(project)
     ready_project(project, runtime)
     start = Mock()
     monkeypatch.setattr(runtime.runner, 'start', start)
-    changed = replace(load_run_settings(project), parallel_requests=4)
-    monkeypatch.setattr(runtime, 'prepare_provider', lambda *a: save_run_settings(project, changed) and None)
+
+    def edit(*args):
+        extractors.update_extractor(extractor.id, {'name': extractor.name, 'model': 'test-model', 'parallel_requests': 4})
+        return 'k', None
+
+    monkeypatch.setattr(runtime, 'prepare', edit)
     response = client.post(url(project, '/run'))
-    assert response.status_code == 409 and 'settings changed' in response.json()['detail']
+    assert response.status_code == 409 and 'extractor changed' in response.json()['detail']
     start.assert_not_called()
 
 
@@ -794,14 +808,14 @@ def test_manual_import_accepts_utf8_bom(site):
 def test_model_check_runs_outside_request_event_loop(site, monkeypatch):
     import threading
     client, project, runtime = site
-    ready_project(project, runtime)
     @client.app.get('/thread-id')
     async def thread_id():
         return threading.get_ident()
     event_thread = client.get('/thread-id').json()
     threads = []
     monkeypatch.setattr(web, 'check_model', lambda *a, **k: threads.append(threading.get_ident()) or [])
-    assert client.post(url(project, '/settings'), data={'provider': 'gemini', 'previous_provider': 'gemini', 'model': 'model'}).status_code == 303
+    response = client.post('/test/extractors', data={'name': 'Threaded', 'provider': 'gemini', 'model': 'm', 'api_key': 'k'})
+    assert response.status_code == 303
     assert threads and threads[0] != event_thread
 
 

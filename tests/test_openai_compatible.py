@@ -11,15 +11,15 @@ import yaml
 from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
-from meta_coder import app_settings, openai_compatible as adapter, providers
-from meta_coder.app_settings import AppSettings, load_app_settings, save_app_settings
+from meta_coder import extractors, openai_compatible as adapter, providers
+from meta_coder.app_settings import AppSettings, save_app_settings
 from meta_coder.coding_sheet import CodingSheet, CodingSheetRow
 from meta_coder.extraction import ExtractionCancelled, ProviderError
 from meta_coder.manual import parse_coding_manual
 from meta_coder.projects import create_project
 from meta_coder.runner import Runner, audit_yaml_path, load_persisted_results, raw_json_path
-from meta_coder.settings import RunSettings, load_run_settings, save_run_settings
-from meta_coder.web import Runtime, create_app
+from meta_coder.settings import load_run_settings, save_project_extractor_id
+from meta_coder.web import create_app
 
 
 MANUAL = parse_coding_manual('effect_definition: Test effect\neffects:\n  estimate: {type: number}\n')
@@ -47,9 +47,7 @@ def make_pdf(path, text="The estimate is 42."):
 
 @pytest.fixture
 def settings_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(app_settings, 'app_data_dir', lambda: tmp_path)
-    monkeypatch.setattr('meta_coder.web.credentials.saved_key_configured', lambda p: False)
-    monkeypatch.setattr('meta_coder.web.credentials.keyring_available', lambda: False)
+    monkeypatch.setenv('META_CODER_HOME', str(tmp_path))
     return tmp_path
 
 
@@ -224,77 +222,31 @@ def request(app, method, path, data=None):
     return asyncio.run(run())
 
 
-def test_settings_ui_persistence_and_keyless_readiness(settings_dir):
-    app = create_app(token='test', projects_root=settings_dir / 'projects')
-    status, body = request(app, 'GET', '/test/settings')
-    assert status == 200 and 'openai_base_url' in body and 'openai_compatible' in body
-    # Headings include decorative icon markup, so assert on the stable heading
-    # text rather than the exact opening tag.
-    provider_panel, manual_panel = body.split('Drafting model</h2>')
-    assert all(f'id="config-{provider}"' in provider_panel for provider in providers.PROVIDERS)
-    assert 'name="openai_base_url"' in provider_panel
-    assert 'name="openai_base_url"' not in manual_panel
-    assert 'name="manual_generator_provider"' in manual_panel
-    assert 'name="manual_generator_model"' in manual_panel
-    values = dict(upload_size_cap_mb=128, manual_generator_provider='openai_compatible',
-                  manual_generator_model='my-model', openai_base_url='http://localhost:8000/v1/', openai_response_format='none')
-    assert request(app, 'POST', '/test/settings/app', values)[0] == 303
-    assert request(app, 'POST', '/test/settings/openai-compatible', values)[0] == 303
-    settings = load_app_settings()
-    assert settings.openai_base_url == 'http://localhost:8000/v1'
-    assert settings.openai_response_format == 'none'
-    assert settings.manual_generator_model == 'my-model'
-    runtime = Runtime(projects_root=settings_dir / 'projects')
-    assert runtime.provider_ready('openai_compatible')
-    runtime._saved_keys.add('openai_compatible')
-    assert runtime.provider_ready('openai_compatible')
-    runtime._session_keys['openai_compatible'] = 'secret'
-    assert runtime.provider_ready('openai_compatible')
-    values['openai_base_url'] = 'file:///tmp/test'
-    assert request(app, 'POST', '/test/settings/openai-compatible', values)[0] == 303
-    assert load_app_settings().openai_base_url == settings.openai_base_url
-    assert request(app, 'POST', '/test/settings/app', values)[0] == 303
-    assert load_app_settings().openai_base_url == settings.openai_base_url
-    assert request(app, 'POST', '/test/settings/openai-compatible', {'openai_base_url': ''})[0] == 303
-    assert load_app_settings().openai_base_url == ''
-
-
-def test_provider_switch_preserves_custom_model(settings_dir):
-    project = create_project('Test', root=settings_dir / 'projects')
-    save_app_settings(AppSettings(openai_base_url='http://localhost/v1'))
-    app = create_app(token='test', projects_root=settings_dir / 'projects')
-    status, _ = request(app, 'POST', f'/test/projects/{project.project_id}/settings',
-        dict(provider='openai_compatible', previous_provider='gemini', model='custom/model'))
-    assert status == 303
-    settings = load_run_settings(project)
-    assert settings.provider == 'openai_compatible' and settings.model == 'custom/model'
-
-
-def test_authenticated_web_run_and_retry(settings_dir, monkeypatch):
+def test_authenticated_web_run_and_retry(settings_dir, memory_keyring, monkeypatch):
+    monkeypatch.setattr('meta_coder.web.credentials.keyring_available', lambda: True)
     project = create_project('Authenticated endpoint', root=settings_dir / 'projects')
     project.manual_path.write_text('effect_definition: Test effect\neffects:\n  estimate: {type: number}\n')
     project.coding_sheet_path.write_text('row_id,source_pdf,locator,authors,year\nr1,paper.pdf,,Smith,2020\n')
     make_pdf(project.sources_dir / 'paper.pdf')
-    save_run_settings(project, RunSettings(provider='openai_compatible', model='private/model'))
-    save_app_settings(AppSettings(openai_base_url='https://example.test/api/v1', openai_response_format='none'))
-    saved = {}
-    monkeypatch.setattr('meta_coder.web.credentials.save_key', lambda p, k: saved.update({p: k}))
-    monkeypatch.setattr('meta_coder.web.credentials.load_key', lambda p: saved.get(p))
-    monkeypatch.setattr('meta_coder.web.credentials.mark_saved_key_configured', lambda *a: True)
     captured = []
     def respond(req, **kwargs):
         captured.append(req)
         return completion()
     monkeypatch.setattr(adapter, 'cancellable_urlopen', respond)
     app = create_app(token='test', projects_root=project.path.parent)
-    assert request(app, 'POST', '/test/settings/api-key', {'provider': 'openai_compatible', 'api_key': 'private-key'})[0] == 303
-    assert saved == {'openai_compatible': 'private-key'}
+    assert request(app, 'POST', '/test/extractors', {
+        'name': 'Private server', 'provider': 'openai_compatible', 'model': 'private/model',
+        'base_url': 'https://example.test/api/v1', 'response_format': 'none', 'api_key': 'private-key'})[0] == 303
+    extractor = extractors.load_extractors()[0]
+    assert extractor.key_saved and 'private-key' not in extractors.extractors_path().read_text()
+    assert request(app, 'POST', f'/test/projects/{project.project_id}/settings', {'extractor_id': extractor.id})[0] == 303
     # Running after restart loads the saved key without a separate unlock action.
-    monkeypatch.setattr('meta_coder.web.credentials.saved_key_configured', lambda p: p in saved)
     app = create_app(token='test', projects_root=project.path.parent)
+    reads = memory_keyring.reads
     run_path = f'/test/projects/{project.project_id}/run'
     start_status, start_body = request(app, 'POST', run_path)
     assert start_status == 303, start_body
+    assert memory_keyring.reads == reads + 1
     deadline = time.monotonic() + 5
     while not load_persisted_results(project) and time.monotonic() < deadline:
         time.sleep(.01)
@@ -302,6 +254,7 @@ def test_authenticated_web_run_and_retry(settings_dir, monkeypatch):
     assert captured[0].full_url == 'https://example.test/api/v1/chat/completions'
     assert captured[0].get_header('Authorization') == 'Bearer private-key'
     assert json.loads(captured[0].data)['model'] == 'private/model'
+    assert load_run_settings(project).extractor_name == 'Private server'
     # Wait for the worker's final state, then explicitly retry the same PDF.
     deadline = time.monotonic() + 5
     while time.monotonic() < deadline:
@@ -314,6 +267,7 @@ def test_authenticated_web_run_and_retry(settings_dir, monkeypatch):
         time.sleep(.01)
     assert len(captured) == 2
     assert captured[1].get_header('Authorization') == 'Bearer private-key'
+    assert memory_keyring.reads == reads + 1  # the vault is read once per session
 
 
 def test_authentication_error_is_reported_without_retry(monkeypatch):
@@ -328,57 +282,15 @@ def test_authentication_error_is_reported_without_retry(monkeypatch):
     assert len(attempts) == 1
 
 
-def test_endpoint_save_also_saves_api_key_and_survives_restart(settings_dir, monkeypatch):
-    from html.parser import HTMLParser
-    class Forms(HTMLParser):
-        def __init__(self):
-            super().__init__()
-            self.forms = []
-            self.current = None
-        def handle_starttag(self, tag, attrs):
-            attrs = dict(attrs)
-            if tag == 'form':
-                self.current = {'action': attrs.get('action'), 'fields': set()}
-                self.forms.append(self.current)
-            if self.current is not None and 'name' in attrs:
-                self.current['fields'].add(attrs['name'])
-        def handle_endtag(self, tag):
-            if tag == 'form':
-                self.current = None
-    saved = {}
-    monkeypatch.setattr('meta_coder.web.credentials.save_key', lambda p, k: saved.update({p: k}))
-    monkeypatch.setattr('meta_coder.web.credentials.saved_key_configured', lambda p: p in saved)
-    app = create_app(token='test', projects_root=settings_dir / 'projects')
-    forms = Forms()
-    forms.feed(request(app, 'GET', '/test/settings')[1])
-    endpoint_form = next(f for f in forms.forms if f['action'] == '/test/settings/openai-compatible')
-    assert {'api_key', 'openai_base_url', 'openai_response_format'} <= endpoint_form['fields']
-    assert request(app, 'POST', endpoint_form['action'], {
-        'api_key': 'test-key', 'openai_base_url': 'https://example.test/v1',
-        'openai_response_format': 'json_schema'})[0] == 303
-    assert saved == {'openai_compatible': 'test-key'}
-    restarted = create_app(token='test', projects_root=settings_dir / 'projects')
-    body = request(restarted, 'GET', '/test/settings')[1]
-    assert 'value="https://example.test/v1"' in body
-    assert 'Saved in Keychain' in body
-    assert 'test-key' not in body
-    # Saving an endpoint without replacing its key preserves the saved key.
-    request(restarted, 'POST', endpoint_form['action'], {
-        'api_key': '', 'openai_base_url': 'https://example.test/v1'})
-    assert saved == {'openai_compatible': 'test-key'}
-
-
-def test_manual_generator_reports_missing_url_instead_of_locked_key(settings_dir, monkeypatch):
+def test_drafting_reports_missing_url_instead_of_locked_key(settings_dir):
     project = create_project('Manual UI', root=settings_dir / 'projects')
-    save_app_settings(AppSettings(manual_generator_provider='openai_compatible', manual_generator_model='Qwen3.8-27B'))
-    saved = {}
-    monkeypatch.setattr('meta_coder.web.credentials.save_key', lambda p, k: saved.update({p: k}))
-    monkeypatch.setattr('meta_coder.web.credentials.saved_key_configured', lambda p: p in saved)
+    endpoint = extractors.add_extractor(extractors.Extractor(
+        id='endpoint', name='Endpoint', provider='openai_compatible', model='Qwen3.8-27B', key_saved=True))
+    save_app_settings(AppSettings(drafting_extractor_id=endpoint.id))
     app = create_app(token='test', projects_root=project.path.parent)
-    request(app, 'POST', '/test/settings/api-key', {'provider': 'openai_compatible', 'api_key': 'test-key'})
     path = f'/test/projects/{project.project_id}'
     body = request(app, 'GET', path)[1]
-    assert 'Set a valid OpenAI-compatible API base URL' in body
+    assert 'Enter the API base URL for the “Endpoint” extractor' in body
     from html.parser import HTMLParser
     class UploadInput(HTMLParser):
         attrs = {}
@@ -391,32 +303,25 @@ def test_manual_generator_reports_missing_url_instead_of_locked_key(settings_dir
     assert upload.attrs['type'] == 'file'
     assert 'u-visually-hidden' not in upload.attrs.get('class', '')
     assert 'disabled' in upload.attrs
-    assert 'Unlock the saved OpenAI-compatible API key' not in body
-    request(app, 'POST', '/test/settings/openai-compatible', {'openai_base_url': 'https://example.test/v1'})
+    extractors.update_extractor('endpoint', {'name': 'Endpoint', 'model': 'Qwen3.8-27B', 'base_url': 'https://example.test/v1'})
     body = request(app, 'GET', path)[1]
     assert 'id="manual-draft-form"' in body
     upload.feed(body)
     assert 'disabled' not in upload.attrs
-    assert 'Set a valid OpenAI-compatible API base URL' not in body
-    restarted = create_app(token='test', projects_root=project.path.parent)
-    body = request(restarted, 'GET', path)[1]
-    assert 'Unlock the saved OpenAI-compatible API key' not in body
-    upload.feed(body)
-    assert 'disabled' not in upload.attrs
+    assert 'Enter the API base URL' not in body
+    assert 'Drafting extractor: Endpoint' in body
 
 
-def test_launch_and_page_views_never_read_keychain(settings_dir, monkeypatch):
-    monkeypatch.setattr('meta_coder.web.credentials.saved_key_configured', lambda p: True)
-    def unexpected_read(*args):
-        pytest.fail('Page views must never request keychain access')
-    monkeypatch.setattr('meta_coder.web.credentials.load_key', unexpected_read)
+def test_launch_and_page_views_never_read_keychain(settings_dir, memory_keyring):
     project = create_project('No launch prompt', root=settings_dir / 'projects')
+    saved = extractors.add_extractor(extractors.Extractor(id='saved', name='Saved', provider='gemini', model='m', key_saved=True))
+    save_project_extractor_id(project, saved.id)
     app = create_app(token='test', projects_root=project.path.parent)
     for path in ['/test/', '/test/settings', f'/test/projects/{project.project_id}']:
         status, body = request(app, 'GET', path)
         assert status == 200
-        assert '/api-key/unlock' not in body
-        assert '/run/unlock' not in body
+        assert 'Key saved' in body or path != '/test/settings'
+    assert memory_keyring.reads == 0 and memory_keyring.writes == 0
 
 
 def endpoint_call(**changes):
