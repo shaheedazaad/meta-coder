@@ -77,10 +77,11 @@ using the Python environment where you installed it instead.
    the automatic generator. Its provider/model are configured globally in Settings,
    independently of extraction. The draft appears in the editor without a page reload
    and is not saved until you explicitly validate and save it.
-4. Upload the PDFs you want coded (**Source PDFs** tab).
+4. Upload the articles you want coded (**Sources** tab), as PDFs or XML (JATS)
+   full text. A project can mix both; XML is sent to every provider as text.
 5. Upload a coding sheet CSV (**Coding sheet** tab): `row_id`, `source_pdf`,
    `locator`, `authors`, `year` — one row per effect/experiment/condition. A row
-   whose `source_pdf` doesn't match an uploaded file is listed under **PDF
+   whose `source_pdf` doesn't match an uploaded file is listed under **Source
    matching** but does not block a run: unmatched rows are skipped when you run
    extraction. Other row problems (duplicate `row_id`, missing authors/year)
    must be fixed before running.
@@ -91,7 +92,7 @@ using the Python environment where you installed it instead.
    warnings, edit the CSV if needed, then choose **Save converted sheet**.
    Conversion preserves the current sheet and results until you save; saving a
    changed sheet clears prior extraction results. Missing authors/year must be
-   filled in before saving; unmatched PDFs can be identified afterward.
+   filled in before saving; unmatched sources can be identified afterward.
    CSVs must be UTF-8, with at most 2,000 source rows and 500,000 characters.
    Already formatted CSVs can still be uploaded directly under the separate
    **Upload formatted CSV** option.
@@ -137,7 +138,7 @@ catalog; availability is checked when a request runs.
 This provider extracts PDF text on your computer and sends it with page numbers, rather than
 PDF attachments. Figures and scanned pages are not interpreted; run OCR first or
 use a provider with native PDF support. PDFs with no extractable text fail with an
-explicit error. Requests retain timeout, cancellation, transient-error retries,
+explicit error. XML sources are sent as they are, markup included. Requests retain timeout, cancellation, transient-error retries,
 raw-response review, and token-usage reporting.
 
 ## Audit and reproducibility

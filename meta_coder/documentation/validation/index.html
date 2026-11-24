@@ -26,7 +26,7 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="./" aria-current="page"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Sources</a><a href="../matching/"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="./" aria-current="page"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
@@ -80,7 +80,7 @@
 <h2 id="act-on-disagreements">Act on disagreements<a class="headerlink" href="#act-on-disagreements" title="Permanent link">&para;</a></h2>
 <p>For each disagreement, return to the PDF and decide which value is correct. Use MetaCoder's evidence to locate the source quickly:</p>
 <ul>
-<li><code>evidence.csv</code> and the per-PDF YAML give the page and quotation for each coded value.</li>
+<li><code>evidence.csv</code> and the per-PDF YAML give the page (or, for XML sources, the section or table) and quotation for each coded value.</li>
 <li>The raw response on <strong>Results</strong> shows the model's full answer, including notes on uncertain rows.</li>
 <li>The <a href="../auditing/">audit ZIP</a> records the exact request, model, and settings that produced each value.</li>
 </ul>
@@ -98,7 +98,7 @@
 <li>The provider, the model ID, and any model version reported in the audit records.</li>
 <li>The dates of the extraction runs and key settings, such as the Gemini service tier or reasoning effort.</li>
 <li>The coding manual used for the final run, as a supplement, and how it was developed.</li>
-<li>That MetaCoder sent one request per PDF with the full PDF (or extracted text), and the MetaCoder version from the audit record.</li>
+<li>That MetaCoder sent one request per PDF with the full PDF (or extracted text, or the XML source as text), and the MetaCoder version from the audit record.</li>
 <li>The validation sample: how it was drawn, its size, and how human coders were blinded.</li>
 <li>Agreement statistics for each field, before any disagreements were resolved.</li>
 <li>How disagreements were resolved, and which fields or studies were checked by humans in full.</li>

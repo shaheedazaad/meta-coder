@@ -8,13 +8,13 @@ Choose **Download audit ZIP** on Results, or **Download project and audit** in P
 | --- | --- |
 | Application | App version, a copy of the application code, and details of the software environment used |
 | Run | Selected PDFs, provider/model, pacing and parallelism, settings, final statuses, coded-data and evidence CSV snapshots |
-| Inputs | Saved manual and coding sheet plus effective inputs passed to the action, original study PDFs or uploaded draft documents, conversion notes |
+| Inputs | Saved manual and coding sheet plus effective inputs passed to the action, original study PDFs or XML files, or uploaded draft documents, conversion notes |
 | Each request | Start and finish times, provider address, exact instructions and requested output format, selected model, and settings sent to the provider |
 | Each response | Original response and any model version, request identifier, or usage details supplied by the provider |
 | Outcomes | Validated result, any response-format repairs, errors, retries, and links between results and the actions that produced them |
 | Export | Export timestamp, project identity, current run settings, and SHA-256 checksums for every other file in the ZIP |
 
-All roles and prompts the app sends are in the request body. Native PDF request bodies include the encoded PDF; text-based requests include the extracted text exactly as sent. Server-side prompts or processing that a provider does not return cannot be captured.
+All roles and prompts the app sends are in the request body. Native PDF request bodies include the encoded PDF; text-based requests include the extracted text or XML exactly as sent. Each extraction record's settings, each result file and per-source YAML, and the provenance CSV note the source format (`pdf` or `xml`). Server-side prompts or processing that a provider does not return cannot be captured.
 
 AI manual drafting and coding-sheet conversion are recorded even if you discard the generated draft. Automatic retries are recorded separately; choosing to retry extraction also creates a new record. The working result files may be replaced, but the earlier audit records remain.
 
@@ -30,7 +30,7 @@ An unfinished action may appear in an export taken while it is still running. Th
 
 ## Retention and credentials
 
-Changing a manual or clearing generated output removes the working results but preserves `audit/`, including historical copies of inputs and outputs. Deleting selected PDFs' output on Results is recorded as a `delete_output` action that keeps a copy of each deleted file and of the rebuilt CSVs. Removing a source PDF also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.
+Changing a manual or clearing generated output removes the working results but preserves `audit/`, including historical copies of inputs and outputs. Deleting selected PDFs' output on Results is recorded as a `delete_output` action that keeps a copy of each deleted file and of the rebuilt CSVs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.
 
 API authentication headers and keys are excluded. If a known API key is echoed in a response, it is replaced with `[REDACTED]` in the audit record. Exports still contain your research documents, prompts, conversion notes, endpoint addresses, and model output.
 

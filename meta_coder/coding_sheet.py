@@ -32,7 +32,7 @@ OPTIONAL_COLUMNS = ("title", "doi")
 
 COLUMN_DESCRIPTIONS = {
     "row_id": "Effect ID — a short, unique identifier you invent for this effect/row.",
-    "source_pdf": "Which uploaded PDF this effect comes from — must match a filename exactly.",
+    "source_pdf": "Which uploaded source (PDF or XML file) this effect comes from — must match a filename exactly.",
     "locator": "Effect location within the paper, e.g. \"Table 2, Experiment 1, DV: accuracy\".",
     "authors": "Paper identification — the study's author(s).",
     "year": "Paper identification — the study's publication year.",
