@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="A practical guide to coding studies with MetaCoder.">
-  <title>PDF matching · MetaCoder Guide</title>
+  <title>Source matching · MetaCoder Guide</title>
   <script src="../theme.js"></script>
   <link rel="stylesheet" href="../assets/vendor/basecoat.min.css">
   <link rel="stylesheet" href="../assets/app.css">
@@ -26,16 +26,16 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="./" aria-current="page"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Sources</a><a href="./" aria-current="page"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
     </aside>
     <main id="main" class="docs-article">
       <p class="docs-eyebrow">METACODER / USER GUIDE</p>
-      <h1 id="pdf-matching">PDF matching<a class="headerlink" href="#pdf-matching" title="Permanent link">&para;</a></h1>
-<p>PDF matching connects coding-sheet rows to uploaded studies. Review suggested matches before accepting them, especially when authors or publication years overlap.</p>
-<p><a href="../assets/screenshots/matching.png"><img alt="PDF matching with the needs PDF, suggestions, matches, and orphan sections" src="../assets/screenshots/matching.png" /></a></p>
+      <h1 id="source-matching">Source matching<a class="headerlink" href="#source-matching" title="Permanent link">&para;</a></h1>
+<p>Source matching connects coding-sheet rows to uploaded studies. Review suggested matches before accepting them, especially when authors or publication years overlap.</p>
+<p><a href="../assets/screenshots/matching.png"><img alt="Source matching with the needs a source, suggestions, matches, and orphan sections" src="../assets/screenshots/matching.png" /></a></p>
 <h2 id="review-the-matching-sections">Review the matching sections<a class="headerlink" href="#review-the-matching-sections" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -46,7 +46,7 @@
 </thead>
 <tbody>
 <tr>
-<td>Needs PDF</td>
+<td>Needs a source</td>
 <td>Sheet entries still missing an uploaded study</td>
 </tr>
 <tr>
@@ -55,21 +55,22 @@
 </tr>
 <tr>
 <td>Matches</td>
-<td>The saved connections between sheet entries and PDFs</td>
+<td>The saved connections between sheet entries and sources</td>
 </tr>
 <tr>
-<td>Orphans</td>
-<td>Uploaded PDFs with no coding-sheet rows</td>
+<td>Orphaned sources</td>
+<td>Uploaded sources with no coding-sheet rows</td>
 </tr>
 </tbody>
 </table>
-<p>Background scanning gathers matching information after uploads. Let it finish, review the suggested source for each paper, and save the appropriate matches. Only high-confidence suggestions are preselected. Medium and low suggestions are marked “(suggested)” in the list but stay unselected until you choose them, so <strong>Apply this page</strong> saves only the matches you can see selected. A suggestion is shown as low when the PDF's publication year differs from the sheet's, or when another PDF or paper fits almost as well. Confirm that each locator actually points to the intended effect in that PDF.</p>
+<p>Background scanning gathers matching information after uploads. Let it finish, review the suggested source for each paper, and save the appropriate matches. Only high-confidence suggestions are preselected. Medium and low suggestions are marked “(suggested)” in the list but stay unselected until you choose them, so <strong>Apply this page</strong> saves only the matches you can see selected. A suggestion is shown as low when the source's publication year differs from the sheet's, or when another source or paper fits almost as well. Confirm that each locator actually points to the intended effect in that source.</p>
+<p>For an XML (JATS) source, matching uses the title, author surnames, publication year and DOI from the article's front matter rather than its filename alone. When the sheet's optional <code>doi</code> column equals the article's DOI, the suggestion is certain; when the two DOIs differ, that source is not suggested with medium or high confidence. PDFs are matched from their filename and first page (or <a href="../settings/">GROBID</a>, if configured), which reads PDFs only.</p>
 <h2 id="fix-a-wrong-match">Fix a wrong match<a class="headerlink" href="#fix-a-wrong-match" title="Permanent link">&para;</a></h2>
-<p>Remove the incorrect saved match, then select the correct uploaded PDF. If the study is missing entirely, add it in <a href="../sources/">Source PDFs</a> and return here.</p>
+<p>Remove the incorrect saved match, then select the correct uploaded source. If the study is missing entirely, add it in <a href="../sources/">Sources</a> and return here.</p>
 <h2 id="before-running">Before running<a class="headerlink" href="#before-running" title="Permanent link">&para;</a></h2>
-<p>At least one coding-sheet row must match an uploaded PDF. Unmatched rows and orphan PDFs are skipped when you run extraction. Resolve all intended matches if you want complete coverage of your sheet.</p>
+<p>At least one coding-sheet row must match an uploaded source. Unmatched rows and orphaned sources are skipped when you run extraction. Resolve all intended matches if you want complete coverage of your sheet.</p>
       <nav class="docs-pagination" aria-label="Adjacent pages">
-        <a href="../sources/"><small>Previous</small>Source PDFs ←</a>
+        <a href="../sources/"><small>Previous</small>Sources ←</a>
         <a href="../run/"><small>Next</small>Run extraction →</a>
       </nav>
     </main>

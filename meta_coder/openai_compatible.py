@@ -20,10 +20,13 @@ from .extraction import (
     normalize_finish_reason,
     parse_json_response,
     review_issues,
+    XML_ARTICLE_HEADING,
+    xml_article_text,
 )
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
 from .prompts import build_extraction_prompt, schema_prompt
+from .sources import source_format
 
 DEFAULT_MODEL = ""
 DEFAULT_TIMEOUT_SEC = 600
@@ -221,17 +224,28 @@ def extract_pdf_effects(
     response_format: str = "json_schema",
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
+    """Code one PDF or XML source as text: a PDF's text is extracted locally
+    with page markers; an XML source is sent as it is, markup included."""
+
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = build_extraction_prompt(manual, rows, article="article text below")
+    is_xml = source_format(pdf_path) == "xml"
+    prompt = build_extraction_prompt(
+        manual, rows, article="article XML below" if is_xml else "article text below",
+        source_format="xml" if is_xml else "pdf",
+    )
 
     try:
+        if is_xml:
+            article = XML_ARTICLE_HEADING + xml_article_text(pdf_path)
+        else:
+            article = "\n\nArticle text:\n" + pdf_text(pdf_path, cancel_event)
         raw_text, tokens = _call(
             model=model,
             api_key=api_key,
-            prompt=prompt + "\n\nArticle text:\n" + pdf_text(pdf_path, cancel_event),
+            prompt=prompt + article,
             base_url=base_url,
             response_format=response_format,
             response_schema=response_schema,

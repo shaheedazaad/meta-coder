@@ -14,7 +14,7 @@ import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -24,8 +24,9 @@ from .fingerprints import InputChecker
 from .manual import CodingManual
 from .projects import Project
 from .prompts import PROMPT_VERSION
-from .provenance import AuditOperation, atomic_write, audited_call, json_bytes
+from .provenance import AuditOperation, atomic_write, audited_call, json_bytes, utc_now
 from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
+from .sources import source_format
 from .results import CONFIDENCE_CSV, collate_field_key, collate_results, low_confidence_cells, rated_fields, render_pdf_audit_yaml, rows_to_csv
 
 
@@ -61,6 +62,9 @@ def attempt_json_path(project: Project, source_pdf: str) -> Path:
     return path.with_name(f"{path.stem}.attempt.json")
 
 
+FAILED_STATUSES = ("error", "cancelled")
+
+
 def keeps_success(previous: ExtractionResult | None, result: ExtractionResult) -> bool:
     """A failed, cancelled or needs-review attempt never replaces a successful
     result. Whether that success is still current is decided separately, from
@@ -68,16 +72,60 @@ def keeps_success(previous: ExtractionResult | None, result: ExtractionResult) -
     return bool(previous and previous.status == "ok" and result.status != "ok")
 
 
+def keeps_needs_review(previous: ExtractionResult | None, result: ExtractionResult) -> bool:
+    """A failed or cancelled attempt doesn't replace a needs-review result
+    either, so the coded values awaiting review stay in the outputs. A new
+    result, including one that again needs review, does replace it."""
+    return bool(previous and previous.status == "needs_review" and result.status in FAILED_STATUSES)
+
+
+def keeps_previous(previous: ExtractionResult | None, result: ExtractionResult) -> bool:
+    """Whether `previous` stays the selected result after the attempt `result`."""
+    return keeps_success(previous, result) or keeps_needs_review(previous, result)
+
+
+def failed_retry_message(result: ExtractionResult) -> str:
+    """What to record on a kept needs-review result about the retry that failed."""
+    if result.error:
+        return result.error
+    return "The retry was cancelled." if result.status == "cancelled" else "The retry failed without an error message."
+
+
+def with_failed_retry(previous: ExtractionResult, result: ExtractionResult) -> ExtractionResult:
+    """`previous` with the failed retry `result` noted on it."""
+    return replace(previous, retry_error=failed_retry_message(result), retry_failed_at=utc_now())
+
+
 def write_raw_result(project: Project, result: ExtractionResult, *, provider: str, model: str) -> None:
     """Persist every completed attempt, including provider failures, for retries and review.
 
     The attempt is always saved as the PDF's latest attempt. It also becomes
     the selected result (the raw JSON that collation, resumption and exports
-    use) unless that would replace a successful result with a failure."""
+    use) unless that would replace a successful result with a failure, or a
+    needs-review result with a failed or cancelled attempt. A kept
+    needs-review result records that its retry failed (`retry_error`,
+    `retry_failed_at`)."""
 
-    data = json.dumps(
+    data = _raw_json_bytes(result, provider=provider, model=model)
+    # Written first, so a failure between the two writes leaves the latest
+    # attempt visible and the previous selection intact.
+    atomic_write(attempt_json_path(project, result.source_pdf), data)
+    selected_path = raw_json_path_for_read(project, result.source_pdf)
+    previous = _result_from_raw_json(selected_path)
+    if not keeps_previous(previous, result):
+        atomic_write(raw_json_path(project, result.source_pdf), data)
+    elif keeps_needs_review(previous, result):
+        noted = with_failed_retry(previous, result)
+        record = json.loads(selected_path.read_text(encoding="utf-8"))
+        record.update(retry_error=noted.retry_error, retry_failed_at=noted.retry_failed_at)
+        atomic_write(raw_json_path(project, result.source_pdf), json.dumps(record, indent=2).encode("utf-8"))
+
+
+def _raw_json_bytes(result: ExtractionResult, *, provider: str, model: str) -> bytes:
+    return json.dumps(
         {
             "source_pdf": result.source_pdf,
+            "source_format": source_format(result.source_pdf),
             "input_fingerprint": result.input_fingerprint,
             "audit_operation_id": result.audit_operation_id,
             "provider": provider,
@@ -97,11 +145,6 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
         },
         indent=2,
     ).encode("utf-8")
-    # Written first, so a failure between the two writes leaves the latest
-    # attempt visible and the previous selection intact.
-    atomic_write(attempt_json_path(project, result.source_pdf), data)
-    if not keeps_success(_result_from_raw_json(raw_json_path_for_read(project, result.source_pdf)), result):
-        atomic_write(raw_json_path(project, result.source_pdf), data)
 
 
 def _result_from_raw_json(path: Path) -> ExtractionResult | None:
@@ -128,6 +171,8 @@ def _result_from_raw_json(path: Path) -> ExtractionResult | None:
         input_tokens=data.get("input_tokens"),
         output_tokens=data.get("output_tokens"),
         served_model=data.get("served_model"),
+        retry_error=data.get("retry_error"),
+        retry_failed_at=data.get("retry_failed_at"),
     )
 
 
@@ -142,7 +187,8 @@ def load_persisted_results(project: Project) -> dict[str, ExtractionResult]:
     results: dict[str, ExtractionResult] = {}
     if not project.raw_dir.is_dir():
         return results
-    for path in project.raw_dir.glob("*.json"):
+    # Sorted so the outcome never depends on the filesystem's listing order.
+    for path in sorted(project.raw_dir.glob("*.json")):
         result = _result_from_raw_json(path)
         if result is not None and path != attempt_json_path(project, result.source_pdf):
             # Prefer the canonical collision-resistant record when both it and
@@ -200,6 +246,7 @@ class PdfProgress:
     output_tokens: int | None = None
     json_repaired: bool = False
     low_confidence: int = 0
+    retry_error: str | None = None
 
 
 @dataclass
@@ -232,6 +279,7 @@ class RunState:
                     "output_tokens": p.output_tokens,
                     "json_repaired": p.json_repaired,
                     "low_confidence": p.low_confidence,
+                    "retry_error": p.retry_error,
                 }
                 for p in self.pdfs
             ],
@@ -428,6 +476,7 @@ class Runner:
                     project, "extraction", extract_pdf_effects,
                     audit_inputs={"run_coding_sheet.json": json_bytes(coding_sheet)},
                     audit_settings={"prompt_version": PROMPT_VERSION,
+                                    "source_format": source_format(progress.source_pdf),
                                     "parallel_requests": parallel_requests, "request_delay_sec": request_delay_sec,
                                     "run_id": state.audit_run.id if state.audit_run else None},
                     provider=provider,
@@ -444,9 +493,9 @@ class Runner:
                 result.provider, result.model = provider, model
                 write_raw_result(project, result, provider=provider, model=model)
                 # The per-PDF YAML follows the result collated below; a kept
-                # success keeps the YAML written when it was coded.
+                # result keeps the YAML written when it was coded.
                 with results_lock:
-                    selected = not keeps_success(results_by_pdf.get(progress.source_pdf), result)
+                    selected = not keeps_previous(results_by_pdf.get(progress.source_pdf), result)
                 if selected:
                     atomic_write(audit_yaml_path(project, progress.source_pdf),
                         render_pdf_audit_yaml(
@@ -476,17 +525,25 @@ class Runner:
                     storage_error = f"Could not save extraction output: {message}"
 
             with results_lock:
-                if not keeps_success(results_by_pdf.get(progress.source_pdf), result):
+                previous = results_by_pdf.get(progress.source_pdf)
+                # A kept success is reported through the failed attempt; a kept
+                # needs-review result is still the one to review, so it is
+                # reported with the failed retry noted on it.
+                shown = result
+                if keeps_needs_review(previous, result):
+                    shown = results_by_pdf[progress.source_pdf] = with_failed_retry(previous, result)
+                elif not keeps_success(previous, result):
                     results_by_pdf[progress.source_pdf] = result
-                progress.status = "error" if storage_error else result.status
-                progress.error = storage_error or result.error
-                progress.missing_ids = sorted(result.missing_ids)
-                progress.extra_ids = sorted(result.extra_ids)
-                progress.input_tokens = result.input_tokens
-                progress.output_tokens = result.output_tokens
-                progress.json_repaired = result.repaired_response is not None
+                progress.status = "error" if storage_error else shown.status
+                progress.error = storage_error or shown.error
+                progress.retry_error = shown.retry_error
+                progress.missing_ids = sorted(shown.missing_ids)
+                progress.extra_ids = sorted(shown.extra_ids)
+                progress.input_tokens = shown.input_tokens
+                progress.output_tokens = shown.output_tokens
+                progress.json_repaired = shown.repaired_response is not None
                 progress.low_confidence = low_confidence_cells(
-                    result.coded_by_row_id, row_ids=[row.row_id for row in rows], fields=rated_fields(manual)
+                    shown.coded_by_row_id, row_ids=[row.row_id for row in rows], fields=rated_fields(manual)
                 )
                 state.processed += 1
 
