@@ -906,3 +906,122 @@ test('routing controls are optional on the page', t => {
   const { d } = setup(t, 'project', w => w.document.getElementById('run-openrouter-provider').remove());
   assert.equal(d.getElementById('run-openrouter-provider'), null);
 });
+
+function resultsSelection(t, configure = () => {}) {
+  const ui = setup(t, 'results', w => {
+    const root = w.document.querySelector('[data-result-selection]');
+    configure(w, 'meta-coder-result-selection:' + root.dataset.projectId, root);
+  });
+  const root = ui.d.querySelector('[data-result-selection]');
+  return {
+    ...ui,
+    key: 'meta-coder-result-selection:' + root.dataset.projectId,
+    bar: root.querySelector('[data-selection-bar]'),
+    input: root.querySelector('[data-selection-input]'),
+    count: root.querySelector('[data-selection-count]'),
+    all: root.querySelector('[data-select-all]'),
+    box: root.querySelector('[data-select-pdf]'),
+    filter: root.querySelector('[data-result-filter]'),
+  };
+}
+function toggle(w, input, checked) {
+  input.checked = checked;
+  input.dispatchEvent(new w.Event('change', { bubbles: true }));
+}
+function submitSelection(w, bar, submitter) {
+  const event = submitter
+    ? new w.SubmitEvent('submit', { bubbles: true, cancelable: true, submitter })
+    : new w.Event('submit', { bubbles: true, cancelable: true });
+  bar.dispatchEvent(event);
+  return event;
+}
+
+test('results selection tracks rows, select-all and clearing, and remembers the selection', t => {
+  const ui = resultsSelection(t);
+  const { w, bar, input, count, all, box } = ui;
+  assert.equal(bar.hidden, true);
+  assert.equal(all.checked, false);
+  assert.equal(box.value, 'failed.pdf');
+  toggle(w, box, true);
+  assert.equal(bar.hidden, false);
+  assert.equal(count.textContent, '1 PDF selected');
+  assert.deepEqual(JSON.parse(input.value), ['failed.pdf']);
+  assert.equal(all.checked, true);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(ui.key)), ['failed.pdf']);
+  toggle(w, box, false);
+  assert.equal(bar.hidden, true);
+  assert.equal(all.checked, false);
+  toggle(w, all, true);
+  assert.equal(box.checked, true);
+  bar.querySelector('[data-selection-clear]').click();
+  assert.equal(box.checked, false);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(ui.key)), []);
+});
+
+test('select-all covers every PDF the filter matches and keeps selections from other pages', t => {
+  const { w, all, box, count, input } = resultsSelection(t, (w, key, root) => {
+    w.sessionStorage.setItem(key, JSON.stringify(['done.pdf', 'gone.pdf']));
+    // Two matching PDFs, only one of them on this page.
+    root.querySelector('[data-result-selection-pdfs]').textContent =
+      JSON.stringify({ all: ['done.pdf', 'failed.pdf', 'review.pdf'], filtered: ['failed.pdf', 'review.pdf'] });
+  });
+  // gone.pdf no longer has output, so it is dropped; done.pdf is outside the filter.
+  assert.equal(count.textContent, '1 PDF selected');
+  assert.equal(all.checked, false);
+  assert.equal(all.indeterminate, false);
+  toggle(w, box, true);
+  assert.equal(all.indeterminate, true);
+  toggle(w, all, true);
+  assert.equal(all.checked, true);
+  assert.deepEqual(JSON.parse(input.value), ['done.pdf', 'failed.pdf', 'review.pdf']);
+  assert.equal(count.textContent, '3 PDFs selected');
+  toggle(w, all, false);
+  assert.deepEqual(JSON.parse(input.value), ['done.pdf']);
+});
+
+test('retry and delete ask first and clear the remembered selection once sent', t => {
+  const questions = [];
+  let answer = false;
+  const { w, d, bar, box, key } = resultsSelection(t, w => {
+    w.confirm = question => { questions.push(question); return answer; };
+  });
+  toggle(w, box, true);
+  const deleteButton = d.querySelector('[data-selection-delete]');
+  let event = submitSelection(w, bar, deleteButton);
+  assert.equal(event.defaultPrevented, true);
+  assert.match(questions.pop(), /^Delete the saved output for “failed\.pdf”\? .*audit history keeps a copy/);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(key)), ['failed.pdf']);
+  submitSelection(w, bar, d.querySelector('[data-selection-retry]'));
+  assert.match(questions.pop(), /^Code “failed\.pdf” again\?/);
+  answer = true;
+  event = submitSelection(w, bar, deleteButton);
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(key)), []);
+
+  const two = resultsSelection(t, (w, key) => {
+    w.sessionStorage.setItem(key, JSON.stringify(['failed.pdf', 'done.pdf']));
+    w.confirm = question => { questions.push(question); return true; };
+  });
+  event = submitSelection(two.w, two.bar);
+  assert.equal(event.defaultPrevented, false);
+  assert.match(questions.pop(), /^Code 2 PDFs again\? A PDF already coded successfully keeps its current result/);
+  assert.deepEqual(JSON.parse(two.w.sessionStorage.getItem(two.key)), []);
+});
+
+test('results filter applies on change, and selection survives unusable storage', t => {
+  const broken = resultsSelection(t, w => {
+    w.Storage.prototype.getItem = () => { throw new Error('storage disabled'); };
+    w.Storage.prototype.setItem = () => { throw new Error('storage disabled'); };
+  });
+  let submitted = 0;
+  broken.filter.submit = () => { submitted += 1; };
+  const select = broken.filter.querySelector('select');
+  select.value = 'ok';
+  select.dispatchEvent(new broken.w.Event('change', { bubbles: true }));
+  assert.equal(submitted, 1);
+  toggle(broken.w, broken.box, true);
+  assert.equal(broken.count.textContent, '1 PDF selected');
+
+  const malformed = resultsSelection(t, (w, key) => { w.sessionStorage.setItem(key, '{"failed.pdf": true}'); });
+  assert.equal(malformed.bar.hidden, true);
+});

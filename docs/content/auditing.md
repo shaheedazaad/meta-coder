@@ -30,7 +30,7 @@ An unfinished action may appear in an export taken while it is still running. Th
 
 ## Retention and credentials
 
-Changing a manual or clearing generated output removes the working results but preserves `audit/`, including historical copies of inputs and outputs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.
+Changing a manual or clearing generated output removes the working results but preserves `audit/`, including historical copies of inputs and outputs. Deleting selected PDFs' output on Results is recorded as a `delete_output` action that keeps a copy of each deleted file and of the rebuilt CSVs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.
 
 API authentication headers and keys are excluded. If a known API key is echoed in a response, it is replaced with `[REDACTED]` in the audit record. Exports still contain your research documents, prompts, conversion notes, endpoint addresses, and model output.
 
