@@ -193,6 +193,45 @@ def test_upload_routes_and_scanner_dispatch(site):
     assert response.status_code == 303 and 'r1,other.pdf' in project.coding_sheet_path.read_text()
 
 
+def test_sources_tab_opens_uploaded_pdfs_inline(site):
+    client, project, _ = site
+    (project.sources_dir / 'paper one#2.pdf').write_bytes(b'%PDF-one')
+    page = client.get(url(project, '?tab=sources')).text
+    link = url(project, '/sources/paper%20one%232.pdf')
+    assert f'href="{link}" target="_blank" rel="noopener">Open' in page
+    response = client.get(link)
+    assert response.status_code == 200 and response.content == b'%PDF-one'
+    assert response.headers['content-type'] == 'application/pdf'
+    assert response.headers['content-disposition'].startswith('inline')
+
+
+def test_sources_tab_opens_xml_sources_as_plain_text(site):
+    client, project, _ = site
+    (project.sources_dir / 'study.xml').write_bytes(b'<article><script>alert(1)</script></article>')
+    page = client.get(url(project, '?tab=sources')).text
+    link = url(project, '/sources/study.xml')
+    assert f'href="{link}" target="_blank" rel="noopener">Open' in page
+    response = client.get(link)
+    assert response.status_code == 200 and response.content.startswith(b'<article>')
+    assert response.headers['content-type'] == 'text/plain; charset=utf-8'
+    assert response.headers['x-content-type-options'] == 'nosniff'
+    assert response.headers['content-disposition'].startswith('inline')
+
+
+def test_source_pdf_route_refuses_paths_outside_sources(site, tmp_path):
+    client, project, _ = site
+    (project.path / 'secret.pdf').write_bytes(b'%PDF-secret')
+    (tmp_path / 'outside.pdf').write_bytes(b'%PDF-outside')
+    (project.sources_dir / 'notes.txt').write_text('not a pdf')
+    (project.sources_dir / 'folder.pdf').mkdir()
+    (project.sources_dir / 'escape.pdf').symlink_to(tmp_path / 'outside.pdf')
+    (project.sources_dir / 'up.pdf').symlink_to(project.path / 'secret.pdf')
+    for name in ['escape.pdf', 'up.pdf', 'notes.txt', 'missing.pdf', 'folder.pdf',
+                 '..%2Fsecret.pdf', '%2E%2E%2Fsecret.pdf', '..%5Csecret.pdf', '%2E%2E']:
+        assert client.get(url(project, f'/sources/{name}')).status_code == 404, name
+    assert client.get('/test/projects/missing/sources/paper.pdf').status_code == 404
+
+
 def test_idle_and_running_status_and_cancel(site, monkeypatch):
     client, project, runtime = site
     assert client.get(url(project, '/status')).json() == {'status': 'idle'}

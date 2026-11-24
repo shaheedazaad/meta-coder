@@ -1213,6 +1213,31 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             target.unlink()
         return RedirectResponse(f"/{token}/projects/{project_id}", status_code=303)
 
+    @app.get(f"/{token}/projects/{{project_id}}/sources/{{filename}}")
+    async def open_source(project_id: str, filename: str):
+        project = runtime.project(project_id)
+        # Only a source directly inside sources/: the resolved path's parent must
+        # be the real sources folder, so ".." and symlinks pointing elsewhere 404.
+        path = (project.sources_dir / Path(filename).name).resolve()
+        kind = source_format(path)
+        if (
+            Path(filename).name != filename
+            or kind is None
+            or path.parent != project.sources_dir.resolve()
+            or not path.is_file()
+        ):
+            raise HTTPException(status_code=404, detail="Source not found.")
+        # XML is shown as plain text so the browser never renders its markup
+        # (which could run scripts); nosniff stops it guessing another type.
+        media_type = "application/pdf" if kind == "pdf" else "text/plain; charset=utf-8"
+        return FileResponse(
+            path,
+            media_type=media_type,
+            filename=filename,
+            content_disposition_type="inline",
+            headers={"X-Content-Type-Options": "nosniff"},
+        )
+
     def _runnable_view(project: Project) -> dict:
         """A fresh view of the project's inputs, validated for a full run."""
 
