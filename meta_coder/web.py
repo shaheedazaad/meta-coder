@@ -139,7 +139,9 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
     ``results`` may be the in-memory progress entries during a run or persisted
     extraction results after a restart. Both represent the same result fields.
     ``kept_success`` names PDFs whose latest attempt failed while an earlier
-    successful result for the same inputs is still used. ``rated`` names the
+    successful result for the same inputs is still used. A needs-review result
+    kept after a failed retry is shown itself, with ``retry_error`` set and a
+    raw link to that result rather than the failed attempt. ``rated`` names the
     fields whose low confidence ratings are counted (see results.rated_fields).
     """
 
@@ -150,8 +152,9 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
     rows = []
     for pdf in results:
         sheet_row = first_row_by_pdf.get(pdf.source_pdf)
+        retry_error = getattr(pdf, "retry_error", None)
         raw_path = attempt_json_path(project, pdf.source_pdf)
-        if not raw_path.is_file():
+        if retry_error or not raw_path.is_file():
             raw_path = raw_json_path_for_read(project, pdf.source_pdf)
         audit_path = audit_yaml_path(project, pdf.source_pdf)
         rows.append(
@@ -173,6 +176,7 @@ def _run_table_rows(results, coding_sheet, project: Project, kept_success=frozen
                 "audit_filename": audit_path.name,
                 "retryable": pdf.status in RETRYABLE_STATUSES,
                 "kept_success": pdf.source_pdf in kept_success,
+                "retry_error": retry_error,
                 # Live progress carries the count; a persisted result is counted here.
                 "low_confidence": pdf.low_confidence
                 if hasattr(pdf, "low_confidence")
@@ -526,14 +530,20 @@ def _project_view(
     run_sort = run_sort if run_sort in RUN_SORT_COLUMNS else "source_pdf"
     run_dir = run_dir if run_dir in ("asc", "desc") else "asc"
     # The table shows each PDF's latest attempt, which can be a failed retry
-    # of a PDF whose earlier success is still used.
+    # of a PDF whose earlier success is still used. A needs-review result kept
+    # after a failed retry is shown instead, since it is the one to review; it
+    # notes the failed retry itself. Any later result replacing it clears
+    # that note, and an outdated result loses it.
     table_results = dict(persisted_results)
     latest_attempts = input_checker.check(load_latest_attempts(project))
     kept_success = {
         name for name, attempt in latest_attempts.items()
         if keeps_success(persisted_results.get(name), attempt)
     }
-    table_results.update(latest_attempts)
+    table_results.update({
+        name: attempt for name, attempt in latest_attempts.items()
+        if not getattr(persisted_results.get(name), "retry_error", None)
+    })
     if run_state:
         # A retry's in-memory state includes only its target PDFs. Overlay it
         # on the persisted history rather than hiding earlier outcomes. After

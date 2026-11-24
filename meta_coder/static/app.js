@@ -621,6 +621,7 @@ function initTabGroup(root, opts) {
         if (pdf.error) parts.push(pdf.error);
         if (pdf.missing_ids && pdf.missing_ids.length) parts.push("missing: " + pdf.missing_ids.join(", "));
         if (pdf.extra_ids && pdf.extra_ids.length) parts.push("unexpected: " + pdf.extra_ids.join(", "));
+        if (pdf.retry_error) parts.push("Last retry failed: " + pdf.retry_error);
         if (pdf.low_confidence) parts.push("low-confidence cells: " + pdf.low_confidence);
         detail.textContent = parts.join(" ");
       }

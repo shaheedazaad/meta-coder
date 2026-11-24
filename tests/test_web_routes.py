@@ -487,6 +487,36 @@ def test_results_table_shows_latest_attempts_outdated_and_unverified_results(sit
     assert sorted(retry_targets) == ['old.pdf', 'paper.pdf']  # the failed attempt and the outdated result
 
 
+def test_results_table_shows_a_kept_needs_review_result_with_its_failed_retry(site):
+    from meta_coder.extraction import ExtractionResult
+    from meta_coder.fingerprints import InputChecker
+    from meta_coder.runner import PdfProgress, RunState, raw_json_path, write_raw_result
+    from meta_coder.settings import load_run_settings
+    client, project, runtime = site
+    ready_project(project, runtime)
+    view = web._project_view(runtime, project)
+    settings = load_run_settings(project)
+    current = InputChecker(project, view['manual'], view['coding_sheet'],
+                           provider=settings.provider, model=settings.model).fingerprint('paper.pdf')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'needs_review', error='Response was cut short',
+                                               input_fingerprint=current), provider='gemini', model='model')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'error', error='HTTP 503', input_fingerprint=current),
+                     provider='gemini', model='model')
+
+    def paper_row():
+        page = client.get(url(project, '?tab=results')).text
+        return re.search(r'<tr data-run-row="paper.pdf">.*?</tr>', page, re.S).group(0)
+
+    row = paper_row()
+    assert 'needs review' in row and 'Response was cut short' in row and 'Last retry failed: HTTP 503' in row
+    assert raw_json_path(project, 'paper.pdf').name in row and '.attempt.json' not in row  # the result to review
+    assert 'retry this PDF' in row
+    # The finished run's progress reports the kept result the same way.
+    runtime.runner._states[project.project_id] = RunState(status='complete', pdfs=[PdfProgress(
+        'paper.pdf', status='needs_review', error='Response was cut short', retry_error='HTTP 503')])
+    assert 'Last retry failed: HTTP 503' in paper_row()
+
+
 def test_clearing_output_or_manual_forgets_finished_progress(site):
     from meta_coder.runner import PdfProgress, RunState
     client, project, runtime = site
