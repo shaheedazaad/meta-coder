@@ -56,6 +56,10 @@ DEFAULT_TIMEOUT_SEC = 600
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE_SEC = 2.0
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
+# Context kept for the article when an endpoint's output limit becomes the
+# default cap: OpenRouter parses the PDF itself, so the article's size isn't
+# known in advance. A quarter of the context, and never less than this.
+MIN_INPUT_TOKEN_RESERVE = 32_768
 
 
 def _redact(text: str, api_key: str) -> str:
@@ -84,11 +88,8 @@ def list_models(*, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, A
     return body.get("data") or []
 
 
-def list_model_endpoints(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, str]]:
-    """GET /models/{model}/endpoints, keeping only the provider endpoints that
-    can return schema-constrained output (`structured_outputs`), which this
-    app relies on. Returns `{"tag", "name"}` pairs sorted by name; `tag` is the
-    slug sent in `provider.order`."""
+def _model_endpoints(model: str, *, api_key: str, timeout_sec: int) -> list[Any]:
+    """GET /models/{model}/endpoints and return the raw endpoint entries."""
 
     base, _, variant = model.strip().partition(":")
     parts = base.split("/")
@@ -116,20 +117,47 @@ def list_model_endpoints(model: str, *, api_key: str = "", timeout_sec: int = 20
             raise ProviderError(f"`{model}` was not found on OpenRouter.") from exc
         raise ProviderError(f"OpenRouter API error ({exc.code}).") from exc
     except urllib.error.URLError as exc:
-        raise ProviderError(f"Could not reach OpenRouter: {exc.reason}") from exc
+        raise ProviderError(f"Could not reach OpenRouter: {_redact(str(exc.reason), api_key)}") from exc
+    except OSError as exc:  # a timeout while reading the response
+        raise ProviderError(f"Could not reach OpenRouter: {_redact(str(exc), api_key)}") from exc
     except ValueError as exc:
         raise ProviderError("OpenRouter returned an invalid endpoint list.") from exc
     data = body.get("data") if isinstance(body, dict) else None
     endpoints = data.get("endpoints") if isinstance(data, dict) else None
     if not isinstance(endpoints, list):
         raise ProviderError("OpenRouter returned an invalid endpoint list.")
+    return endpoints
+
+
+def _structured(endpoint: Any) -> bool:
+    """Whether an endpoint can return schema-constrained output (`structured_outputs`)."""
+
+    return isinstance(endpoint, dict) and "structured_outputs" in {
+        str(value).lower() for value in endpoint.get("supported_parameters") or []
+    }
+
+
+def _endpoint_matches(endpoint: dict[str, Any], provider: str) -> bool:
+    """Whether `provider.order: [provider]` can route to this endpoint: a bare
+    `deepinfra` covers all of its endpoints, `deepinfra/fp8` only that one."""
+
+    tag = str(endpoint.get("tag") or "").strip().lower()
+    return tag == provider or tag.partition("/")[0] == provider
+
+
+def list_model_endpoints(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, str]]:
+    """GET /models/{model}/endpoints, keeping only the provider endpoints that
+    can return schema-constrained output (`structured_outputs`), which this
+    app relies on. Returns `{"tag", "name"}` pairs sorted by name; `tag` is the
+    slug sent in `provider.order`."""
+
+    endpoints = _model_endpoints(model, api_key=api_key, timeout_sec=timeout_sec)
     listed: dict[str, dict[str, str]] = {}
     for endpoint in endpoints:
         if not isinstance(endpoint, dict):
             continue
         tag = str(endpoint.get("tag") or "").strip().lower()
-        parameters = {str(value).lower() for value in endpoint.get("supported_parameters") or []}
-        if not tag or tag in listed or "structured_outputs" not in parameters:
+        if not tag or tag in listed or not _structured(endpoint):
             continue
         details = [
             part for part in (tag.partition("/")[2], str(endpoint.get("quantization") or ""))
@@ -182,12 +210,61 @@ def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list
     return problems
 
 
+def _token_count(value: Any) -> int:
+    """A token count from endpoint metadata, or 0 when it is missing or malformed."""
+
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _endpoint_output_limit(endpoint: dict[str, Any]) -> int | None:
+    """An endpoint's output maximum, less whatever would crowd the article out of its context."""
+
+    limit = _token_count(endpoint.get("max_completion_tokens"))
+    context_length = _token_count(endpoint.get("context_length"))
+    if limit and context_length:
+        limit = min(limit, context_length - max(context_length // 4, MIN_INPUT_TOKEN_RESERVE))
+    # An endpoint too small to hold both the article and any output can't serve
+    # these requests, so it doesn't count towards the lowest limit.
+    return limit if limit > 0 else None
+
+
+def endpoint_output_limit(
+    model: str, *, api_key: str = "", timeout_sec: int = 20, only_provider: str = ""
+) -> int | None:
+    """The default output cap for `model`: the lowest any structured-output endpoint allows.
+
+    Extraction asks for strict structured output, so OpenRouter may route a
+    request to any endpoint that supports it; the lowest limit is one they all
+    accept. `only_provider` (a slug such as `deepinfra` or `deepinfra/fp8`)
+    narrows this to that provider's endpoints, for a run pinned to it with no
+    fallbacks. Each endpoint's limit leaves room in its context for the
+    article. None when no endpoint states a limit. Raises ProviderError when
+    the endpoint list can't be read.
+    """
+
+    try:
+        listed = _model_endpoints(model, api_key=api_key, timeout_sec=timeout_sec)
+    except ValueError as exc:  # not an `author/model` ID, so there is no endpoint list to read
+        raise ProviderError(str(exc)) from exc
+    endpoints = [endpoint for endpoint in listed if _structured(endpoint)]
+    if only_provider:
+        endpoints = [endpoint for endpoint in endpoints if _endpoint_matches(endpoint, only_provider)]
+    limits = [limit for limit in map(_endpoint_output_limit, endpoints) if limit]
+    return min(limits) if limits else None
+
+
 def _completion_payload(
     *,
     model: str,
     content: list[dict[str, Any]],
     response_schema: dict[str, Any],
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     provider: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
@@ -206,6 +283,9 @@ def _completion_payload(
     }
     if reasoning_effort:
         payload["reasoning"] = {"effort": reasoning_effort}
+    if max_output_tokens:
+        # Reasoning tokens count against this cap too.
+        payload["max_tokens"] = max_output_tokens
     if provider:
         payload["provider"] = provider
     return payload
@@ -299,6 +379,7 @@ def _call_openrouter_content(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
     provider: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
@@ -307,6 +388,7 @@ def _call_openrouter_content(
         content=content,
         response_schema=response_schema,
         reasoning_effort=reasoning_effort,
+        max_output_tokens=max_output_tokens,
         provider=provider,
     )
     body, raw_response = _post_completion(
@@ -402,6 +484,7 @@ def _call_openrouter(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
     provider: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
@@ -428,6 +511,7 @@ def _call_openrouter(
         ],
         response_schema=response_schema,
         reasoning_effort=reasoning_effort,
+        max_output_tokens=max_output_tokens,
         provider=provider,
     )
     send: dict[str, Any] = {"api_key": api_key, "timeout_sec": timeout_sec, "cancel_event": cancel_event}
@@ -490,6 +574,7 @@ def extract_pdf_effects(
     model: str = DEFAULT_MODEL,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
     openrouter_provider: str = "",
     allow_fallbacks: bool = True,
@@ -499,7 +584,9 @@ def extract_pdf_effects(
 
     `openrouter_provider` pins the backend provider (a slug such as
     `deepinfra/fp8`; "" lets OpenRouter choose) and `allow_fallbacks` controls
-    whether OpenRouter may try other providers when it is unavailable."""
+    whether OpenRouter may try other providers when it is unavailable.
+    `max_output_tokens` caps the response, reasoning included; None sends no
+    cap, so OpenRouter's default applies."""
 
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
@@ -524,6 +611,7 @@ def extract_pdf_effects(
                 response_schema=response_schema,
                 timeout_sec=timeout_sec,
                 reasoning_effort=reasoning_effort,
+                max_output_tokens=max_output_tokens,
                 cancel_event=cancel_event,
                 provider=provider,
             )
@@ -537,6 +625,7 @@ def extract_pdf_effects(
                 response_schema=response_schema,
                 timeout_sec=timeout_sec,
                 reasoning_effort=reasoning_effort,
+                max_output_tokens=max_output_tokens,
                 cancel_event=cancel_event,
                 provider=provider,
             )

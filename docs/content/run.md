@@ -15,7 +15,17 @@ Each request includes all coding-sheet rows for one PDF. The response must inclu
 
 ## Control throughput
 
-Expand **Advanced run settings** to adjust parallel requests, request delay, and timeout. Lower concurrency or add delay if the provider rejects requests because of rate limits. Provider-specific controls include Gemini service tier, reasoning effort for the other supported provider types, and, for OpenRouter, which backend provider serves the model and whether requests may fall back to others (see [Route OpenRouter requests to one provider](settings.md#route-openrouter-requests-to-one-provider)).
+Expand **Advanced run settings** to adjust parallel requests, request delay, timeout, and [maximum output](#maximum-output). Lower concurrency or add delay if the provider rejects requests because of rate limits. Provider-specific controls include Gemini service tier, reasoning effort for the other supported provider types, and, for OpenRouter, which backend provider serves the model and whether requests may fall back to others (see [Route OpenRouter requests to one provider](settings.md#route-openrouter-requests-to-one-provider)).
+
+### Maximum output
+
+**Maximum output (tokens)**, also under **Advanced run settings**, is the most the model may write for one article, reasoning or thinking included. A value you enter is sent as entered. Leave it empty to use the provider's own limit:
+
+- **Gemini** uses the model's maximum.
+- **OpenRouter** uses the lowest limit among the providers that serve the model with structured output, looked up when each run or retry starts. If the project [routes requests to one provider](settings.md#route-openrouter-requests-to-one-provider) with fallbacks off, only that provider's limits count. Some providers default to a low cap if none is sent. Where a provider states its context length, its limit leaves room in that context for the article (a quarter of the context, at least 32,768 tokens); a provider whose context is too small for that is left out. If the lookup fails, the run shows a warning and sends no limit, so OpenRouter's default applies.
+- **OpenAI-compatible** servers use their own default.
+
+The value each run sent is recorded in its [audit history](auditing.md). An article with many rows can need a lot of output. If articles need review with `finish reason: length`, raise the maximum output or lower the reasoning effort, then retry them. Changing the maximum output does not mark successful results as outdated.
 
 To estimate spending before processing every PDF, see [Cost](costs.md). Extraction settings are saved per project. They are separate from the global model used to draft manuals or convert sheets.
 

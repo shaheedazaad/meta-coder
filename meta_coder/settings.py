@@ -26,6 +26,23 @@ MAX_REQUEST_TIMEOUT_SEC = 3600
 # OpenRouter's supported effort vocabulary; the blank value delegates to the
 # selected model's default. Gemini ignores this provider-specific setting.
 REASONING_EFFORTS = ("", "minimal", "low", "medium", "high", "xhigh", "max")
+MAX_OUTPUT_TOKENS = 100_000_000
+
+
+def output_token_limit(value: object) -> int:
+    """A maximum output from a form or saved settings; 0 (the provider's own
+    limit) when it is empty, malformed or not positive."""
+
+    # bool is an int subclass, so a JSON `true` would otherwise load as 1.
+    if isinstance(value, bool):
+        return 0
+    try:
+        number = int(str(value).strip() or 0)
+    except ValueError:
+        return 0
+    return max(0, min(number, MAX_OUTPUT_TOKENS))
+
+
 # An OpenRouter provider slug, optionally with an endpoint variant, as listed by
 # /models/{model}/endpoints: `deepinfra` or `deepinfra/fp8`.
 OPENROUTER_PROVIDER_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)?")
@@ -51,6 +68,8 @@ class RunSettings:
     request_timeout_sec: int = 0  # 0 means "provider default" — see clamped()
     service_tier: str = DEFAULT_SERVICE_TIER  # Gemini only; ignored by other providers
     reasoning_effort: str = ""  # OpenRouter/OpenAI-compatible; "" means "provider/model default"
+    # 0 means the provider's own limit; see providers.resolve_max_output_tokens.
+    max_output_tokens: int = 0
     # OpenRouter only: the backend provider to route to ("" lets OpenRouter
     # choose) and whether requests may fall back to other providers.
     openrouter_provider: str = ""
@@ -74,6 +93,7 @@ class RunSettings:
             reasoning_effort=(self.reasoning_effort or "").strip().lower()
             if (self.reasoning_effort or "").strip().lower() in REASONING_EFFORTS
             else "",
+            max_output_tokens=output_token_limit(self.max_output_tokens),
             openrouter_provider=_valid_openrouter_provider(self.openrouter_provider),
             openrouter_allow_fallbacks=self.openrouter_allow_fallbacks is not False,
         )
@@ -106,6 +126,7 @@ def load_run_settings(project: Project) -> RunSettings:
             request_timeout_sec=int(raw.get("request_timeout_sec") or 0),
             service_tier=str(raw.get("service_tier") or DEFAULT_SERVICE_TIER),
             reasoning_effort=str(raw.get("reasoning_effort") or ""),
+            max_output_tokens=output_token_limit(raw.get("max_output_tokens") or 0),
             openrouter_provider=str(raw.get("openrouter_provider") or ""),
             openrouter_allow_fallbacks=raw.get("openrouter_allow_fallbacks", True) is not False,
         ).clamped()

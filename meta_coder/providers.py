@@ -46,6 +46,39 @@ def check_model(provider: str, model: str, *, api_key: str, base_url: str = "") 
     return [f"Unknown provider: {provider!r}."]
 
 
+def resolve_max_output_tokens(
+    provider: str,
+    model: str,
+    configured: int,
+    *,
+    api_key: str,
+    timeout_sec: int = 20,
+    openrouter_provider: str = "",
+    openrouter_allow_fallbacks: bool = True,
+) -> int | None:
+    """The output cap a run sends with every request, or None to send none.
+
+    A configured value is sent as set. Otherwise OpenRouter gets the lowest
+    limit among the model's structured-output endpoints, since some endpoints
+    default to a low cap; Gemini (the model's maximum) and OpenAI-compatible
+    servers (their own default) get none. A run pinned to one OpenRouter
+    provider with fallbacks off can only reach that provider's endpoints, so
+    only theirs count. Raises ProviderError when OpenRouter's endpoint list
+    can't be read.
+    """
+
+    if configured:
+        return configured
+    if provider == "openrouter":
+        return openrouter.endpoint_output_limit(
+            model,
+            api_key=api_key,
+            timeout_sec=timeout_sec,
+            only_provider="" if openrouter_allow_fallbacks else openrouter_provider,
+        )
+    return None
+
+
 def _generate_draft_text(
     *,
     provider: str,
@@ -143,6 +176,7 @@ def extract_pdf_effects(
     reasoning_effort: str = "",
     base_url: str = "",
     response_format: str = "json_schema",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
     openrouter_provider: str = "",
     openrouter_allow_fallbacks: bool = True,
@@ -160,7 +194,7 @@ def extract_pdf_effects(
             pdf_path=pdf_path, manual=manual, rows=rows, api_key=api_key, model=model,
             base_url=base_url, response_format=response_format,
             timeout_sec=timeout_sec or openai_compatible.DEFAULT_TIMEOUT_SEC,
-            reasoning_effort=reasoning_effort, cancel_event=cancel_event,
+            reasoning_effort=reasoning_effort, max_output_tokens=max_output_tokens, cancel_event=cancel_event,
         )
     if provider == "openrouter":
         return openrouter.extract_pdf_effects(
@@ -171,6 +205,7 @@ def extract_pdf_effects(
             model=model,
             timeout_sec=timeout_sec or openrouter.DEFAULT_TIMEOUT_SEC,
             reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
             cancel_event=cancel_event,
             openrouter_provider=openrouter_provider,
             allow_fallbacks=openrouter_allow_fallbacks,
@@ -184,6 +219,7 @@ def extract_pdf_effects(
             model=model,
             timeout_sec=timeout_sec or gemini.DEFAULT_TIMEOUT_SEC,
             service_tier=service_tier,
+            max_output_tokens=max_output_tokens,
             cancel_event=cancel_event,
         )
     raise ValueError(f"Unknown provider: {provider!r} (use one of {PROVIDERS}).")

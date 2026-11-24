@@ -146,6 +146,9 @@ test('provider controls update defaults, notices, and unsaved settings state', a
   assert.match(d.getElementById('run-key-status').textContent, /API key optional/);
   change(w, provider, 'openrouter', 'change');
   assert.match(d.getElementById('run-model').value, /\//);
+  // The maximum output hint says what an empty value means for the chosen provider.
+  const outputHints = [...d.getElementById('run-max-output').parentElement.querySelectorAll('[data-provider-setting]')];
+  assert.deepEqual(outputHints.filter(hint => !hint.hidden).map(hint => hint.dataset.providerSetting), ['openrouter']);
   assert.match(d.getElementById('run-key-status').textContent, /No OpenRouter API key/);
   await flush();
   assert.equal(w.projectEdits.dirty(), true);
@@ -334,7 +337,7 @@ for (const kind of ['run', 'pdf-scan']) {
     let fail = false;
     const { w, d } = setup(t, 'project', w => {
       timers = fakeTimers(w);
-      w.document.body.insertAdjacentHTML('beforeend', `<div id="${kind}-progress" data-running="true" data-status-url="/status"><div data-progress-bar><span></span></div><p data-progress-summary></p></div><table><tr data-run-row="paper.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr></table>`);
+      w.document.body.insertAdjacentHTML('beforeend', `<div id="${kind}-progress" data-running="true" data-status-url="/status"><div data-progress-bar><span></span></div><p data-progress-summary></p><div class="hidden" data-run-warning><section></section></div></div><table><tr data-run-row="paper.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr></table>`);
       w.fetch = async () => { if (fail) throw new Error('offline'); return { json: async () => current }; };
     });
     w.projectEdits.register({}, () => true);
@@ -347,9 +350,13 @@ for (const kind of ['run', 'pdf-scan']) {
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '12');
       assert.equal(d.querySelector('[data-run-output-tokens]').textContent, '4');
       assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 Last retry failed: HTTP 503 low-confidence cells: 2/);
-      current = { status: 'cancelling', total: 0, processed: 0, pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
+      const warning = root.querySelector('[data-run-warning]');
+      assert.equal(warning.classList.contains('hidden'), true);
+      current = { status: 'cancelling', total: 0, processed: 0, warning: 'Could not look up the output limit.', pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
       assert.equal(timers.run(), 1500);
       await flush();
+      assert.equal(warning.classList.contains('hidden'), false);
+      assert.equal(warning.textContent, 'Could not look up the output limit.');
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '—');
       assert.equal(d.querySelector('[data-run-detail]').textContent, '');
     }

@@ -79,7 +79,10 @@ from .runner import (
     raw_json_path_for_read,
 )
 from .results import CONFIDENCE_CSV, low_confidence_cells, provenance_csv, rated_fields, spreadsheet_csv
-from .settings import REASONING_EFFORTS, RunSettings, load_run_settings, normalize_openrouter_provider, save_run_settings
+from .settings import (
+    MAX_OUTPUT_TOKENS, REASONING_EFFORTS, RunSettings, load_run_settings, normalize_openrouter_provider,
+    output_token_limit, save_run_settings,
+)
 from .sources import SOURCE_ACCEPT, source_format
 from .uploads import list_uploaded_sources, save_source_uploads, upload_summary
 import yaml
@@ -635,6 +638,7 @@ def _project_view(
         "providers": PROVIDERS,
         "provider_labels": PROVIDER_LABELS,
         "reasoning_efforts": REASONING_EFFORTS,
+        "max_output_tokens_limit": MAX_OUTPUT_TOKENS,
         "has_results": bool(run_state) or bool(completed_articles) or (coded_csv.is_file() and evidence_csv.is_file()),
         "result_files_available": coded_csv.is_file() and evidence_csv.is_file(),
         "confidence_file_available": (project.output_dir / CONFIDENCE_CSV).is_file(),
@@ -973,6 +977,8 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
         request_timeout_sec: int = Form(0),
         service_tier: str = Form(""),
         reasoning_effort: str = Form(""),
+        # Text, not int: an empty field means the provider's own limit.
+        max_output_tokens: str = Form(""),
         openrouter_provider: str = Form(""),
         openrouter_fallbacks: str = Form("allow"),
     ):
@@ -991,6 +997,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
             request_timeout_sec=request_timeout_sec,
             service_tier=service_tier,
             reasoning_effort=reasoning_effort,
+            max_output_tokens=output_token_limit(max_output_tokens),
             openrouter_provider=routed_provider,
             openrouter_allow_fallbacks=openrouter_fallbacks == "allow",
         ).clamped()
@@ -1353,6 +1360,7 @@ def create_app(*, token: str, projects_root: Path | None = None) -> FastAPI:
                 request_timeout_sec=settings.request_timeout_sec,
                 service_tier=settings.service_tier,
                 reasoning_effort=settings.reasoning_effort,
+                max_output_tokens=settings.max_output_tokens,
                 openrouter_provider=settings.openrouter_provider,
                 openrouter_allow_fallbacks=settings.openrouter_allow_fallbacks,
                 only_pdfs=only_pdfs,

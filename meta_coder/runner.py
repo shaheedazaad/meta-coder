@@ -19,13 +19,13 @@ from pathlib import Path
 from typing import Any
 
 from .coding_sheet import CodingSheet
-from .extraction import ExtractionResult, redact_secret
+from .extraction import ExtractionResult, ProviderError, redact_secret
 from .fingerprints import InputChecker
 from .manual import CodingManual
 from .projects import Project
 from .prompts import PROMPT_VERSION
 from .provenance import AuditOperation, atomic_write, audited_call, json_bytes, utc_now
-from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
+from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects, resolve_max_output_tokens
 from .sources import source_format
 from .results import CONFIDENCE_CSV, collate_field_key, collate_results, low_confidence_cells, rated_fields, render_pdf_audit_yaml, rows_to_csv
 
@@ -334,6 +334,7 @@ class RunState:
     processed: int = 0
     pdfs: list[PdfProgress] = field(default_factory=list)
     error: str | None = None
+    warning: str | None = None
     started_at: float | None = None
     finished_at: float | None = None
     cancel_requested: bool = False
@@ -346,6 +347,7 @@ class RunState:
             "total": self.total,
             "processed": self.processed,
             "error": self.error,
+            "warning": self.warning,
             "pdfs": [
                 {
                     "source_pdf": p.source_pdf,
@@ -362,6 +364,35 @@ class RunState:
                 for p in self.pdfs
             ],
         }
+
+
+def _resolve_output_limit(
+    state: RunState, provider: str, model: str, configured: int, api_key: str, timeout_sec: int | None,
+    routing: dict[str, Any] | None = None,
+) -> int | None:
+    """The output cap this run sends, recorded in the run's provenance.
+
+    A failed OpenRouter endpoint lookup must not stop the run: it warns and
+    sends no cap, so the provider's default applies."""
+
+    lookup_error = None
+    try:
+        limit = resolve_max_output_tokens(
+            provider, model, configured, api_key=api_key, timeout_sec=min(timeout_sec or 30, 30),
+            **(routing or {}),
+        )
+    except ProviderError as exc:
+        limit = None
+        lookup_error = redact_secret(str(exc), api_key)
+        state.warning = (
+            f"Couldn't look up the model's maximum output ({lookup_error}). Requests are sent "
+            "without an output limit, so the provider's default applies."
+        )
+    if state.audit_run:
+        state.audit_run.update_settings(
+            resolved_max_output_tokens=limit, max_output_tokens_lookup_error=lookup_error
+        )
+    return limit
 
 
 class Runner:
@@ -417,6 +448,7 @@ class Runner:
         only_pdfs: list[str] | None = None,
         base_url: str = "",
         response_format: str = "json_schema",
+        max_output_tokens: int = 0,
         openrouter_provider: str = "",
         openrouter_allow_fallbacks: bool = True,
     ) -> RunState:
@@ -462,6 +494,9 @@ class Runner:
             "request_delay_sec": request_delay_sec, "timeout_sec": request_timeout_sec,
             "service_tier": service_tier, "reasoning_effort": reasoning_effort,
             "base_url": base_url, "response_format": response_format,
+            # The run setting; 0 means the provider's own limit. What was sent
+            # is added as resolved_max_output_tokens once the run resolves it.
+            "max_output_tokens": max_output_tokens,
             **(openrouter_routing(openrouter_provider, openrouter_allow_fallbacks) if provider == "openrouter" else {}),
             "selected_pdfs": pdf_names, "retry_selection": only_pdfs,
         }, secrets=(api_key,))
@@ -487,6 +522,7 @@ class Runner:
                 reasoning_effort,
                 base_url,
                 response_format,
+                max_output_tokens,
             ),
             kwargs=openrouter_routing(openrouter_provider, openrouter_allow_fallbacks),
             daemon=True,
@@ -510,6 +546,7 @@ class Runner:
         reasoning_effort: str,
         base_url: str,
         response_format: str,
+        max_output_tokens: int = 0,
         openrouter_provider: str = "",
         openrouter_allow_fallbacks: bool = True,
     ) -> None:
@@ -634,6 +671,13 @@ class Runner:
                 state.processed += 1
 
         try:
+            # Resolved once, before any request, so every PDF of a run gets the same cap.
+            output_limit = _resolve_output_limit(
+                state, provider, model, max_output_tokens, api_key, request_timeout_sec,
+                openrouter_routing(openrouter_provider, openrouter_allow_fallbacks) if provider == "openrouter" else None,
+            )
+            if output_limit:
+                provider_kwargs["max_output_tokens"] = output_limit
             project.audit_dir.mkdir(parents=True, exist_ok=True)
             workers = max(1, min(int(parallel_requests), len(state.pdfs) or 1))
             with ThreadPoolExecutor(max_workers=workers) as executor:

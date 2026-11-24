@@ -7,7 +7,7 @@ Choose **Download audit ZIP** on Results, or **Download project and audit** in P
 | Record | Included information |
 | --- | --- |
 | Application | App version, a copy of the application code, and details of the software environment used |
-| Run | Selected PDFs, provider/model, pacing and parallelism, settings, final statuses, coded-data and evidence CSV snapshots |
+| Run | Selected PDFs, provider/model, pacing and parallelism, settings (including the maximum output setting and the limit actually sent, or why a lookup failed), final statuses, coded-data and evidence CSV snapshots |
 | Inputs | Saved manual and coding sheet plus effective inputs passed to the action, original study PDFs or XML files, or uploaded draft documents, conversion notes |
 | Each request | Start and finish times (UTC), provider address, exact instructions and requested output format, selected model, and settings sent to the provider |
 | Each response | Original response and any model version, request identifier, or usage details supplied by the provider |

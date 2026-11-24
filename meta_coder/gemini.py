@@ -131,6 +131,7 @@ def _call_gemini_parts(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, Any]]:
     url = _model_url(model, ":generateContent")
@@ -151,6 +152,9 @@ def _call_gemini_parts(
         # default tier.
         "service_tier": service_tier,
     }
+    if max_output_tokens:
+        # Without one, Gemini allows the model's own maximum. Thinking counts too.
+        payload["generationConfig"]["maxOutputTokens"] = max_output_tokens
     request = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
@@ -230,6 +234,7 @@ def _call_gemini(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Structured generation with a native PDF, kept as the extraction seam."""
@@ -249,6 +254,7 @@ def _call_gemini(
         response_schema=response_schema,
         timeout_sec=timeout_sec,
         service_tier=service_tier,
+        max_output_tokens=max_output_tokens,
         cancel_event=cancel_event,
     )
 
@@ -284,6 +290,7 @@ def extract_pdf_effects(
     model: str = DEFAULT_MODEL,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     service_tier: str = DEFAULT_SERVICE_TIER,
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
     """Code one PDF or XML source. A PDF is sent natively; an XML source is sent
@@ -308,6 +315,7 @@ def extract_pdf_effects(
                 response_schema=response_schema,
                 timeout_sec=timeout_sec,
                 service_tier=service_tier,
+                max_output_tokens=max_output_tokens,
                 cancel_event=cancel_event,
             )
         else:
@@ -319,6 +327,7 @@ def extract_pdf_effects(
                 response_schema=response_schema,
                 timeout_sec=timeout_sec,
                 service_tier=service_tier,
+                max_output_tokens=max_output_tokens,
                 cancel_event=cancel_event,
             )
     except ProviderError as exc:
