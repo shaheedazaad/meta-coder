@@ -296,6 +296,37 @@ test('failed sheet conversion releases controls and preserves server-disabled bu
   assert.equal(w.projectEdits.dirty(), false);
 });
 
+// FastAPI answers a form that fails validation (HTTP 422) with a list of
+// objects in `detail`; that and any other non-string message must not reach
+// the page as "[object Object]".
+const validationDetail = [{ type: 'missing', loc: ['body', 'file'], msg: 'Field required', input: null }];
+for (const [label, body, expected] of [
+  ['a 422 validation list in detail', { detail: validationDetail }, null],
+  ['an object error', { error: { message: 'Provider unavailable' } }, null],
+  ['a blank error and a string detail', { error: '  ', detail: 'Project not found' }, 'Project not found'],
+  ['a non-string error and a string detail', { error: ['bad'], detail: 'Project not found' }, 'Project not found'],
+  ['a JSON null body', null, null],
+  ['a JSON string body', 'Server error', null],
+]) {
+  for (const [form, statusId, fallback] of [
+    ['manual-draft-form', 'manual-draft-status', 'The coding-manual draft failed.'],
+    ['sheet-draft-form', 'sheet-draft-status', 'The request failed. Please try again.'],
+  ]) {
+    test(`${form} shows a readable message for ${label}`, async t => {
+      const { w, d } = setup(t, 'project', w => {
+        w.fetch = async () => ({ ok: false, text: async () => JSON.stringify(body) });
+      });
+      const target = d.getElementById(form);
+      files(w, target.querySelector('input[type=file]'), ['upload.md']);
+      submit(w, target);
+      await flush();
+      const status = d.getElementById(statusId);
+      assert.equal(status.textContent, expected || fallback);
+      assert.doesNotMatch(status.textContent, /\[object Object\]/);
+    });
+  }
+}
+
 for (const kind of ['run', 'pdf-scan']) {
   test(`${kind} polling handles progress, transient errors, and terminal refresh with unsaved edits`, async t => {
     let timers;
