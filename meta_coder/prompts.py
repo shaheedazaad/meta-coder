@@ -77,11 +77,25 @@ def render_codebook(manual: CodingManual) -> str:
     return "\n".join(lines)
 
 
+# Appended only for XML sources, so the PDF prompt (and PROMPT_VERSION) is unchanged.
+XML_SOURCE_NOTE = """Source format: XML
+The article is the publisher's XML file (for example JATS), not a PDF, so it has no
+page numbers. Wherever these instructions ask for a page number, cite where the text
+sits in the article instead: its section heading path (for example "Results > Study 2"),
+or for a table its label, row and column (for example "Table 3, row 'Extraversion',
+column 'r'"). Quote the article's words, not its XML markup."""
+
+
 def build_extraction_prompt(
-    manual: CodingManual, rows: list[CodingSheetRow], *, article: str = "attached PDF"
+    manual: CodingManual,
+    rows: list[CodingSheetRow],
+    *,
+    article: str = "attached PDF",
+    source_format: str = "pdf",
 ) -> str:
     """`article` names where the article is, e.g. "article text below" for
-    adapters that send extracted text instead of the PDF itself."""
+    adapters that send extracted text instead of the PDF itself.
+    `source_format` "xml" adds a note on citing locations without page numbers."""
 
     row_lines = "\n".join(
         f"- row_id: {row.row_id}\n  locator: {row.locator or '(none)'}" for row in rows
@@ -97,4 +111,5 @@ def build_extraction_prompt(
         "If it is not clear which effect that is, say so in the row's `notes` field rather "
         "than guessing:\n"
         f"{row_lines}"
+        + (f"\n\n{XML_SOURCE_NOTE}" if source_format == "xml" else "")
     )

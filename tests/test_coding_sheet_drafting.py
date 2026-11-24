@@ -58,7 +58,7 @@ def test_draft_csv_quoting_and_missing_pdf_warning():
     assert rows[0]['authors'] == 'Smith, Lee'
     assert len(rows) == 1
     assert result['row_count'] == result['source_row_count'] == 1
-    assert any('PDF matching' in warning for warning in result['warnings'])
+    assert any('source matching' in warning for warning in result['warnings'])
     validate_sheet_csv(result['csv'], require_complete=True)
 
 
