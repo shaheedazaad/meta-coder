@@ -10,6 +10,8 @@ Open **Sources**, choose one or more PDF or XML files, and upload them. A projec
 
 If a new file has the same name as one already in the project but different contents, it is saved with a numbered suffix, such as `paper (2).pdf`, rather than replacing the original. A file whose contents are identical to a source already in the project is skipped, even under a different name, and so is a repeat of a file earlier in the same upload. A message on **Sources** lists the skipped files, for example: `Added 1 file. Skipped 2 already in this project: a.pdf, copy.pdf.`
 
+Select **Open** next to a file to view it in a new browser tab, for example to check that it is the right study while [matching sources](matching.md). An XML file opens as plain text. MetaCoder serves only PDF and XML files stored in the project's source folder.
+
 Next, open [Source matching](matching.md) to resolve missing matches. A source with no coding-sheet rows is not processed during extraction.
 
 ## XML (JATS) full text
