@@ -27,7 +27,7 @@ def test_build_keeps_only_the_providers_fields_and_validates():
     assert gemini.parallel_requests == 4 and gemini.request_timeout_sec == 600
     assert gemini.snapshot() == {
         'name': 'Lab', 'provider': 'gemini', 'model': 'gemini-test', 'parallel_requests': 4,
-        'request_delay_sec': 0, 'request_timeout_sec': 600, 'service_tier': 'standard'}
+        'request_delay_sec': 0, 'request_timeout_sec': 600, 'max_output_tokens': 0, 'service_tier': 'standard'}
     endpoint = extractors.validate_new_extractor({
         'name': '  Local   server ', 'provider': 'openai_compatible', 'model': 'm',
         'base_url': 'http://localhost:8000/v1/', 'response_format': 'none', 'reasoning_effort': 'LOW'})
@@ -191,7 +191,8 @@ def test_saved_keys_and_settings_become_extractors(isolated_home, tmp_path, memo
     fast = legacy_project(tmp_path, 'Fast Gemini', provider='gemini', model='gemini-3.8-flash', parallel_requests=8)
     fast_too = legacy_project(tmp_path, 'Fast too', provider='gemini', model='gemini-3.8-flash', parallel_requests=8)
     pro = legacy_project(tmp_path, 'Pro Gemini', provider='gemini', model='gemini-pro', service_tier='standard')
-    router = legacy_project(tmp_path, 'Router', provider='openrouter', model='a/b', reasoning_effort='high')
+    router = legacy_project(tmp_path, 'Router', provider='openrouter', model='a/b', reasoning_effort='high',
+                            openrouter_provider='groq', openrouter_allow_fallbacks=False, max_output_tokens=32000)
     create_project('Never ran', root=tmp_path)
     memory_keyring.store[(_SERVICE_NAME, 'gemini')] = 'old-gemini-key'
     memory_keyring.store[(_SERVICE_NAME, 'openrouter')] = 'old-router-key'
@@ -211,6 +212,10 @@ def test_saved_keys_and_settings_become_extractors(isolated_home, tmp_path, memo
     assert by_name['Gemini (Pro Gemini)'].service_tier == 'standard'
     assert load_project_extractor_id(router) == by_name['OpenRouter'].id
     assert by_name['OpenRouter'].reasoning_effort == 'high'
+    # Routing and the output limit chosen for a project move into its extractor.
+    assert by_name['OpenRouter'].openrouter_provider == 'groq'
+    assert by_name['OpenRouter'].openrouter_allow_fallbacks is False
+    assert by_name['OpenRouter'].max_output_tokens == 32000
     assert all(item.legacy_credential == item.provider and item.key_saved
                for item in by_name.values() if item.provider != 'openai_compatible')
     assert endpoint.base_url == 'http://localhost:8000/v1' and endpoint.response_format == 'none'

@@ -12,6 +12,7 @@ API keys are never here: they live in the OS credential store (credentials.py).
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -29,6 +30,37 @@ MAX_REQUEST_TIMEOUT_SEC = 3600
 # selected model's default. Gemini ignores this provider-specific setting.
 REASONING_EFFORTS = ("", "minimal", "low", "medium", "high", "xhigh", "max")
 RESPONSE_FORMATS = ("json_schema", "json_object", "none")
+MAX_OUTPUT_TOKENS = 100_000_000
+
+
+def output_token_limit(value: object) -> int:
+    """A maximum output from a form or saved settings; 0 (the provider's own
+    limit) when it is empty, malformed or not positive."""
+
+    # bool is an int subclass, so a JSON `true` would otherwise load as 1.
+    if isinstance(value, bool):
+        return 0
+    try:
+        number = int(str(value).strip() or 0)
+    except ValueError:
+        return 0
+    return max(0, min(number, MAX_OUTPUT_TOKENS))
+
+
+# An OpenRouter provider slug, optionally with an endpoint variant, as listed by
+# /models/{model}/endpoints: `deepinfra` or `deepinfra/fp8`.
+OPENROUTER_PROVIDER_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]*(/[a-z0-9][a-z0-9._-]*)?")
+
+
+def normalize_openrouter_provider(value: object) -> str:
+    """Return a lower-case OpenRouter provider slug, or "" for automatic routing.
+
+    Raises ValueError for anything that is not a `vendor` or `vendor/variant` slug."""
+
+    slug = str(value or "").strip().lower()
+    if slug and not OPENROUTER_PROVIDER_PATTERN.fullmatch(slug):
+        raise ValueError(f"Invalid OpenRouter provider: {value}")
+    return slug
 
 
 @dataclass
@@ -46,6 +78,12 @@ class RunSettings:
     extractor_name: str = ""
     # Every non-secret setting of the extractor the run used.
     extractor: dict = field(default_factory=dict)
+    # 0 means the provider's own limit; see providers.resolve_max_output_tokens.
+    max_output_tokens: int = 0
+    # OpenRouter only: the backend provider to route to ("" lets OpenRouter
+    # choose) and whether requests may fall back to other providers.
+    openrouter_provider: str = ""
+    openrouter_allow_fallbacks: bool = True
 
     def clamped(self) -> "RunSettings":
         provider = self.provider if self.provider in PROVIDERS else DEFAULT_PROVIDER
@@ -69,7 +107,17 @@ class RunSettings:
             extractor_id=str(self.extractor_id or ""),
             extractor_name=str(self.extractor_name or ""),
             extractor=dict(self.extractor) if isinstance(self.extractor, dict) else {},
+            max_output_tokens=output_token_limit(self.max_output_tokens),
+            openrouter_provider=_valid_openrouter_provider(self.openrouter_provider),
+            openrouter_allow_fallbacks=self.openrouter_allow_fallbacks is not False,
         )
+
+
+def _valid_openrouter_provider(value: object) -> str:
+    try:
+        return normalize_openrouter_provider(value)
+    except ValueError:
+        return ""
 
 
 def _meta_dir(project: Project) -> Path:
@@ -111,6 +159,9 @@ def load_run_settings(project: Project) -> RunSettings:
             extractor_id=str(raw.get("extractor_id") or ""),
             extractor_name=str(raw.get("extractor_name") or ""),
             extractor=raw.get("extractor") if isinstance(raw.get("extractor"), dict) else {},
+            max_output_tokens=output_token_limit(raw.get("max_output_tokens") or 0),
+            openrouter_provider=str(raw.get("openrouter_provider") or ""),
+            openrouter_allow_fallbacks=raw.get("openrouter_allow_fallbacks", True) is not False,
         ).clamped()
     except (OSError, ValueError, TypeError):
         return RunSettings().clamped()

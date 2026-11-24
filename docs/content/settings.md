@@ -8,22 +8,33 @@ Open **Settings** in the app header to manage **extractors** and drafting prefer
 
 An extractor is a named, saved setup for reaching a model: its provider, model, endpoint, API key and request settings. You can keep several, including several for the same provider, for example two OpenRouter keys or two OpenAI-compatible servers. Before choosing a provider, read [Privacy and data sharing](privacy.md): data use differs between providers and, for Gemini, between free and paid access.
 
-| Provider | Connection | Study PDF handling |
-| --- | --- | --- |
-| Gemini | An API key | Native PDF input |
-| OpenRouter | An API key | PDF input through the provider |
-| OpenAI-compatible | The API base URL, and a key if the server requires one | Text extracted on your computer, with page numbers |
+| Provider | Connection | Study PDF handling | XML source handling |
+| --- | --- | --- | --- |
+| Gemini | An API key | Native PDF input | Sent as text |
+| OpenRouter | An API key | PDF input through the provider | Sent as text, no PDF parser |
+| OpenAI-compatible | The API base URL, and a key if the server requires one | Text extracted on your computer, with page numbers | Sent as text |
 
 ## Add an extractor
 
 1. Expand **Add an extractor**.
 2. Give it a name you will recognise, such as "Gemini lab key", and choose a provider.
 3. Enter the model ID. **Show available models** asks the provider for its model list, using the key you typed. It loads only when you click it; the typed key is sent to the provider for that one request and is not stored unless you save the extractor.
-4. Paste the API key. For an OpenAI-compatible server, also enter the API base URL (include the prefix such as `/v1`, without `/chat/completions`) and a JSON output mode the server supports: **Strict JSON schema**, **JSON object**, or **Prompt only**. Responses are validated in every mode.
-5. Optionally expand **Request settings** to change parallel requests, the delay between requests, the request timeout, the Gemini service tier or the reasoning effort.
+4. Paste the API key. For an OpenAI-compatible server, also enter the API base URL (include the prefix such as `/v1`, without `/chat/completions`) and a JSON output mode the server supports: **Strict JSON schema**, **JSON object**, or **Prompt only**. Responses are validated in every mode. This provider extracts each PDF's text on your computer and sends it with page numbers; figures and scanned pages need OCR first. XML sources are sent as they are, markup included.
+5. Optionally expand **Request settings** to change parallel requests, the delay between requests, the request timeout, the [maximum output](run.md#maximum-output), the Gemini service tier or the reasoning effort, or to [route OpenRouter requests to one provider](#route-openrouter-requests-to-one-provider).
 6. Choose **Add extractor**.
 
 When you save with a key, MetaCoder asks the provider whether the model can be used and shows any warning. If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. Information shown only in figures or unusual table layouts may be lost.
+
+The parser can occasionally succeed yet return no text, or text for only a few pages. When it returns no text at all, or no text for more than half the pages of a multi-page PDF, MetaCoder sends the PDF once more and asks OpenRouter to use its `cloudflare-ai` parser instead. That parser has no per-page charge, but the model's tokens are charged again for the second request. If the second parse is still empty, the PDF is reported as an error rather than coded from nothing. If it is still mostly empty, the coded values are kept but marked for review with a reason such as "PDF parser returned no text for 11 of 12 pages". Both requests appear in the [audit history](auditing.md).
+
+## Route OpenRouter requests to one provider
+
+OpenRouter serves each model through several backend providers, which can differ in quantization, speed, price and output limits. By default OpenRouter chooses one for each request, so PDFs in the same run can be coded by different providers. An OpenRouter extractor has two more controls under **Request settings**:
+
+- **Route to provider** lists the providers that currently serve the extractor's model with structured output, such as `DeepInfra (turbo, fp8)`. The list loads when you open **Request settings** and reloads when you change the model. It is public, so no key is needed; if the extractor's key is already unlocked this session it is sent too, but the list never opens the credential store. Leave it on **Automatic (OpenRouter chooses)** to keep OpenRouter's choice, or pick a provider to send every request to it first. If a provider you saved stops serving the model, it stays selected and is marked **(not listed for this model)**; choose another provider or **Automatic** if requests start failing.
+- **Fallbacks** decides what happens when that provider is unavailable. **Allow other providers** lets OpenRouter retry elsewhere. **Don't fall back** fails the request instead, so every result comes from the provider you chose. With **Automatic**, **Don't fall back** limits each request to OpenRouter's first choice. A hint under the control describes the current combination.
+
+Both are saved with the extractor and recorded in each run's [audit record](auditing.md). Changing them does not mark existing results as outdated: they choose who serves the same model, not what is asked of it, so PDFs already coded are not coded again. The new routing applies to the PDFs coded from then on. Your [OpenRouter privacy settings](privacy.md#openrouter) still apply, so a provider they exclude cannot be used.
 
 ## Edit, duplicate or delete
 
@@ -54,7 +65,7 @@ The maximum document upload size is configurable here, from 1 to 1,024 MB.
 Earlier versions kept one key per provider plus a model and request settings in each project. The first time a newer version starts, it turns these into extractors:
 
 - Each provider with a saved key, and an OpenAI-compatible server with a base URL, becomes an extractor named after the provider.
-- Each project keeps the provider, model and request settings it had. Projects with identical settings share an extractor; a project with different settings gets its own, named after the project, which uses the same key.
+- Each project keeps the provider, model and request settings it had, including any maximum output and OpenRouter provider routing. Projects with identical settings share an extractor; a project with different settings gets its own, named after the project, which uses the same key.
 - The drafting provider and model become the drafting extractor.
 - Settings left at the defaults with no saved key are skipped. A project whose provider had no key or endpoint keeps its last settings on record but needs an extractor chosen before it can run.
 - A saved key whose settings were missing or unusable is kept on an extractor that asks for its model or base URL.

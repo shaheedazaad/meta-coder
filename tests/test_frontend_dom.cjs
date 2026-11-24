@@ -395,14 +395,45 @@ test('failed sheet conversion releases controls and preserves server-disabled bu
   assert.equal(w.projectEdits.dirty(), false);
 });
 
+// FastAPI answers a form that fails validation (HTTP 422) with a list of
+// objects in `detail`; that and any other non-string message must not reach
+// the page as "[object Object]".
+const validationDetail = [{ type: 'missing', loc: ['body', 'file'], msg: 'Field required', input: null }];
+for (const [label, body, expected] of [
+  ['a 422 validation list in detail', { detail: validationDetail }, null],
+  ['an object error', { error: { message: 'Provider unavailable' } }, null],
+  ['a blank error and a string detail', { error: '  ', detail: 'Project not found' }, 'Project not found'],
+  ['a non-string error and a string detail', { error: ['bad'], detail: 'Project not found' }, 'Project not found'],
+  ['a JSON null body', null, null],
+  ['a JSON string body', 'Server error', null],
+]) {
+  for (const [form, statusId, fallback] of [
+    ['manual-draft-form', 'manual-draft-status', 'The coding-manual draft failed.'],
+    ['sheet-draft-form', 'sheet-draft-status', 'The request failed. Please try again.'],
+  ]) {
+    test(`${form} shows a readable message for ${label}`, async t => {
+      const { w, d } = setup(t, 'project', w => {
+        w.fetch = async () => ({ ok: false, text: async () => JSON.stringify(body) });
+      });
+      const target = d.getElementById(form);
+      files(w, target.querySelector('input[type=file]'), ['upload.md']);
+      submit(w, target);
+      await flush();
+      const status = d.getElementById(statusId);
+      assert.equal(status.textContent, expected || fallback);
+      assert.doesNotMatch(status.textContent, /\[object Object\]/);
+    });
+  }
+}
+
 for (const kind of ['run', 'pdf-scan']) {
   test(`${kind} polling handles progress, transient errors, and terminal refresh with unsaved edits`, async t => {
     let timers;
-    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
+    let current = { status: 'running', processed: 1, total: 2, pdfs: [{ source_pdf: 'paper.pdf', status: 'ok', json_repaired: true, input_tokens: 12, output_tokens: 4, error: 'Check', missing_ids: ['r2'], extra_ids: ['r3'], retry_error: 'HTTP 503', low_confidence: 2 }, { source_pdf: 'off-page.pdf' }] };
     let fail = false;
     const { w, d } = setup(t, 'project', w => {
       timers = fakeTimers(w);
-      w.document.body.insertAdjacentHTML('beforeend', `<div id="${kind}-progress" data-running="true" data-status-url="/status"><div data-progress-bar><span></span></div><p data-progress-summary></p></div><table><tr data-run-row="paper.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr></table>`);
+      w.document.body.insertAdjacentHTML('beforeend', `<div id="${kind}-progress" data-running="true" data-status-url="/status"><div data-progress-bar><span></span></div><p data-progress-summary></p><div class="hidden" data-run-warning><section></section></div></div><table><tr data-run-row="paper.pdf"><td data-run-status-cell></td><td data-run-input-tokens></td><td data-run-output-tokens></td><td data-run-detail></td></tr></table>`);
       w.fetch = async () => { if (fail) throw new Error('offline'); return { json: async () => current }; };
     });
     w.projectEdits.register({}, () => true);
@@ -414,10 +445,14 @@ for (const kind of ['run', 'pdf-scan']) {
       assert.match(d.querySelector('[data-run-status-cell]').textContent, /ok · repaired/);
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '12');
       assert.equal(d.querySelector('[data-run-output-tokens]').textContent, '4');
-      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 low-confidence cells: 2/);
-      current = { status: 'cancelling', total: 0, processed: 0, pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
+      assert.match(d.querySelector('[data-run-detail]').textContent, /missing: r2 unexpected: r3 Last retry failed: HTTP 503 low-confidence cells: 2/);
+      const warning = root.querySelector('[data-run-warning]');
+      assert.equal(warning.classList.contains('hidden'), true);
+      current = { status: 'cancelling', total: 0, processed: 0, warning: 'Could not look up the output limit.', pdfs: [{ source_pdf: 'paper.pdf', status: 'pending' }] };
       assert.equal(timers.run(), 1500);
       await flush();
+      assert.equal(warning.classList.contains('hidden'), false);
+      assert.equal(warning.textContent, 'Could not look up the output limit.');
       assert.equal(d.querySelector('[data-run-input-tokens]').textContent, '—');
       assert.equal(d.querySelector('[data-run-detail]').textContent, '');
     }
@@ -829,4 +864,247 @@ test('manual confidence checkbox reflects the editor data and submits its settin
   sparse.d.getElementById('manual-form').addEventListener('submit', e => e.preventDefault());
   submit(sparse.w, sparse.d.getElementById('manual-form'));
   assert.equal(JSON.parse(sparse.d.getElementById('manual-json-input').value).confidence, false);
+});
+
+// OpenRouter provider routing (extractor forms in Settings) ---------------------
+function routing(t, { form = 'new', fetch, open = false } = {}) {
+  const requests = [];
+  const prefix = form === 'new' ? 'new-extractor' : `extractor-${fixtures.ids.router}`;
+  const env = setup(t, 'settings', w => {
+    if (open) w.document.getElementById(`${prefix}-openrouter-provider`).closest('details').open = true;
+    w.fetch = (url, options) => { requests.push(url); return fetch(url, options); };
+  });
+  const { w, d } = env;
+  const $ = suffix => d.getElementById(`${prefix}-${suffix}`);
+  const select = $('openrouter-provider');
+  const section = select.closest('.js-openrouter-routing');
+  return {
+    ...env, requests, select, section,
+    disclosure: select.closest('details'),
+    fallbacks: $('openrouter-fallbacks'),
+    model: $('model'),
+    status: () => section.querySelector('.js-openrouter-provider-status').textContent,
+    hint: () => section.querySelector('.js-openrouter-fallbacks-hint').textContent,
+    options: () => Array.from(select.options).map(o => [o.value, o.textContent]),
+    toggle: async isOpen => {
+      env.w.document.getElementById(`${prefix}-openrouter-provider`).closest('details').open = isOpen;
+      select.closest('details').dispatchEvent(new w.Event('toggle'));
+      await flush();
+    },
+    useOpenRouter: model => {
+      change(w, $('provider'), 'openrouter', 'change');
+      if (model !== undefined) change(w, $('model'), model, 'change');
+    },
+  };
+}
+const ok = payload => ({ ok: true, json: async () => payload });
+const endpoints = [{ tag: 'akashml/fp8', name: 'AkashML (fp8)' }, { tag: 'deepinfra/turbo', name: '<b>DeepInfra</b> (turbo)' }];
+
+test('a saved OpenRouter extractor lists providers once its request settings open', async t => {
+  const r = routing(t, { form: 'saved', fetch: async () => ok(endpoints) });
+  assert.equal(r.section.hidden, false);
+  assert.equal(r.requests.length, 0);
+  assert.equal(r.hint(), 'Only saved/tag is used. Requests fail if it is unavailable.');
+  await r.toggle(true);
+  assert.equal(r.requests.length, 1);
+  assert.equal(r.requests[0], `/test/api/openrouter/endpoints?model=vendor%2Fmodel&extractor_id=${fixtures.ids.router}`);
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['akashml/fp8', 'AkashML (fp8)'], ['deepinfra/turbo', '<b>DeepInfra</b> (turbo)'], ['saved/tag', 'saved/tag (not listed for this model)']]);
+  assert.equal(r.select.querySelector('b'), null);
+  assert.equal(r.select.value, 'saved/tag');
+  assert.equal(r.status(), '2 providers serve this model with structured output.');
+  assert.equal(r.hint(), 'Only saved/tag (not listed for this model) is used. Requests fail if it is unavailable.');
+  await r.toggle(false);
+  await r.toggle(true);
+  assert.equal(r.requests.length, 1);
+  change(r.w, r.select, 'akashml/fp8', 'change');
+  change(r.w, r.fallbacks, 'allow', 'change');
+  assert.equal(r.hint(), 'Tries AkashML (fp8) first, then other providers if it is unavailable.');
+  change(r.w, r.select, '', 'change');
+  assert.equal(r.hint(), 'OpenRouter picks a provider and tries others if a request fails.');
+  change(r.w, r.fallbacks, 'deny', 'change');
+  assert.equal(r.hint(), "Only OpenRouter's first-choice provider is tried. Requests fail if it is unavailable.");
+});
+
+test('routing that is already showing lists providers straight away', async t => {
+  const r = routing(t, { form: 'saved', open: true, fetch: async () => ok([endpoints[0]]) });
+  await flush();
+  assert.equal(r.requests.length, 1);
+  assert.equal(r.status(), '1 provider serves this model with structured output.');
+});
+
+test('a new extractor lists providers for OpenRouter only', async t => {
+  const r = routing(t, { fetch: async () => ok(endpoints) });
+  assert.equal(r.section.hidden, true);
+  r.useOpenRouter('vendor/model'); await flush();
+  assert.equal(r.section.hidden, false);
+  assert.equal(r.requests.at(-1), '/test/api/openrouter/endpoints?model=vendor%2Fmodel');
+  assert.equal(r.select.options.length, 3);
+  change(r.w, r.d.getElementById('new-extractor-provider'), 'gemini', 'change'); await flush();
+  assert.equal(r.section.hidden, true);
+  assert.equal(r.status(), 'Enter a model ID to see which providers serve it.');
+});
+
+test('OpenRouter routing reports empty, single, and failed provider listings', async t => {
+  const replies = [
+    ok([]), ok([endpoints[0]]),
+    { ok: false, json: async () => ({ detail: 'OpenRouter is down' }) },
+    { ok: false, json: async () => { throw new Error('bad json'); } },
+    ok({ unexpected: true }),
+  ];
+  const r = routing(t, { fetch: async () => replies.shift() });
+  r.useOpenRouter(); await flush();
+  assert.equal(r.status(), 'No provider currently serves this model with structured output.');
+  for (const [model, message] of [
+    ['vendor/one', '1 provider serves this model with structured output.'],
+    ['vendor/two', 'OpenRouter is down'],
+    ['vendor/three', 'Providers could not be loaded.'],
+    ['vendor/four', 'Providers could not be loaded.'],
+    ['  ', 'Enter a model ID to see which providers serve it.'],
+  ]) {
+    change(r.w, r.model, model, 'change'); await flush();
+    assert.equal(r.status(), message);
+  }
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)']]);
+});
+
+test('a network failure listing providers shows its message and keeps the choice', async t => {
+  const r = routing(t, { form: 'saved', fetch: async () => { throw new Error('offline'); } });
+  await r.toggle(true);
+  assert.equal(r.status(), 'offline');
+  assert.deepEqual(r.options(), [['', 'Automatic (OpenRouter chooses)'], ['saved/tag', 'saved/tag']]);
+  assert.equal(r.select.value, 'saved/tag');
+});
+
+test('a slow provider listing for an earlier model is ignored', async t => {
+  const pending = [];
+  const r = routing(t, { fetch: url => new Promise(resolve => pending.push({ url, resolve })) });
+  r.useOpenRouter('vendor/first'); await flush();
+  change(r.w, r.model, 'vendor/second', 'change'); await flush();
+  pending.at(-1).resolve(ok([endpoints[1]])); await flush();
+  pending.at(-2).resolve(ok(endpoints)); await flush();
+  assert.equal(r.select.options.length, 2);
+  change(r.w, r.model, 'vendor/third', 'change'); await flush();
+  change(r.w, r.model, 'vendor/fourth', 'change'); await flush();
+  pending.at(-1).resolve(ok([])); await flush();
+  pending.at(-2).resolve({ ok: false, json: async () => ({ detail: 'stale failure' }) }); await flush();
+  assert.equal(r.status(), 'No provider currently serves this model with structured output.');
+});
+
+function resultsSelection(t, configure = () => {}) {
+  const ui = setup(t, 'results', w => {
+    const root = w.document.querySelector('[data-result-selection]');
+    configure(w, 'meta-coder-result-selection:' + root.dataset.projectId, root);
+  });
+  const root = ui.d.querySelector('[data-result-selection]');
+  return {
+    ...ui,
+    key: 'meta-coder-result-selection:' + root.dataset.projectId,
+    bar: root.querySelector('[data-selection-bar]'),
+    input: root.querySelector('[data-selection-input]'),
+    count: root.querySelector('[data-selection-count]'),
+    all: root.querySelector('[data-select-all]'),
+    box: root.querySelector('[data-select-pdf]'),
+    filter: root.querySelector('[data-result-filter]'),
+  };
+}
+function toggle(w, input, checked) {
+  input.checked = checked;
+  input.dispatchEvent(new w.Event('change', { bubbles: true }));
+}
+function submitSelection(w, bar, submitter) {
+  const event = submitter
+    ? new w.SubmitEvent('submit', { bubbles: true, cancelable: true, submitter })
+    : new w.Event('submit', { bubbles: true, cancelable: true });
+  bar.dispatchEvent(event);
+  return event;
+}
+
+test('results selection tracks rows, select-all and clearing, and remembers the selection', t => {
+  const ui = resultsSelection(t);
+  const { w, bar, input, count, all, box } = ui;
+  assert.equal(bar.hidden, true);
+  assert.equal(all.checked, false);
+  assert.equal(box.value, 'failed.pdf');
+  toggle(w, box, true);
+  assert.equal(bar.hidden, false);
+  assert.equal(count.textContent, '1 PDF selected');
+  assert.deepEqual(JSON.parse(input.value), ['failed.pdf']);
+  assert.equal(all.checked, true);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(ui.key)), ['failed.pdf']);
+  toggle(w, box, false);
+  assert.equal(bar.hidden, true);
+  assert.equal(all.checked, false);
+  toggle(w, all, true);
+  assert.equal(box.checked, true);
+  bar.querySelector('[data-selection-clear]').click();
+  assert.equal(box.checked, false);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(ui.key)), []);
+});
+
+test('select-all covers every PDF the filter matches and keeps selections from other pages', t => {
+  const { w, all, box, count, input } = resultsSelection(t, (w, key, root) => {
+    w.sessionStorage.setItem(key, JSON.stringify(['done.pdf', 'gone.pdf']));
+    // Two matching PDFs, only one of them on this page.
+    root.querySelector('[data-result-selection-pdfs]').textContent =
+      JSON.stringify({ all: ['done.pdf', 'failed.pdf', 'review.pdf'], filtered: ['failed.pdf', 'review.pdf'] });
+  });
+  // gone.pdf no longer has output, so it is dropped; done.pdf is outside the filter.
+  assert.equal(count.textContent, '1 PDF selected');
+  assert.equal(all.checked, false);
+  assert.equal(all.indeterminate, false);
+  toggle(w, box, true);
+  assert.equal(all.indeterminate, true);
+  toggle(w, all, true);
+  assert.equal(all.checked, true);
+  assert.deepEqual(JSON.parse(input.value), ['done.pdf', 'failed.pdf', 'review.pdf']);
+  assert.equal(count.textContent, '3 PDFs selected');
+  toggle(w, all, false);
+  assert.deepEqual(JSON.parse(input.value), ['done.pdf']);
+});
+
+test('retry and delete ask first and clear the remembered selection once sent', t => {
+  const questions = [];
+  let answer = false;
+  const { w, d, bar, box, key } = resultsSelection(t, w => {
+    w.confirm = question => { questions.push(question); return answer; };
+  });
+  toggle(w, box, true);
+  const deleteButton = d.querySelector('[data-selection-delete]');
+  let event = submitSelection(w, bar, deleteButton);
+  assert.equal(event.defaultPrevented, true);
+  assert.match(questions.pop(), /^Delete the saved output for “failed\.pdf”\? .*audit history keeps a copy/);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(key)), ['failed.pdf']);
+  submitSelection(w, bar, d.querySelector('[data-selection-retry]'));
+  assert.match(questions.pop(), /^Code “failed\.pdf” again\?/);
+  answer = true;
+  event = submitSelection(w, bar, deleteButton);
+  assert.equal(event.defaultPrevented, false);
+  assert.deepEqual(JSON.parse(w.sessionStorage.getItem(key)), []);
+
+  const two = resultsSelection(t, (w, key) => {
+    w.sessionStorage.setItem(key, JSON.stringify(['failed.pdf', 'done.pdf']));
+    w.confirm = question => { questions.push(question); return true; };
+  });
+  event = submitSelection(two.w, two.bar);
+  assert.equal(event.defaultPrevented, false);
+  assert.match(questions.pop(), /^Code 2 PDFs again\? A PDF already coded successfully keeps its current result/);
+  assert.deepEqual(JSON.parse(two.w.sessionStorage.getItem(two.key)), []);
+});
+
+test('results filter applies on change, and selection survives unusable storage', t => {
+  const broken = resultsSelection(t, w => {
+    w.Storage.prototype.getItem = () => { throw new Error('storage disabled'); };
+    w.Storage.prototype.setItem = () => { throw new Error('storage disabled'); };
+  });
+  let submitted = 0;
+  broken.filter.submit = () => { submitted += 1; };
+  const select = broken.filter.querySelector('select');
+  select.value = 'ok';
+  select.dispatchEvent(new broken.w.Event('change', { bubbles: true }));
+  assert.equal(submitted, 1);
+  toggle(broken.w, broken.box, true);
+  assert.equal(broken.count.textContent, '1 PDF selected');
+
+  const malformed = resultsSelection(t, (w, key) => { w.sessionStorage.setItem(key, '{"failed.pdf": true}'); });
+  assert.equal(malformed.bar.hidden, true);
 });

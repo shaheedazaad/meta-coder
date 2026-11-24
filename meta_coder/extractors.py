@@ -26,6 +26,7 @@ from .projects import Project, list_projects
 from .provenance import atomic_write
 from .providers import DEFAULT_TIMEOUT_SEC_BY_PROVIDER, PROVIDER_LABELS, PROVIDERS, default_model
 from .settings import (
+    MAX_OUTPUT_TOKENS,
     MAX_PARALLEL_REQUESTS,
     MAX_REQUEST_DELAY_SEC,
     MAX_REQUEST_TIMEOUT_SEC,
@@ -35,6 +36,7 @@ from .settings import (
     RunSettings,
     load_project_extractor_id,
     load_run_settings,
+    normalize_openrouter_provider,
     run_settings_saved,
     save_project_extractor_id,
 )
@@ -46,10 +48,12 @@ RESPONSE_FORMAT_LABELS = {
     "none": "Prompt only",
 }
 SERVICE_TIERS = ("flex", "standard")
-COMMON_FIELDS = ("name", "provider", "model", "parallel_requests", "request_delay_sec", "request_timeout_sec")
+COMMON_FIELDS = (
+    "name", "provider", "model", "parallel_requests", "request_delay_sec", "request_timeout_sec", "max_output_tokens",
+)
 PROVIDER_FIELDS = {
     "gemini": ("service_tier",),
-    "openrouter": ("reasoning_effort",),
+    "openrouter": ("reasoning_effort", "openrouter_provider", "openrouter_allow_fallbacks"),
     "openai_compatible": ("base_url", "response_format", "reasoning_effort"),
 }
 NAME_MAX_LENGTH = 60
@@ -76,6 +80,13 @@ class Extractor:
     reasoning_effort: str = ""
     base_url: str = ""
     response_format: str = "json_schema"
+    # The most the model may write for one article, reasoning included; 0
+    # means the provider's own limit (see providers.resolve_max_output_tokens).
+    max_output_tokens: int = 0
+    # OpenRouter only: the backend provider to route to ("" lets OpenRouter
+    # choose) and whether requests may fall back to other providers.
+    openrouter_provider: str = ""
+    openrouter_allow_fallbacks: bool = True
     # Whether the key vault holds a key for this extractor. Recorded here so
     # pages can show it without opening the credential store.
     key_saved: bool = False
@@ -115,6 +126,10 @@ class Extractor:
             rows.append(("JSON output mode", RESPONSE_FORMAT_LABELS[self.response_format]))
         if self.provider != "gemini":
             rows.append(("Reasoning effort", self.reasoning_effort or "Model default"))
+        if self.provider == "openrouter":
+            rows.append(("Route to provider", self.openrouter_provider or "Automatic"))
+            rows.append(("Fallbacks", "Allowed" if self.openrouter_allow_fallbacks else "Not allowed"))
+        rows.append(("Maximum output", f"{self.max_output_tokens:,} tokens" if self.max_output_tokens else "Provider's limit"))
         rows.append(("Parallel requests", str(self.parallel_requests)))
         rows.append(("Delay between requests", f"{self.request_delay_sec} s"))
         rows.append(("Request timeout", f"{self.request_timeout_sec} s"))
@@ -180,6 +195,8 @@ def _build(values: Mapping[str, object], *, extractor_id: str, complete: bool = 
             values, "request_timeout_sec", "Request timeout", MIN_REQUEST_TIMEOUT_SEC, MAX_REQUEST_TIMEOUT_SEC,
             DEFAULT_TIMEOUT_SEC_BY_PROVIDER[provider],
         ),
+        # Empty or 0 means the provider's own limit.
+        max_output_tokens=_int_field(values, "max_output_tokens", "Maximum output", 0, MAX_OUTPUT_TOKENS, 0),
         key_saved=values.get("key_saved") is True,
         legacy_credential=str(values.get("legacy_credential") or ""),
     )
@@ -193,7 +210,14 @@ def _build(values: Mapping[str, object], *, extractor_id: str, complete: bool = 
         raise ExtractorError("Choose a reasoning effort.")
     extractor = replace(extractor, reasoning_effort=effort)
     if provider == "openrouter":
-        return extractor
+        try:
+            routed = normalize_openrouter_provider(values.get("openrouter_provider"))
+        except ValueError:
+            raise ExtractorError("Choose a provider to route to, or Automatic.") from None
+        fallbacks = values.get("openrouter_allow_fallbacks", True)
+        if fallbacks not in (True, False, "allow", "deny"):
+            raise ExtractorError("Choose whether OpenRouter may fall back to other providers.")
+        return replace(extractor, openrouter_provider=routed, openrouter_allow_fallbacks=fallbacks in (True, "allow"))
     base_url = str(values.get("base_url") or "").strip()
     if base_url or complete:
         try:
@@ -411,6 +435,9 @@ def run_settings_for(extractor: Extractor) -> RunSettings:
         reasoning_effort=extractor.reasoning_effort,
         base_url=extractor.base_url,
         response_format=extractor.response_format,
+        max_output_tokens=extractor.max_output_tokens,
+        openrouter_provider=extractor.openrouter_provider,
+        openrouter_allow_fallbacks=extractor.openrouter_allow_fallbacks,
         extractor_id=extractor.id,
         extractor_name=extractor.name,
         extractor=extractor.snapshot(),
@@ -551,7 +578,9 @@ def migrate_legacy_settings(*, projects_root: Path | None = None) -> bool:
             "provider": previous.provider, "model": previous.model,
             "parallel_requests": previous.parallel_requests, "request_delay_sec": previous.request_delay_sec,
             "request_timeout_sec": previous.request_timeout_sec, "service_tier": previous.service_tier,
-            "reasoning_effort": previous.reasoning_effort,
+            "reasoning_effort": previous.reasoning_effort, "max_output_tokens": previous.max_output_tokens,
+            "openrouter_provider": previous.openrouter_provider,
+            "openrouter_allow_fallbacks": previous.openrouter_allow_fallbacks,
         }, project.name)
         if chosen:
             choices.append((project, chosen))

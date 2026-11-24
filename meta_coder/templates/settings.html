@@ -61,7 +61,7 @@
         <option value="{{ value }}" {% if e.response_format == value %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
-      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">Use a mode your endpoint supports. PDF text is extracted on your computer and sent with page numbers.</p>
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">Use a mode your endpoint supports. PDF text is extracted on your computer and sent with page numbers. XML sources are sent as they are.</p>
     </div>
   </div>
   <details class="disclosure"><summary>Request settings</summary><div class="disclosure-body stack">
@@ -95,6 +95,35 @@
         <option value="{{ effort }}" {% if e.reasoning_effort == effort %}selected{% endif %}>{{ effort or "(model default)" }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div class="field field-max">
+      <label for="{{ prefix }}-max-output">Maximum output (tokens)</label>
+      <input type="number" id="{{ prefix }}-max-output" name="max_output_tokens"
+             value="{{ e.max_output_tokens or '' }}" placeholder="Provider's limit"
+             min="1" max="{{ max_output_tokens_limit }}" class="input">
+      <p class="u-xs u-muted" style="margin:var(--sp-1) 0 0">
+        The most the model may write for one article, reasoning included. Leave empty to use
+        <span data-provider-setting="gemini" {% if e.provider != 'gemini' %}hidden{% endif %}>the model's maximum.</span><span data-provider-setting="openrouter" {% if e.provider != 'openrouter' %}hidden{% endif %}>the lowest limit among the model's OpenRouter endpoints, looked up when each run starts.</span><span data-provider-setting="openai_compatible" {% if e.provider != 'openai_compatible' %}hidden{% endif %}>the server's default.</span>
+      </p>
+    </div>
+    <div class="grid-2 js-openrouter-routing" data-provider-setting="openrouter" {% if e.provider != 'openrouter' %}hidden{% endif %}>
+      <div class="field">
+        <label for="{{ prefix }}-openrouter-provider">Route to provider</label>
+        <select id="{{ prefix }}-openrouter-provider" name="openrouter_provider" class="select js-openrouter-provider"
+                data-endpoints-url="/{{ token }}/api/openrouter/endpoints" {% if editing %}data-extractor-id="{{ e.id }}"{% endif %}>
+          <option value="">Automatic (OpenRouter chooses)</option>
+          {% if e.openrouter_provider %}<option value="{{ e.openrouter_provider }}" selected>{{ e.openrouter_provider }}</option>{% endif %}
+        </select>
+        <p class="u-xs u-muted js-openrouter-provider-status" style="margin:var(--sp-1) 0 0" role="status">Providers that serve this model with structured output.</p>
+      </div>
+      <div class="field">
+        <label for="{{ prefix }}-openrouter-fallbacks">Fallbacks</label>
+        <select id="{{ prefix }}-openrouter-fallbacks" name="openrouter_allow_fallbacks" class="select js-openrouter-fallbacks">
+          <option value="allow" {% if e.openrouter_allow_fallbacks %}selected{% endif %}>Allow other providers</option>
+          <option value="deny" {% if not e.openrouter_allow_fallbacks %}selected{% endif %}>Don't fall back</option>
+        </select>
+        <p class="u-xs u-muted js-openrouter-fallbacks-hint" style="margin:var(--sp-1) 0 0"></p>
+      </div>
     </div>
   </div></details>
 {% endmacro %}
@@ -221,7 +250,7 @@
           <input type="text" id="grobid-url" name="grobid_url" value="{{ app_settings.grobid_url }}"
                  placeholder="http://localhost:8070" class="input u-mono">
           <p class="u-xs u-muted" style="margin:0">
-            Optional — used only to improve PDF-matching suggestions on the Coding sheet tab.
+            Optional — used only to improve source-matching suggestions for PDFs on the Coding sheet tab.
             Leave blank to use the built-in filename/text heuristic.
           </p>
         </div>

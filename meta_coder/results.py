@@ -15,6 +15,7 @@ import yaml
 from .coding_sheet import CodingSheet, CodingSheetRow
 from .extraction import ExtractionResult
 from .manual import BASE_COLUMNS, NOTES_FIELD_NAME, CodingManual
+from .sources import source_format
 
 
 # Written next to coded_data.csv only when the manual asks for confidence
@@ -165,7 +166,11 @@ def render_pdf_audit_yaml(
             }
         effects[row.row_id] = entry
 
-    data: dict[str, Any] = {"source_pdf": source_pdf, "status": result.status}
+    # `source_pdf` keeps its historical name; `source_format` says whether
+    # the source was a PDF or an XML file.
+    data: dict[str, Any] = {
+        "source_pdf": source_pdf, "source_format": source_format(source_pdf), "status": result.status,
+    }
     if result.audit_operation_id:
         data["audit_operation_id"] = result.audit_operation_id
     if provider:
@@ -188,10 +193,10 @@ def render_pdf_audit_yaml(
 
 
 # OWASP CSV-injection guidance: spreadsheet apps evaluate cells starting with
-# these characters as formulas. Tab and carriage return are always prefixed;
-# the others also after leading whitespace, which some apps ignore.
+# these characters as formulas. Tab, carriage return and line feed are always
+# prefixed; the others also after leading whitespace, which some apps ignore.
 _FORMULA_PREFIXES = ("=", "+", "-", "@")
-_CONTROL_PREFIXES = ("\t", "\r")
+_CONTROL_PREFIXES = ("\t", "\r", "\n")
 _NUMBER_RE = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
 
 
@@ -221,14 +226,15 @@ def spreadsheet_csv(canonical_csv: str) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-PROVENANCE_COLUMNS = ("row_id", "source_pdf", "provider", "model", "audit_operation_id")
+PROVENANCE_COLUMNS = ("row_id", "source_pdf", "provider", "model", "audit_operation_id", "source_format")
 
 
 def provenance_csv(coded_csv: str, results_by_pdf: dict[str, ExtractionResult]) -> str:
     """One row per row of `coded_data.csv`, recording the provider and model
     that produced that PDF's persisted result and the audit operation holding
     the full request/response. Results from mixed-provider retries are
-    reported per PDF; results saved before this was recorded have blanks."""
+    reported per PDF; results saved before this was recorded have blanks.
+    `source_format` ("pdf" or "xml") comes from the source's filename."""
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
@@ -239,5 +245,6 @@ def provenance_csv(coded_csv: str, results_by_pdf: dict[str, ExtractionResult]) 
         writer.writerow([
             row.get("row_id") or "", source_pdf,
             result.provider or "", result.model or "", result.audit_operation_id or "",
+            source_format(source_pdf) or "",
         ])
     return buffer.getvalue()

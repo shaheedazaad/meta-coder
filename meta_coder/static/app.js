@@ -45,6 +45,18 @@ var projectEdits = (function () {
   };
 })();
 
+// The message to show for a failed request: the server's `error`, then its
+// `detail`, or the fallback when neither is a non-empty string. FastAPI puts a
+// list of objects in `detail` when form validation fails (HTTP 422), which
+// would otherwise read as "[object Object]".
+function requestErrorMessage(payload, fallback) {
+  var source = payload && typeof payload === "object" ? payload : {};
+  var message = [source.error, source.detail].find(function (value) {
+    return typeof value === "string" && value.trim();
+  });
+  return message || fallback;
+}
+
 // Theme toggle (System/Light/Dark). Mirrors the inline pre-paint script in
 // base.html so the two never disagree about resolution logic; this instance
 // also wires up the dropdown's click handlers and keeps them synced when the
@@ -396,7 +408,7 @@ var projectEdits = (function () {
               payload = {};
             }
             if (!response.ok) {
-              throw new Error(payload.error || payload.detail || "The coding-manual draft failed.");
+              throw new Error(requestErrorMessage(payload, "The coding-manual draft failed."));
             }
             if (!payload || !payload.manual || typeof payload.manual !== "object" ||
                 !Array.isArray(payload.manual.effects) || typeof payload.yaml !== "string" ||
@@ -564,6 +576,7 @@ function initTabGroup(root, opts) {
   var statusUrl = root.dataset.statusUrl;
   var bar = root.querySelector("[data-progress-bar]");
   var summary = root.querySelector("[data-progress-summary]");
+  var warningBox = root.querySelector("[data-run-warning]");
   var rowsByPdf = {};
   document.querySelectorAll("[data-run-row]").forEach(function (tr) {
     rowsByPdf[tr.getAttribute("data-run-row")] = tr;
@@ -588,7 +601,11 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = data.processed + " / " + data.total + " PDFs processed — " + data.status;
+      summary.textContent = data.processed + " / " + data.total + " sources processed — " + data.status;
+    }
+    if (warningBox) {
+      warningBox.querySelector("section").textContent = data.warning || "";
+      warningBox.classList.toggle("hidden", !data.warning);
     }
     (data.pdfs || []).forEach(function (pdf) {
       var tr = rowsByPdf[pdf.source_pdf];
@@ -609,6 +626,7 @@ function initTabGroup(root, opts) {
         if (pdf.error) parts.push(pdf.error);
         if (pdf.missing_ids && pdf.missing_ids.length) parts.push("missing: " + pdf.missing_ids.join(", "));
         if (pdf.extra_ids && pdf.extra_ids.length) parts.push("unexpected: " + pdf.extra_ids.join(", "));
+        if (pdf.retry_error) parts.push("Last retry failed: " + pdf.retry_error);
         if (pdf.low_confidence) parts.push("low-confidence cells: " + pdf.low_confidence);
         detail.textContent = parts.join(" ");
       }
@@ -645,7 +663,89 @@ function initTabGroup(root, opts) {
   setTimeout(poll, 1000);
 })();
 
-// PDF match-scan progress: same polling/reload-on-terminal shape as the run
+// Results tab: filter by status, and select PDFs for Retry selected or Delete
+// output. The table is paginated on the server, so the selection is kept for
+// this browser tab across pages and filters, and select-all covers every PDF
+// the filter matches (listed in the embedded JSON), not just this page's rows.
+(function () {
+  var root = document.querySelector("[data-result-selection]");
+  if (!root) return;
+
+  var pdfs = JSON.parse(root.querySelector("[data-result-selection-pdfs]").textContent);
+  var known = new Set(pdfs.all);
+  var storageKey = "meta-coder-result-selection:" + root.dataset.projectId;
+  var selected = new Set();
+  try {
+    var saved = JSON.parse(window.sessionStorage.getItem(storageKey));
+    // Drop PDFs whose output was deleted or that left the coding sheet.
+    if (Array.isArray(saved)) saved.forEach(function (name) { if (known.has(name)) selected.add(name); });
+  } catch (error) { /* Unavailable or unreadable storage: start with nothing selected. */ }
+
+  var filter = root.querySelector("[data-result-filter]");
+  var bar = root.querySelector("[data-selection-bar]");
+  var input = bar.querySelector("[data-selection-input]");
+  var count = bar.querySelector("[data-selection-count]");
+  var selectAll = root.querySelector("[data-select-all]");
+  var boxes = root.querySelectorAll("[data-select-pdf]");
+
+  function save() {
+    try {
+      window.sessionStorage.setItem(storageKey, JSON.stringify(Array.from(selected)));
+    } catch (error) { /* The selection still works for this page. */ }
+  }
+
+  function render() {
+    var names = Array.from(selected);
+    boxes.forEach(function (box) { box.checked = selected.has(box.value); });
+    var matching = pdfs.filtered.filter(function (name) { return selected.has(name); }).length;
+    selectAll.checked = pdfs.filtered.length > 0 && matching === pdfs.filtered.length;
+    selectAll.indeterminate = matching > 0 && matching < pdfs.filtered.length;
+    bar.hidden = !names.length;
+    count.textContent = names.length + (names.length === 1 ? " PDF selected" : " PDFs selected");
+    input.value = JSON.stringify(names);
+    save();
+  }
+
+  boxes.forEach(function (box) {
+    box.addEventListener("change", function () {
+      if (box.checked) selected.add(box.value);
+      else selected.delete(box.value);
+      render();
+    });
+  });
+  selectAll.addEventListener("change", function () {
+    pdfs.filtered.forEach(function (name) {
+      if (selectAll.checked) selected.add(name);
+      else selected.delete(name);
+    });
+    render();
+  });
+  bar.querySelector("[data-selection-clear]").addEventListener("click", function () {
+    selected.clear();
+    render();
+  });
+  bar.addEventListener("submit", function (event) {
+    var names = Array.from(selected);
+    var label = names.length === 1 ? "“" + names[0] + "”" : names.length + " PDFs";
+    var deleting = Boolean(event.submitter && event.submitter.hasAttribute("data-selection-delete"));
+    var question = deleting
+      ? "Delete the saved output for " + label + "? It is removed from coded_data.csv and evidence.csv, " +
+        "and the next run codes it again. The audit history keeps a copy."
+      : "Code " + label + " again? A PDF already coded successfully keeps its current result if the new attempt fails.";
+    if (!window.confirm(question)) {
+      event.preventDefault();
+      return;
+    }
+    // The form already carries the names; start with nothing selected afterwards.
+    selected.clear();
+    save();
+  });
+  filter.querySelector("select").addEventListener("change", function () { filter.submit(); });
+
+  render();
+})();
+
+// Source match-scan progress: same polling/reload-on-terminal shape as the run
 // progress bar above, but there's no per-row table to update — just the bar
 // and summary line — since the scan only feeds the (server-rendered) match
 // suggestions panel once it's done.
@@ -667,7 +767,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = "Scanning uploaded PDFs for matches — " + (data.processed || 0) + " / " + (data.total || 0);
+      summary.textContent = "Scanning uploaded sources for matches — " + (data.processed || 0) + " / " + (data.total || 0);
     }
   }
 
@@ -710,6 +810,87 @@ function initTabGroup(root, opts) {
   var saved = select.value;
   projectEdits.register(select.form, function () { return select.value !== saved; });
 })();
+
+// OpenRouter provider routing in an extractor form: list the providers serving
+// the form's model with structured output. A saved provider stays selected even
+// when it is not listed. The list loads when the form's request settings are
+// first opened, then again whenever its provider or model changes.
+document.querySelectorAll(".js-openrouter-routing").forEach(function (routing) {
+  var form = routing.closest("form");
+  var select = routing.querySelector(".js-openrouter-provider");
+  var fallbacks = routing.querySelector(".js-openrouter-fallbacks");
+  var status = routing.querySelector(".js-openrouter-provider-status");
+  var hint = routing.querySelector(".js-openrouter-fallbacks-hint");
+  var model = form.querySelector(".js-extractor-model");
+  var disclosure = routing.closest("details");
+  var revision = 0;
+
+  function updateHint() {
+    var chosen = select.value ? select.selectedOptions[0].textContent : "";
+    var allow = fallbacks.value === "allow";
+    hint.textContent = chosen
+      ? (allow
+        ? "Tries " + chosen + " first, then other providers if it is unavailable."
+        : "Only " + chosen + " is used. Requests fail if it is unavailable.")
+      : (allow
+        ? "OpenRouter picks a provider and tries others if a request fails."
+        : "Only OpenRouter's first-choice provider is tried. Requests fail if it is unavailable.");
+  }
+
+  function render(endpoints, listed) {
+    var selected = select.value;
+    var options = [{ tag: "", name: "Automatic (OpenRouter chooses)" }].concat(endpoints);
+    if (selected && !endpoints.some(function (item) { return item.tag === selected; })) {
+      options.push({ tag: selected, name: listed ? selected + " (not listed for this model)" : selected });
+    }
+    select.replaceChildren.apply(select, options.map(function (item) { return new Option(item.name, item.tag); }));
+    select.value = selected;
+    updateHint();
+  }
+
+  async function load() {
+    var current = ++revision;
+    var id = model.value.trim();
+    render([], false);
+    if (form.elements.provider.value !== "openrouter" || !id) {
+      status.textContent = "Enter a model ID to see which providers serve it.";
+      return;
+    }
+    status.textContent = "Loading providers…";
+    var query = "?model=" + encodeURIComponent(id) +
+      (select.dataset.extractorId ? "&extractor_id=" + encodeURIComponent(select.dataset.extractorId) : "");
+    try {
+      var response = await fetch(select.dataset.endpointsUrl + query, { headers: { Accept: "application/json" } });
+      var payload = await response.json().catch(function () { return null; });
+      if (!response.ok || !Array.isArray(payload)) {
+        throw new Error((payload && payload.detail) || "Providers could not be loaded.");
+      }
+      if (current !== revision) return;
+      render(payload, true);
+      status.textContent = payload.length
+        ? payload.length + (payload.length === 1 ? " provider serves" : " providers serve") + " this model with structured output."
+        : "No provider currently serves this model with structured output.";
+    } catch (error) {
+      if (current !== revision) return;
+      status.textContent = error.message;
+    }
+  }
+
+  var loaded = false;
+  function loadOnce() {
+    if (loaded) return;
+    loaded = true;
+    load();
+  }
+
+  form.elements.provider.addEventListener("change", load);
+  model.addEventListener("change", load);
+  select.addEventListener("change", updateHint);
+  fallbacks.addEventListener("change", updateHint);
+  if (disclosure && !disclosure.open) disclosure.addEventListener("toggle", function () { if (disclosure.open) loadOnce(); });
+  else loadOnce();
+  updateHint();
+});
 
 (function () {
   var tabRoot = document.getElementById("tab-root");
@@ -919,7 +1100,7 @@ function initTabGroup(root, opts) {
         return response.text().then(function (text) {
           var payload;
           try { payload = JSON.parse(text); } catch (_) { payload = {}; }
-          if (!response.ok) throw new Error(payload.error || "The request failed. Please try again.");
+          if (!response.ok) throw new Error(requestErrorMessage(payload, "The request failed. Please try again."));
           return payload;
         });
       });

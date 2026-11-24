@@ -3,6 +3,7 @@ import io
 import json
 import re
 import zipfile
+from urllib.parse import unquote
 from unittest.mock import Mock
 
 import pytest
@@ -170,7 +171,17 @@ def test_upload_routes_and_scanner_dispatch(site):
     assert response.status_code == 303 and 'error=' in response.headers['location']
     assert (project.sources_dir / 'ok.PDF').read_bytes() == b'%PDF-good'
     runtime.pdf_scanner.scan_async.assert_called_once()
-    assert client.post(url(project, '/uploads'), files={'files': ('other.pdf', b'%PDF-ok')}).status_code == 303
+    assert client.post(url(project, '/uploads'), files={'files': ('other.pdf', b'%PDF-ok')}).headers['location'].endswith(project.project_id)
+    response = client.post(url(project, '/uploads'), files=[('files', ('copy.pdf', b'%PDF-good')), ('files', ('new.pdf', b'%PDF-new'))])
+    assert response.status_code == 303
+    location = response.headers['location']
+    assert 'tab=sources' in location and 'error=' not in location
+    assert unquote(location.split('notice=', 1)[1]) == 'Added 1 file. Skipped 1 already in this project: copy.pdf.'
+    assert not (project.sources_dir / 'copy.pdf').exists()
+    page = client.get(location)
+    assert 'Skipped 1 already in this project: copy.pdf.' in page.text
+    response = client.post(url(project, '/uploads'), files=[('files', ('dup.pdf', b'%PDF-new')), ('files', ('bad.pdf', b'bad'))])
+    assert 'error=' in response.headers['location'] and 'notice=' in response.headers['location']
     assert client.post(url(project, '/uploads/delete'), data={'filename': 'ok.PDF'}).status_code == 303
     assert not (project.sources_dir / 'ok.PDF').exists()
     note = project.sources_dir / 'notes.txt'
@@ -179,6 +190,45 @@ def test_upload_routes_and_scanner_dispatch(site):
     assert note.exists()
     response = client.post(url(project, '/coding-sheet'), files={'file': ('sheet.csv', b'row_id,source_pdf,locator,authors,year\nr1,other.pdf,exp1,Smith,2024\n')})
     assert response.status_code == 303 and 'r1,other.pdf' in project.coding_sheet_path.read_text()
+
+
+def test_sources_tab_opens_uploaded_pdfs_inline(site):
+    client, project, _ = site
+    (project.sources_dir / 'paper one#2.pdf').write_bytes(b'%PDF-one')
+    page = client.get(url(project, '?tab=sources')).text
+    link = url(project, '/sources/paper%20one%232.pdf')
+    assert f'href="{link}" target="_blank" rel="noopener">Open' in page
+    response = client.get(link)
+    assert response.status_code == 200 and response.content == b'%PDF-one'
+    assert response.headers['content-type'] == 'application/pdf'
+    assert response.headers['content-disposition'].startswith('inline')
+
+
+def test_sources_tab_opens_xml_sources_as_plain_text(site):
+    client, project, _ = site
+    (project.sources_dir / 'study.xml').write_bytes(b'<article><script>alert(1)</script></article>')
+    page = client.get(url(project, '?tab=sources')).text
+    link = url(project, '/sources/study.xml')
+    assert f'href="{link}" target="_blank" rel="noopener">Open' in page
+    response = client.get(link)
+    assert response.status_code == 200 and response.content.startswith(b'<article>')
+    assert response.headers['content-type'] == 'text/plain; charset=utf-8'
+    assert response.headers['x-content-type-options'] == 'nosniff'
+    assert response.headers['content-disposition'].startswith('inline')
+
+
+def test_source_pdf_route_refuses_paths_outside_sources(site, tmp_path):
+    client, project, _ = site
+    (project.path / 'secret.pdf').write_bytes(b'%PDF-secret')
+    (tmp_path / 'outside.pdf').write_bytes(b'%PDF-outside')
+    (project.sources_dir / 'notes.txt').write_text('not a pdf')
+    (project.sources_dir / 'folder.pdf').mkdir()
+    (project.sources_dir / 'escape.pdf').symlink_to(tmp_path / 'outside.pdf')
+    (project.sources_dir / 'up.pdf').symlink_to(project.path / 'secret.pdf')
+    for name in ['escape.pdf', 'up.pdf', 'notes.txt', 'missing.pdf', 'folder.pdf',
+                 '..%2Fsecret.pdf', '%2E%2E%2Fsecret.pdf', '..%5Csecret.pdf', '%2E%2E']:
+        assert client.get(url(project, f'/sources/{name}')).status_code == 404, name
+    assert client.get('/test/projects/missing/sources/paper.pdf').status_code == 404
 
 
 def test_idle_and_running_status_and_cancel(site, monkeypatch):
@@ -496,6 +546,35 @@ def test_results_table_shows_latest_attempts_outdated_and_unverified_results(sit
     assert sorted(retry_targets) == ['old.pdf', 'paper.pdf']  # the failed attempt and the outdated result
 
 
+def test_results_table_shows_a_kept_needs_review_result_with_its_failed_retry(site):
+    from meta_coder.extraction import ExtractionResult
+    from meta_coder.fingerprints import InputChecker
+    from meta_coder.runner import PdfProgress, RunState, raw_json_path, write_raw_result
+    client, project, runtime = site
+    ready_project(project, runtime)
+    view = web._project_view(runtime, project)
+    settings = view['run_settings']
+    current = InputChecker(project, view['manual'], view['coding_sheet'],
+                           provider=settings.provider, model=settings.model).fingerprint('paper.pdf')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'needs_review', error='Response was cut short',
+                                               input_fingerprint=current), provider='gemini', model='model')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'error', error='HTTP 503', input_fingerprint=current),
+                     provider='gemini', model='model')
+
+    def paper_row():
+        page = client.get(url(project, '?tab=results')).text
+        return re.search(r'<tr data-run-row="paper.pdf">.*?</tr>', page, re.S).group(0)
+
+    row = paper_row()
+    assert 'needs review' in row and 'Response was cut short' in row and 'Last retry failed: HTTP 503' in row
+    assert raw_json_path(project, 'paper.pdf').name in row and '.attempt.json' not in row  # the result to review
+    assert 'retry this source' in row
+    # The finished run's progress reports the kept result the same way.
+    runtime.runner._states[project.project_id] = RunState(status='complete', pdfs=[PdfProgress(
+        'paper.pdf', status='needs_review', error='Response was cut short', retry_error='HTTP 503')])
+    assert 'Last retry failed: HTTP 503' in paper_row()
+
+
 def test_clearing_output_or_manual_forgets_finished_progress(site):
     from meta_coder.runner import PdfProgress, RunState
     client, project, runtime = site
@@ -568,6 +647,7 @@ GUARDED_EDITS = {
     'unmatch PDF': ('/coding-sheet/unmatch-pdf', {'data': {'source_pdf': 'paper.pdf'}}),
     'delete PDF': ('/uploads/delete', {'data': {'filename': 'paper.pdf'}}),
     'clear output': ('/clear-output', {}),
+    'delete selected output': ('/results/delete', {'data': {'source_pdf': 'paper.pdf'}}),
     'delete project': ('/delete', {}),
 }
 
@@ -591,7 +671,7 @@ def test_project_deletion_waits_for_an_active_pdf_scan(site, monkeypatch):
     client, project, runtime = site
     monkeypatch.setattr(runtime.pdf_scanner, 'is_running', lambda _: True)
     response = client.post(url(project, '/delete'))
-    assert response.status_code == 409 and 'PDF scan' in response.json()['detail']
+    assert response.status_code == 409 and 'source scan' in response.json()['detail']
     assert project.path.exists()
 
 

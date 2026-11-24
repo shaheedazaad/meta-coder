@@ -2,11 +2,13 @@
 to Gemini's, routing through whatever underlying model the user names.
 
 Uses the OpenAI-compatible chat completions shape OpenRouter exposes: PDFs go in
-as a `file` content part (base64 data URL), and structured output is requested via
+as a `file` content part (base64 data URL), XML sources as plain text, and structured output is requested via
 `response_format: {type: "json_schema", ...}` — see `mechanism.build_response_schema`
 called with `dialect="json_schema"` and `strict: true`. Every manual field is
 required in each returned row; `value: null` explicitly means the paper did not
-report it, rather than letting a provider silently omit the field.
+report it, rather than letting a provider silently omit the field. The same schema
+is also appended to the prompt text (`prompts.schema_prompt`): some backends enforce
+`response_format` without showing it to the model, which then has to guess the fields.
 
 Unlike Gemini's adapter, this one retries transient failures (connection errors,
 429, 5xx) with bounded exponential backoff — OpenRouter fans a single request out
@@ -18,8 +20,10 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -34,11 +38,14 @@ from .extraction import (
     normalize_finish_reason,
     parse_json_response,
     review_issues,
+    XML_ARTICLE_HEADING,
+    xml_article_text,
 )
 import threading
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
-from .prompts import build_extraction_prompt
+from .prompts import build_extraction_prompt, schema_prompt
+from .sources import source_format
 
 
 API_BASE = "https://openrouter.ai/api/v1"
@@ -49,6 +56,10 @@ DEFAULT_TIMEOUT_SEC = 600
 MAX_RETRIES = 3
 RETRY_BACKOFF_BASE_SEC = 2.0
 RETRYABLE_STATUS = {408, 409, 429, 500, 502, 503, 504}
+# Context kept for the article when an endpoint's output limit becomes the
+# default cap: OpenRouter parses the PDF itself, so the article's size isn't
+# known in advance. A quarter of the context, and never less than this.
+MIN_INPUT_TOKEN_RESERVE = 32_768
 
 
 def _redact(text: str, api_key: str) -> str:
@@ -75,6 +86,94 @@ def list_models(*, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, A
     except urllib.error.URLError as exc:
         raise ProviderError(f"Could not reach OpenRouter: {exc}") from exc
     return body.get("data") or []
+
+
+def _model_endpoints(model: str, *, api_key: str, timeout_sec: int) -> list[Any]:
+    """GET /models/{model}/endpoints and return the raw endpoint entries."""
+
+    base, _, variant = model.strip().partition(":")
+    parts = base.split("/")
+    if len(parts) != 2 or not all(parts):
+        raise ValueError(f"`{model}` is not an OpenRouter model ID (expected `author/model`).")
+    path = "/".join(urllib.parse.quote(part, safe="") for part in parts)
+    # Some `:variant` suffixes, such as `:free`, are catalogue models with their
+    # own providers; others, such as `:nitro`, are routing shortcuts that have
+    # no endpoint list. Ask for the variant first and fall back to the base
+    # model only when OpenRouter doesn't know the variant.
+    def fetch(model_path: str) -> Any:
+        request = _request(f"{API_BASE}/models/{model_path}/endpoints", api_key=api_key)
+        with urllib.request.urlopen(request, timeout=timeout_sec) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    try:
+        try:
+            body = fetch(f"{path}:{urllib.parse.quote(variant, safe='')}" if variant else path)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404 or not variant:
+                raise
+            body = fetch(path)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            raise ProviderError(f"`{model}` was not found on OpenRouter.") from exc
+        raise ProviderError(f"OpenRouter API error ({exc.code}).") from exc
+    except urllib.error.URLError as exc:
+        raise ProviderError(f"Could not reach OpenRouter: {_redact(str(exc.reason), api_key)}") from exc
+    except OSError as exc:  # a timeout while reading the response
+        raise ProviderError(f"Could not reach OpenRouter: {_redact(str(exc), api_key)}") from exc
+    except ValueError as exc:
+        raise ProviderError("OpenRouter returned an invalid endpoint list.") from exc
+    data = body.get("data") if isinstance(body, dict) else None
+    endpoints = data.get("endpoints") if isinstance(data, dict) else None
+    if not isinstance(endpoints, list):
+        raise ProviderError("OpenRouter returned an invalid endpoint list.")
+    return endpoints
+
+
+def _structured(endpoint: Any) -> bool:
+    """Whether an endpoint can return schema-constrained output (`structured_outputs`)."""
+
+    return isinstance(endpoint, dict) and "structured_outputs" in {
+        str(value).lower() for value in endpoint.get("supported_parameters") or []
+    }
+
+
+def _endpoint_matches(endpoint: dict[str, Any], provider: str) -> bool:
+    """Whether `provider.order: [provider]` can route to this endpoint: a bare
+    `deepinfra` covers all of its endpoints, `deepinfra/fp8` only that one."""
+
+    tag = str(endpoint.get("tag") or "").strip().lower()
+    return tag == provider or tag.partition("/")[0] == provider
+
+
+def list_model_endpoints(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list[dict[str, str]]:
+    """GET /models/{model}/endpoints, keeping only the provider endpoints that
+    can return schema-constrained output (`structured_outputs`), which this
+    app relies on. Returns `{"tag", "name"}` pairs sorted by name; `tag` is the
+    slug sent in `provider.order`."""
+
+    endpoints = _model_endpoints(model, api_key=api_key, timeout_sec=timeout_sec)
+    listed: dict[str, dict[str, str]] = {}
+    for endpoint in endpoints:
+        if not isinstance(endpoint, dict):
+            continue
+        tag = str(endpoint.get("tag") or "").strip().lower()
+        if not tag or tag in listed or not _structured(endpoint):
+            continue
+        details = [
+            part for part in (tag.partition("/")[2], str(endpoint.get("quantization") or ""))
+            if part and part != "unknown"
+        ]
+        name = str(endpoint.get("provider_name") or tag)
+        listed[tag] = {"tag": tag, "name": f"{name} ({', '.join(dict.fromkeys(details))})" if details else name}
+    return sorted(listed.values(), key=lambda item: (item["name"].lower(), item["tag"]))
+
+
+def provider_preferences(preferred_provider: str = "", allow_fallbacks: bool = True) -> dict[str, Any] | None:
+    """The request's `provider` object, or None to leave routing to OpenRouter."""
+
+    if preferred_provider:
+        return {"order": [preferred_provider], "allow_fallbacks": allow_fallbacks}
+    return None if allow_fallbacks else {"allow_fallbacks": False}
 
 
 def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list[str]:
@@ -111,16 +210,63 @@ def check_model(model: str, *, api_key: str = "", timeout_sec: int = 20) -> list
     return problems
 
 
-def _call_openrouter_content(
+def _token_count(value: Any) -> int:
+    """A token count from endpoint metadata, or 0 when it is missing or malformed."""
+
+    if isinstance(value, bool):
+        return 0
+    try:
+        return max(int(value or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _endpoint_output_limit(endpoint: dict[str, Any]) -> int | None:
+    """An endpoint's output maximum, less whatever would crowd the article out of its context."""
+
+    limit = _token_count(endpoint.get("max_completion_tokens"))
+    context_length = _token_count(endpoint.get("context_length"))
+    if limit and context_length:
+        limit = min(limit, context_length - max(context_length // 4, MIN_INPUT_TOKEN_RESERVE))
+    # An endpoint too small to hold both the article and any output can't serve
+    # these requests, so it doesn't count towards the lowest limit.
+    return limit if limit > 0 else None
+
+
+def endpoint_output_limit(
+    model: str, *, api_key: str = "", timeout_sec: int = 20, only_provider: str = ""
+) -> int | None:
+    """The default output cap for `model`: the lowest any structured-output endpoint allows.
+
+    Extraction asks for strict structured output, so OpenRouter may route a
+    request to any endpoint that supports it; the lowest limit is one they all
+    accept. `only_provider` (a slug such as `deepinfra` or `deepinfra/fp8`)
+    narrows this to that provider's endpoints, for a run pinned to it with no
+    fallbacks. Each endpoint's limit leaves room in its context for the
+    article. None when no endpoint states a limit. Raises ProviderError when
+    the endpoint list can't be read.
+    """
+
+    try:
+        listed = _model_endpoints(model, api_key=api_key, timeout_sec=timeout_sec)
+    except ValueError as exc:  # not an `author/model` ID, so there is no endpoint list to read
+        raise ProviderError(str(exc)) from exc
+    endpoints = [endpoint for endpoint in listed if _structured(endpoint)]
+    if only_provider:
+        endpoints = [endpoint for endpoint in endpoints if _endpoint_matches(endpoint, only_provider)]
+    limits = [limit for limit in map(_endpoint_output_limit, endpoints) if limit]
+    return min(limits) if limits else None
+
+
+def _completion_payload(
     *,
     model: str,
-    api_key: str,
     content: list[dict[str, Any]],
     response_schema: dict[str, Any],
-    timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
-    cancel_event: threading.Event | None = None,
-) -> tuple[str, dict[str, Any]]:
+    max_output_tokens: int | None = None,
+    provider: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "model": model,
         "messages": [
@@ -137,9 +283,25 @@ def _call_openrouter_content(
     }
     if reasoning_effort:
         payload["reasoning"] = {"effort": reasoning_effort}
+    if max_output_tokens:
+        # Reasoning tokens count against this cap too.
+        payload["max_tokens"] = max_output_tokens
+    if provider:
+        payload["provider"] = provider
+    return payload
+
+
+def _post_completion(
+    payload: dict[str, Any],
+    *,
+    api_key: str,
+    timeout_sec: int,
+    cancel_event: threading.Event | None,
+) -> tuple[Any, str]:
+    """POST one chat completion through the audited transport, retrying transient
+    failures; returns the decoded body and the raw response text."""
 
     last_error: ProviderError | None = None
-    raw_response = ""
     for attempt in range(1, MAX_RETRIES + 1):
         request = _request(
             f"{API_BASE}/chat/completions", api_key=api_key, body=payload, method="POST"
@@ -150,12 +312,11 @@ def _call_openrouter_content(
             )
             raw_response = raw_body.decode("utf-8", errors="replace")
             try:
-                body = json.loads(raw_response)
+                return json.loads(raw_response), raw_response
             except json.JSONDecodeError as exc:
                 raise ProviderError(
                     f"OpenRouter returned invalid response JSON: {exc}", raw_response=raw_response
                 ) from exc
-            break
         except urllib.error.HTTPError as exc:
             if cancel_event and cancel_event.is_set():
                 raise ExtractionCancelled("Extraction cancelled by user.") from exc
@@ -171,9 +332,17 @@ def _call_openrouter_content(
                 raise last_error from exc
         if cancel_event and cancel_event.wait(RETRY_BACKOFF_BASE_SEC * (2 ** (attempt - 1))):
             raise ExtractionCancelled("Extraction cancelled by user.")
-    else:  # pragma: no cover - loop always breaks or raises above
-        raise last_error or ProviderError("OpenRouter request failed for an unknown reason.")
+    raise last_error or ProviderError(  # pragma: no cover - loop always returns or raises above
+        "OpenRouter request failed for an unknown reason."
+    )
 
+
+def _usage(body: Any) -> dict[str, Any]:
+    usage = body.get("usage") if isinstance(body, dict) else None
+    return usage if isinstance(usage, dict) else {}
+
+
+def _completion_text(body: Any, raw_response: str) -> tuple[str, dict[str, Any]]:
     if not isinstance(body, dict):
         raise ProviderError("OpenRouter returned an invalid response object.", raw_response=raw_response)
     choices = body.get("choices") or []
@@ -189,9 +358,7 @@ def _call_openrouter_content(
     if not isinstance(text, str) or not text.strip():
         raise ProviderError("OpenRouter returned no message content.", raw_response=raw_response)
 
-    usage = body.get("usage") or {}
-    if not isinstance(usage, dict):
-        usage = {}
+    usage = _usage(body)
     # OpenAI-style completion_tokens already includes any reasoning tokens
     # (completion_tokens_details.reasoning_tokens is only a breakdown).
     served_model = body.get("model")
@@ -204,6 +371,109 @@ def _call_openrouter_content(
     return text, tokens
 
 
+def _call_openrouter_content(
+    *,
+    model: str,
+    api_key: str,
+    content: list[dict[str, Any]],
+    response_schema: dict[str, Any],
+    timeout_sec: int = DEFAULT_TIMEOUT_SEC,
+    reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
+    cancel_event: threading.Event | None = None,
+    provider: dict[str, Any] | None = None,
+) -> tuple[str, dict[str, Any]]:
+    payload = _completion_payload(
+        model=model,
+        content=content,
+        response_schema=response_schema,
+        reasoning_effort=reasoning_effort,
+        max_output_tokens=max_output_tokens,
+        provider=provider,
+    )
+    body, raw_response = _post_completion(
+        payload, api_key=api_key, timeout_sec=timeout_sec, cancel_event=cancel_event
+    )
+    return _completion_text(body, raw_response)
+
+
+# When a model has no native file input, OpenRouter converts the PDF with its
+# file-parser plugin (by default the paid Mistral OCR engine) and returns the
+# text it produced as a `file` annotation on the message. The parser can succeed
+# yet return only the PDF's metadata and empty `### Page N` headings, or text for
+# the first page only, so the model codes from the abstract or from nothing.
+# Such a parse is retried once with this engine, which converts the PDF with
+# Cloudflare Workers AI and has no parser charge.
+FALLBACK_PDF_ENGINE = "cloudflare-ai"
+# A parsed page with fewer non-whitespace characters than this counts as blank.
+MIN_PARSED_PAGE_CHARS = 20
+_PARSED_FILE_TAG = re.compile(r"^</?file\b[^>]*>$")
+_PARSED_PAGE_HEADING = re.compile(r"^#{1,6}\s*Page\s+\d+$", re.IGNORECASE)
+
+
+def _non_space(line: str) -> int:
+    return len("".join(line.split()))
+
+
+def parsed_page_chars(body: Any) -> list[int] | None:
+    """Non-whitespace characters on each page of the PDF text OpenRouter's
+    file-parser plugin returned, or None when the response carries no parser
+    annotation (a model that read the PDF natively gets none).
+
+    Pages are split on `### Page N` headings; parsed text without headings
+    counts as one page. Text before the page contents is the PDF's metadata.
+    """
+
+    choices = body.get("choices") if isinstance(body, dict) else None
+    choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+    message = choice.get("message") if isinstance(choice.get("message"), dict) else {}
+    annotations = message.get("annotations")
+    parts: list[str] = []
+    found = False
+    for annotation in annotations if isinstance(annotations, list) else []:
+        file = annotation.get("file") if isinstance(annotation, dict) and annotation.get("type") == "file" else None
+        content = file.get("content") if isinstance(file, dict) else None
+        if not isinstance(content, list):
+            continue
+        found = True
+        parts.extend(
+            part["text"] for part in content
+            if isinstance(part, dict) and part.get("type") == "text" and isinstance(part.get("text"), str)
+        )
+    if not found:
+        return None
+    text = "\n".join(parts)
+    _, contents_heading, contents = text.partition("## Contents")
+    lines = [line.strip() for line in (contents if contents_heading else text).splitlines()]
+    lines = [line for line in lines if line and not _PARSED_FILE_TAG.match(line)]
+    if not any(_PARSED_PAGE_HEADING.match(line) for line in lines):
+        return [sum(_non_space(line) for line in lines)]
+    pages: list[int] = []
+    for line in lines:
+        if _PARSED_PAGE_HEADING.match(line):
+            pages.append(0)
+        elif pages:
+            pages[-1] += _non_space(line)
+    return pages
+
+
+def _blank_pages(pages: list[int]) -> int:
+    return sum(chars < MIN_PARSED_PAGE_CHARS for chars in pages)
+
+
+def _poor_parse(pages: list[int] | None) -> bool:
+    """No text at all, or no text for more than half of a multi-page PDF."""
+
+    if pages is None:
+        return False
+    return sum(pages) == 0 or (len(pages) > 1 and _blank_pages(pages) * 2 > len(pages))
+
+
+def _sum_tokens(*values: Any) -> int | None:
+    counts = [value for value in values if isinstance(value, int) and not isinstance(value, bool)]
+    return sum(counts) if counts else None
+
+
 def _call_openrouter(
     *,
     model: str,
@@ -214,15 +484,22 @@ def _call_openrouter(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
+    provider: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any]]:
-    """Structured generation with a PDF file part, kept as the extraction seam."""
+    """Structured generation with a PDF file part, kept as the extraction seam.
 
-    return _call_openrouter_content(
+    A blank or mostly blank parse is sent once more with the fallback parser;
+    that request goes through the same audited transport as the first. A parse
+    that is still mostly blank adds a `parse_issue` to the returned token info,
+    and one with no text at all is an error.
+    """
+
+    payload = _completion_payload(
         model=model,
-        api_key=api_key,
         content=[
-            {"type": "text", "text": prompt},
+            {"type": "text", "text": prompt + schema_prompt(response_schema)},
             {
                 "type": "file",
                 "file": {
@@ -233,10 +510,37 @@ def _call_openrouter(
             },
         ],
         response_schema=response_schema,
-        timeout_sec=timeout_sec,
         reasoning_effort=reasoning_effort,
-        cancel_event=cancel_event,
+        max_output_tokens=max_output_tokens,
+        provider=provider,
     )
+    send: dict[str, Any] = {"api_key": api_key, "timeout_sec": timeout_sec, "cancel_event": cancel_event}
+    body, raw_response = _post_completion(payload, **send)
+    pages = parsed_page_chars(body)
+    first_usage: dict[str, Any] | None = None
+    if _poor_parse(pages):
+        first_usage = _usage(body)
+        payload["plugins"] = [{"id": "file-parser", "pdf": {"engine": FALLBACK_PDF_ENGINE}}]
+        body, raw_response = _post_completion(payload, **send)
+        pages = parsed_page_chars(body)
+        if pages is not None and sum(pages) == 0:
+            raise ProviderError(
+                "OpenRouter's PDF parser returned no text for this PDF, including on a retry "
+                f"with the {FALLBACK_PDF_ENGINE} parser, so the model could not read it.",
+                raw_response=raw_response,
+            )
+
+    text, tokens = _completion_text(body, raw_response)
+    if first_usage is not None:
+        # Both requests are billed, so both count towards the reported usage.
+        tokens["input_tokens"] = _sum_tokens(first_usage.get("prompt_tokens"), tokens["input_tokens"])
+        tokens["output_tokens"] = _sum_tokens(first_usage.get("completion_tokens"), tokens["output_tokens"])
+    if pages is not None and _poor_parse(pages):
+        tokens["parse_issue"] = (
+            f"PDF parser returned no text for {_blank_pages(pages)} of {len(pages)} pages; "
+            "the model may have coded from part of the paper only."
+        )
+    return text, tokens
 
 
 def generate_structured_text(
@@ -253,7 +557,7 @@ def generate_structured_text(
     text, _tokens = _call_openrouter_content(
         model=model,
         api_key=api_key,
-        content=[{"type": "text", "text": prompt}],
+        content=[{"type": "text", "text": prompt + schema_prompt(response_schema)}],
         response_schema=response_schema,
         timeout_sec=timeout_sec,
         reasoning_effort=reasoning_effort,
@@ -270,26 +574,61 @@ def extract_pdf_effects(
     model: str = DEFAULT_MODEL,
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
+    openrouter_provider: str = "",
+    allow_fallbacks: bool = True,
 ) -> ExtractionResult:
+    """Code one PDF or XML source. A PDF is sent as a file part; an XML source
+    as one text part after the prompt, so no file parser is involved.
+
+    `openrouter_provider` pins the backend provider (a slug such as
+    `deepinfra/fp8`; "" lets OpenRouter choose) and `allow_fallbacks` controls
+    whether OpenRouter may try other providers when it is unavailable.
+    `max_output_tokens` caps the response, reasoning included; None sends no
+    cap, so OpenRouter's default applies."""
+
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = build_extraction_prompt(manual, rows)
+    is_xml = source_format(pdf_path) == "xml"
+    prompt = build_extraction_prompt(
+        manual, rows, article="article XML below" if is_xml else "attached PDF",
+        source_format="xml" if is_xml else "pdf",
+    )
 
     try:
-        raw_text, tokens = _call_openrouter(
-            model=model,
-            api_key=api_key,
-            prompt=prompt,
-            pdf_bytes=pdf_path.read_bytes(),
-            filename=source_pdf,
-            response_schema=response_schema,
-            timeout_sec=timeout_sec,
-            reasoning_effort=reasoning_effort,
-            cancel_event=cancel_event,
-        )
+        provider = provider_preferences(openrouter_provider, allow_fallbacks)
+        if is_xml:
+            raw_text, tokens = _call_openrouter_content(
+                model=model,
+                api_key=api_key,
+                content=[{
+                    "type": "text",
+                    "text": prompt + schema_prompt(response_schema) + XML_ARTICLE_HEADING + xml_article_text(pdf_path),
+                }],
+                response_schema=response_schema,
+                timeout_sec=timeout_sec,
+                reasoning_effort=reasoning_effort,
+                max_output_tokens=max_output_tokens,
+                cancel_event=cancel_event,
+                provider=provider,
+            )
+        else:
+            raw_text, tokens = _call_openrouter(
+                model=model,
+                api_key=api_key,
+                prompt=prompt,
+                pdf_bytes=pdf_path.read_bytes(),
+                filename=source_pdf,
+                response_schema=response_schema,
+                timeout_sec=timeout_sec,
+                reasoning_effort=reasoning_effort,
+                max_output_tokens=max_output_tokens,
+                cancel_event=cancel_event,
+                provider=provider,
+            )
     except ProviderError as exc:
         return ExtractionResult(
             source_pdf=source_pdf,
@@ -316,6 +655,8 @@ def extract_pdf_effects(
     issues = review_issues(
         repaired_response=repaired_response, finish_reason=tokens.get("finish_reason")
     )
+    if tokens.get("parse_issue"):
+        issues.append(tokens["parse_issue"])
     duration = time.monotonic() - started
     if not result.ok or issues:
         return ExtractionResult(

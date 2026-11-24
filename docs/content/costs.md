@@ -7,7 +7,7 @@ MetaCoder is free, but hosted providers charge for AI requests. Costs are usuall
 Providers charge per token, a unit of text roughly the size of a short word. Input tokens (what is sent) and output tokens (what the model writes) are priced separately, and output usually costs more.
 
 - **One request per PDF.** Each extraction request contains one complete PDF and all of its coding-sheet rows, so long articles cost more than short ones.
-- **PDF length.** Gemini and OpenRouter models with native PDF input count each page as tokens, including figures and tables. OpenAI-compatible endpoints receive extracted text instead.
+- **PDF length.** Gemini and OpenRouter models with native PDF input count each page as tokens, including figures and tables. OpenAI-compatible endpoints receive extracted text instead. An [XML source](sources.md#xml-jats-full-text) is sent as text to every provider; its markup counts as input tokens, so it often uses more tokens than the same article's PDF text, though no page images.
 - **Coding manual size.** The instructions and field descriptions are repeated in every request, so a long manual adds to every PDF.
 - **Output size.** More rows, more fields, and longer evidence quotes increase output tokens.
 - **Reasoning.** Models that "think" before answering are billed for those reasoning tokens as output. A higher **Reasoning effort** setting usually increases cost.
@@ -15,7 +15,7 @@ Providers charge per token, a unit of text roughly the size of a short word. Inp
 - **Retries and re-runs.** Requests to every provider are retried automatically, up to three attempts, after temporary errors such as rate limits or server overload; each attempt may be charged. Retrying a study, or clearing results after changing the manual or coding sheet, sends the PDFs again.
 - **Drafting.** AI manual drafting and coding sheet conversion are separate, usually small, requests.
 
-OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs).
+OpenRouter also charges for its own PDF conversion when a model lacks native file input; see its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs). Its default parser, Mistral OCR, is charged per page. If that conversion comes back blank or mostly blank, MetaCoder sends the PDF once more with OpenRouter's free `cloudflare-ai` parser, so the model's tokens are charged twice for that PDF (see [Settings](settings.md)). The token counts shown in **Results** include both requests.
 
 ## Estimate before a full run
 

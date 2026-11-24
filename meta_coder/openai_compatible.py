@@ -20,10 +20,13 @@ from .extraction import (
     normalize_finish_reason,
     parse_json_response,
     review_issues,
+    XML_ARTICLE_HEADING,
+    xml_article_text,
 )
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
-from .prompts import build_extraction_prompt
+from .prompts import build_extraction_prompt, schema_prompt
+from .sources import source_format
 
 DEFAULT_MODEL = ""
 DEFAULT_TIMEOUT_SEC = 600
@@ -112,6 +115,13 @@ def _request(url: str, *, api_key: str, body: dict[str, Any] | None = None, meth
     return urllib.request.Request(url, data=data, headers=headers, method=method)
 
 
+def _max_output_key(base_url: str) -> str:
+    """OpenAI's own API rejects `max_tokens` for reasoning models; other servers expect it."""
+    from urllib.parse import urlsplit
+
+    return "max_completion_tokens" if urlsplit(base_url).hostname == "api.openai.com" else "max_tokens"
+
+
 def _call(
     *,
     model: str,
@@ -122,6 +132,7 @@ def _call(
     response_schema: dict[str, Any],
     timeout_sec: int = DEFAULT_TIMEOUT_SEC,
     reasoning_effort: str = "",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> tuple[str, dict[str, Any]]:
     payload: dict[str, Any] = {
@@ -129,7 +140,7 @@ def _call(
         "messages": [
             {
                 "role": "user",
-                "content": prompt + "\n\nReturn only JSON matching this schema:\n" + json.dumps(response_schema),
+                "content": prompt + schema_prompt(response_schema),
             }
         ],
         "response_format": {
@@ -150,6 +161,8 @@ def _call(
         base_url = normalize_base_url(base_url)
     except ValueError as exc:
         raise ProviderError(str(exc)) from exc
+    if max_output_tokens:
+        payload[_max_output_key(base_url)] = max_output_tokens
     if not model.strip():
         raise ProviderError("Enter the model ID served by your OpenAI-compatible endpoint.")
     cancel_event = cancel_event or threading.Event()
@@ -238,24 +251,37 @@ def extract_pdf_effects(
     reasoning_effort: str = "",
     base_url: str,
     response_format: str = "json_schema",
+    max_output_tokens: int | None = None,
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
+    """Code one PDF or XML source as text: a PDF's text is extracted locally
+    with page markers; an XML source is sent as it is, markup included."""
+
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual, dialect="json_schema")
-    prompt = build_extraction_prompt(manual, rows, article="article text below")
+    is_xml = source_format(pdf_path) == "xml"
+    prompt = build_extraction_prompt(
+        manual, rows, article="article XML below" if is_xml else "article text below",
+        source_format="xml" if is_xml else "pdf",
+    )
 
     try:
+        if is_xml:
+            article = XML_ARTICLE_HEADING + xml_article_text(pdf_path)
+        else:
+            article = "\n\nArticle text:\n" + pdf_text(pdf_path, cancel_event)
         raw_text, tokens = _call(
             model=model,
             api_key=api_key,
-            prompt=prompt + "\n\nArticle text:\n" + pdf_text(pdf_path, cancel_event),
+            prompt=prompt + article,
             base_url=base_url,
             response_format=response_format,
             response_schema=response_schema,
             timeout_sec=timeout_sec,
             reasoning_effort=reasoning_effort,
+            max_output_tokens=max_output_tokens,
             cancel_event=cancel_event,
         )
     except ProviderError as exc:

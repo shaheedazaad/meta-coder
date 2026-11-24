@@ -24,8 +24,8 @@ nav:
   - Define your analysis: analysis.md
   - Coding manual: manual.md
   - Coding sheet: coding-sheet.md
-  - Source PDFs: sources.md
-  - PDF matching: matching.md
+  - Sources: sources.md
+  - Source matching: matching.md
   - Run extraction: run.md
   - Cost: costs.md
   - Review and export: results.md

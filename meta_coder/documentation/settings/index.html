@@ -26,7 +26,7 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="./" aria-current="page"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="./" aria-current="page"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="../coding-sheet/"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Sources</a><a href="../matching/"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
@@ -44,6 +44,7 @@
 <th>Provider</th>
 <th>Connection</th>
 <th>Study PDF handling</th>
+<th>XML source handling</th>
 </tr>
 </thead>
 <tbody>
@@ -51,16 +52,19 @@
 <td>Gemini</td>
 <td>An API key</td>
 <td>Native PDF input</td>
+<td>Sent as text</td>
 </tr>
 <tr>
 <td>OpenRouter</td>
 <td>An API key</td>
 <td>PDF input through the provider</td>
+<td>Sent as text, no PDF parser</td>
 </tr>
 <tr>
 <td>OpenAI-compatible</td>
 <td>The API base URL, and a key if the server requires one</td>
 <td>Text extracted on your computer, with page numbers</td>
+<td>Sent as text</td>
 </tr>
 </tbody>
 </table>
@@ -69,11 +73,19 @@
 <li>Expand <strong>Add an extractor</strong>.</li>
 <li>Give it a name you will recognise, such as "Gemini lab key", and choose a provider.</li>
 <li>Enter the model ID. <strong>Show available models</strong> asks the provider for its model list, using the key you typed. It loads only when you click it; the typed key is sent to the provider for that one request and is not stored unless you save the extractor.</li>
-<li>Paste the API key. For an OpenAI-compatible server, also enter the API base URL (include the prefix such as <code>/v1</code>, without <code>/chat/completions</code>) and a JSON output mode the server supports: <strong>Strict JSON schema</strong>, <strong>JSON object</strong>, or <strong>Prompt only</strong>. Responses are validated in every mode.</li>
-<li>Optionally expand <strong>Request settings</strong> to change parallel requests, the delay between requests, the request timeout, the Gemini service tier or the reasoning effort.</li>
+<li>Paste the API key. For an OpenAI-compatible server, also enter the API base URL (include the prefix such as <code>/v1</code>, without <code>/chat/completions</code>) and a JSON output mode the server supports: <strong>Strict JSON schema</strong>, <strong>JSON object</strong>, or <strong>Prompt only</strong>. Responses are validated in every mode. This provider extracts each PDF's text on your computer and sends it with page numbers; figures and scanned pages need OCR first. XML sources are sent as they are, markup included.</li>
+<li>Optionally expand <strong>Request settings</strong> to change parallel requests, the delay between requests, the request timeout, the <a href="../run/#maximum-output">maximum output</a>, the Gemini service tier or the reasoning effort, or to <a href="#route-openrouter-requests-to-one-provider">route OpenRouter requests to one provider</a>.</li>
 <li>Choose <strong>Add extractor</strong>.</li>
 </ol>
 <p>When you save with a key, MetaCoder asks the provider whether the model can be used and shows any warning. If an OpenRouter model has no native PDF input, OpenRouter converts each PDF with its default parser, the third-party Mistral OCR service, which charges per page in addition to the model's token cost. Information shown only in figures or unusual table layouts may be lost.</p>
+<p>The parser can occasionally succeed yet return no text, or text for only a few pages. When it returns no text at all, or no text for more than half the pages of a multi-page PDF, MetaCoder sends the PDF once more and asks OpenRouter to use its <code>cloudflare-ai</code> parser instead. That parser has no per-page charge, but the model's tokens are charged again for the second request. If the second parse is still empty, the PDF is reported as an error rather than coded from nothing. If it is still mostly empty, the coded values are kept but marked for review with a reason such as "PDF parser returned no text for 11 of 12 pages". Both requests appear in the <a href="../auditing/">audit history</a>.</p>
+<h2 id="route-openrouter-requests-to-one-provider">Route OpenRouter requests to one provider<a class="headerlink" href="#route-openrouter-requests-to-one-provider" title="Permanent link">&para;</a></h2>
+<p>OpenRouter serves each model through several backend providers, which can differ in quantization, speed, price and output limits. By default OpenRouter chooses one for each request, so PDFs in the same run can be coded by different providers. An OpenRouter extractor has two more controls under <strong>Request settings</strong>:</p>
+<ul>
+<li><strong>Route to provider</strong> lists the providers that currently serve the extractor's model with structured output, such as <code>DeepInfra (turbo, fp8)</code>. The list loads when you open <strong>Request settings</strong> and reloads when you change the model. It is public, so no key is needed; if the extractor's key is already unlocked this session it is sent too, but the list never opens the credential store. Leave it on <strong>Automatic (OpenRouter chooses)</strong> to keep OpenRouter's choice, or pick a provider to send every request to it first. If a provider you saved stops serving the model, it stays selected and is marked <strong>(not listed for this model)</strong>; choose another provider or <strong>Automatic</strong> if requests start failing.</li>
+<li><strong>Fallbacks</strong> decides what happens when that provider is unavailable. <strong>Allow other providers</strong> lets OpenRouter retry elsewhere. <strong>Don't fall back</strong> fails the request instead, so every result comes from the provider you chose. With <strong>Automatic</strong>, <strong>Don't fall back</strong> limits each request to OpenRouter's first choice. A hint under the control describes the current combination.</li>
+</ul>
+<p>Both are saved with the extractor and recorded in each run's <a href="../auditing/">audit record</a>. Changing them does not mark existing results as outdated: they choose who serves the same model, not what is asked of it, so PDFs already coded are not coded again. The new routing applies to the PDFs coded from then on. Your <a href="../privacy/#openrouter">OpenRouter privacy settings</a> still apply, so a provider they exclude cannot be used.</p>
 <h2 id="edit-duplicate-or-delete">Edit, duplicate or delete<a class="headerlink" href="#edit-duplicate-or-delete" title="Permanent link">&para;</a></h2>
 <p>Expand an extractor to edit it. Its provider can't change; add another extractor instead. Leave the key field blank to keep the saved key, or paste a new one to replace it. <strong>Remove key</strong> deletes only the key.</p>
 <p><strong>Duplicate</strong> copies every setting except the key, which is never copied. Add the copy's key before running with it.</p>
@@ -90,7 +102,7 @@
 <p>Earlier versions kept one key per provider plus a model and request settings in each project. The first time a newer version starts, it turns these into extractors:</p>
 <ul>
 <li>Each provider with a saved key, and an OpenAI-compatible server with a base URL, becomes an extractor named after the provider.</li>
-<li>Each project keeps the provider, model and request settings it had. Projects with identical settings share an extractor; a project with different settings gets its own, named after the project, which uses the same key.</li>
+<li>Each project keeps the provider, model and request settings it had, including any maximum output and OpenRouter provider routing. Projects with identical settings share an extractor; a project with different settings gets its own, named after the project, which uses the same key.</li>
 <li>The drafting provider and model become the drafting extractor.</li>
 <li>Settings left at the defaults with no saved key are skipped. A project whose provider had no key or endpoint keeps its last settings on record but needs an extractor chosen before it can run.</li>
 <li>A saved key whose settings were missing or unusable is kept on an extractor that asks for its model or base URL.</li>
@@ -101,7 +113,7 @@
         <a href="../privacy/"><small>Next</small>Privacy and data sharing →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#what-an-extractor-is">What an extractor is</a><a href="#add-an-extractor">Add an extractor</a><a href="#edit-duplicate-or-delete">Edit, duplicate or delete</a><a href="#api-keys">API keys</a><a href="#choose-the-drafting-extractor">Choose the drafting extractor</a><a href="#upgrading-from-an-earlier-version">Upgrading from an earlier version</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#what-an-extractor-is">What an extractor is</a><a href="#add-an-extractor">Add an extractor</a><a href="#route-openrouter-requests-to-one-provider">Route OpenRouter requests to one provider</a><a href="#edit-duplicate-or-delete">Edit, duplicate or delete</a><a href="#api-keys">API keys</a><a href="#choose-the-drafting-extractor">Choose the drafting extractor</a><a href="#upgrading-from-an-earlier-version">Upgrading from an earlier version</a></nav></aside>
   </div>
 </body>
 </html>

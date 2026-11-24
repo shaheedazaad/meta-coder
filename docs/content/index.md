@@ -24,6 +24,16 @@ irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/install.
 
 Wait for the installation to finish and follow any instructions it displays.
 
+To install a particular version rather than the latest, set `META_CODER_VERSION` to a release number such as `0.1.0` when you run the installer:
+
+```bash
+curl -fsSL https://github.com/shaheedazaad/meta-coder/releases/latest/download/install.sh | META_CODER_VERSION=0.1.0 bash
+```
+
+```powershell
+$env:META_CODER_VERSION = "0.1.0"; irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/install.ps1 | iex
+```
+
 ## Open MetaCoder
 
 Open a new Terminal or PowerShell window, type the following, and press **Enter**:
@@ -42,7 +52,27 @@ Use **Documentation** in the app header to open this guide. Each project section
 
 When an update is available, MetaCoder displays a notification. Stop the app, repeat the installation command above for your operating system, and open MetaCoder again. Your projects, preferences, and saved API keys are kept. Export a project ZIP first if you want a backup.
 
-MetaCoder checks for updates when you open a page, at most once every six hours. Checking for updates does not send your research documents or API keys. If you are offline, you can continue working with the installed version; AI requests still need a connection to your chosen provider.
+MetaCoder checks GitHub for a newer stable release when you open a page, at most once every six hours, and shows an available update as an informational banner. The check reads public release information without a GitHub login and does not send your project data, research documents or API keys. If you are offline, the check fails silently and you can continue working with the installed version; AI requests still need a connection to your chosen provider.
+
+## Uninstall MetaCoder
+
+Stop MetaCoder, then run the uninstaller for your operating system.
+
+**macOS / Linux** — in **Terminal**:
+
+```bash
+curl -fsSL https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.sh | bash
+```
+
+**Windows** — in **PowerShell**:
+
+```powershell
+irm https://github.com/shaheedazaad/meta-coder/releases/latest/download/uninstall.ps1 | iex
+```
+
+The uninstaller removes every installed version of MetaCoder and the `meta-coder` command the installer created. A `meta-coder` command from another installation is left alone. On Windows it also removes the PATH entry the installer added. Running it again after uninstalling is safe.
+
+Your projects, settings, saved API keys and Pixi (the tool the installer uses to manage Python) are kept. If you set `META_CODER_HOME` to store your data elsewhere, that folder is left untouched. On Linux, run the uninstaller with the same `XDG_DATA_HOME` value you used when installing. See [Data locations](projects.md#data-locations) if you also want to delete your projects.
 
 ## Your first project
 
@@ -51,7 +81,7 @@ MetaCoder checks for updates when you open a page, at most once every six hours.
 3. [Define your analysis](analysis.md): state exactly which comparison counts as an effect.
 4. [Build your coding manual](manual.md): define the fields and categories to extract.
 5. [Add a coding sheet](coding-sheet.md): identify each effect with a unique row ID and locator.
-6. [Upload source PDFs](sources.md), then [review PDF matches](matching.md).
+6. [Upload sources](sources.md) (PDF or XML), then [review source matches](matching.md).
 7. [Run extraction](run.md) with the extractor you chose for the project.
 8. [Review results and export](results.md), checking coded values against their supporting evidence.
 9. [Validate the coding](validation.md) against human coding on a sample of studies.

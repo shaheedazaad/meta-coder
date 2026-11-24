@@ -26,7 +26,7 @@
       <details id="docs-navigation" open>
         <summary>In this guide</summary>
         <nav aria-label="Documentation">
-          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="./" aria-current="page"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Source PDFs</a><a href="../matching/"><span class="docs-nav-number">08</span>PDF matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
+          <a href=".."><span class="docs-nav-number">01</span>Getting started</a><a href="../settings/"><span class="docs-nav-number">02</span>Connections and settings</a><a href="../privacy/"><span class="docs-nav-number">03</span>Privacy and data sharing</a><a href="../analysis/"><span class="docs-nav-number">04</span>Define your analysis</a><a href="../manual/"><span class="docs-nav-number">05</span>Coding manual</a><a href="./" aria-current="page"><span class="docs-nav-number">06</span>Coding sheet</a><a href="../sources/"><span class="docs-nav-number">07</span>Sources</a><a href="../matching/"><span class="docs-nav-number">08</span>Source matching</a><a href="../run/"><span class="docs-nav-number">09</span>Run extraction</a><a href="../costs/"><span class="docs-nav-number">10</span>Cost</a><a href="../results/"><span class="docs-nav-number">11</span>Review and export</a><a href="../auditing/"><span class="docs-nav-number">12</span>Audit and reproducibility</a><a href="../validation/"><span class="docs-nav-number">13</span>Validating the coding</a><a href="../projects/"><span class="docs-nav-number">14</span>Project settings</a><a href="../troubleshooting/"><span class="docs-nav-number">15</span>Troubleshooting</a>
         </nav>
       </details>
       <p class="docs-local-note">Your workflow, step by step.<br>Available offline inside the app.</p>
@@ -52,7 +52,7 @@
 </tr>
 <tr>
 <td><code>source_pdf</code></td>
-<td>The exact uploaded filename, including <code>.pdf</code></td>
+<td>The exact uploaded filename, including <code>.pdf</code> or <code>.xml</code> (the column keeps this name for XML sources too)</td>
 </tr>
 <tr>
 <td><code>locator</code></td>
@@ -68,7 +68,7 @@
 </tr>
 </tbody>
 </table>
-<p>Optional <code>title</code> and <code>doi</code> columns help suggest PDF matches. Preserve the required column names. Use a UTF-8 CSV.</p>
+<p>Optional <code>title</code> and <code>doi</code> columns help suggest source matches; a DOI is especially reliable for XML (JATS) sources. Preserve the required column names. Use a UTF-8 CSV.</p>
 <pre><code class="language-csv">row_id,source_pdf,locator,authors,year
 study-01-exp-1,demo-study.pdf,&quot;Experiment 1, Table 2&quot;,Demo and Example,2024
 study-01-exp-2,demo-study.pdf,&quot;Experiment 2, Table 4&quot;,Demo and Example,2024
@@ -77,11 +77,11 @@ study-01-exp-2,demo-study.pdf,&quot;Experiment 2, Table 4&quot;,Demo and Example
 <p>Choose <strong>AI conversion</strong> if your CSV uses another layout. Add notes explaining its columns or intended effect rows, choose the file, and select <strong>Convert to a draft</strong>. Conversion uses the saved manual and the drafting extractor chosen in Settings.</p>
 <p>Review the preview and warnings. Edit the CSV if necessary without changing the required headers, then choose <strong>Save converted sheet</strong>. Fill in missing authors and years before saving. Conversion accepts up to 2,000 source rows and 500,000 characters.</p>
 <h2 id="resolve-problems">Resolve problems<a class="headerlink" href="#resolve-problems" title="Permanent link">&para;</a></h2>
-<p>Duplicate row IDs and missing required values need to be fixed in the sheet. Missing or unrecognized PDF filenames can be resolved in <a href="../matching/">PDF matching</a> after uploading the studies.</p>
+<p>Duplicate row IDs and missing required values need to be fixed in the sheet. Missing or unrecognized filenames can be resolved in <a href="../matching/">Source matching</a> after uploading the studies.</p>
 <p>An unsaved converted draft leaves the current sheet and results intact. Saving a changed sheet clears previous extraction results.</p>
       <nav class="docs-pagination" aria-label="Adjacent pages">
         <a href="../manual/"><small>Previous</small>Coding manual ←</a>
-        <a href="../sources/"><small>Next</small>Source PDFs →</a>
+        <a href="../sources/"><small>Next</small>Sources →</a>
       </nav>
     </main>
     <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#prepare-a-formatted-csv">Prepare a formatted CSV</a><a href="#convert-an-existing-sheet">Convert an existing sheet</a><a href="#resolve-problems">Resolve problems</a></nav></aside>

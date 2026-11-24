@@ -12,6 +12,7 @@ from meta_coder import gemini, openrouter
 from meta_coder.coding_sheet import CodingSheetRow
 from meta_coder.extraction import ExtractionCancelled, ProviderError, redact_secret
 from meta_coder.manual import parse_coding_manual
+from meta_coder.prompts import schema_prompt
 
 
 class Response(io.BytesIO):
@@ -313,7 +314,7 @@ def test_openrouter_pdf_payload_encodes_native_file(monkeypatch):
     monkeypatch.setattr(openrouter, 'cancellable_urlopen', request)
     openrouter._call_openrouter(model='m', api_key='key', prompt='code', pdf_bytes=b'%PDF', filename='paper.pdf', response_schema={})
     content = json.loads(request.call_args.args[0].data)['messages'][0]['content']
-    assert content == [{'type': 'text', 'text': 'code'}, {'type': 'file', 'file': {'filename': 'paper.pdf', 'file_data': 'data:application/pdf;base64,' + base64.b64encode(b'%PDF').decode()}}]
+    assert content == [{'type': 'text', 'text': 'code' + schema_prompt({})}, {'type': 'file', 'file': {'filename': 'paper.pdf', 'file_data': 'data:application/pdf;base64,' + base64.b64encode(b'%PDF').decode()}}]
 
 
 @pytest.mark.parametrize(('usage', 'output'), [
