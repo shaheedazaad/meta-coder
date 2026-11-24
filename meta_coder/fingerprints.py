@@ -132,6 +132,7 @@ class InputChecker:
             missing_pdf = fingerprint is None and bool(self.coding_sheet.rows_for_pdf(name))
             checked[name] = replace(
                 result, status=STALE_STATUS, coded_by_row_id={}, missing_ids=set(), extra_ids=set(),
+                retry_error=None, retry_failed_at=None,
                 error=MISSING_PDF_ERROR if missing_pdf else CHANGED_INPUTS_ERROR,
             )
         return checked

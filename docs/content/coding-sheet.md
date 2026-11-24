@@ -11,12 +11,12 @@ Download the CSV template from **Coding sheet**, fill it in, and use **Upload fo
 | Column | What to enter |
 | --- | --- |
 | `row_id` | A unique, stable ID for this effect, such as `study-01-exp-1` |
-| `source_pdf` | The exact uploaded filename, including `.pdf` |
+| `source_pdf` | The exact uploaded filename, including `.pdf` or `.xml` (the column keeps this name for XML sources too) |
 | `locator` | Where the effect is reported, such as “Experiment 1, Table 2, response time” |
 | `authors` | The study authors |
 | `year` | The publication year |
 
-Optional `title` and `doi` columns help suggest PDF matches. Preserve the required column names. Use a UTF-8 CSV.
+Optional `title` and `doi` columns help suggest source matches; a DOI is especially reliable for XML (JATS) sources. Preserve the required column names. Use a UTF-8 CSV.
 
 ```csv
 row_id,source_pdf,locator,authors,year
@@ -32,6 +32,6 @@ Review the preview and warnings. Edit the CSV if necessary without changing the 
 
 ## Resolve problems
 
-Duplicate row IDs and missing required values need to be fixed in the sheet. Missing or unrecognized PDF filenames can be resolved in [PDF matching](matching.md) after uploading the studies.
+Duplicate row IDs and missing required values need to be fixed in the sheet. Missing or unrecognized filenames can be resolved in [Source matching](matching.md) after uploading the studies.
 
 An unsaved converted draft leaves the current sheet and results intact. Saving a changed sheet clears previous extraction results.

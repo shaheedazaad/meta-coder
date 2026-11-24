@@ -7,12 +7,15 @@ stable shape regardless of which provider actually ran.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 import queue
 import threading
 import json
 from typing import Any
 from urllib.parse import quote
 from urllib.request import Request, urlopen
+
+from .sources import SourceError, read_article_text
 
 
 class ProviderError(RuntimeError):
@@ -23,6 +26,20 @@ class ProviderError(RuntimeError):
 
 class ExtractionCancelled(ProviderError):
     """Raised when a provider request is interrupted by the user."""
+
+
+def xml_article_text(path: Path) -> str:
+    """An XML source's text for the model. A file that is not usable UTF-8
+    XML fails that source like a provider error, before any request is sent."""
+
+    try:
+        return read_article_text(path)
+    except SourceError as exc:
+        raise ProviderError(str(exc)) from exc
+
+
+# Introduces an XML source's text after the prompt, for text-only requests.
+XML_ARTICLE_HEADING = "\n\nArticle XML:\n"
 
 
 def redact_secret(text: str, secret: str) -> str:
@@ -164,3 +181,7 @@ class ExtractionResult:
     # Model the provider reports as having served the response; may differ from
     # the requested model when the provider routes an alias or deprecated ID.
     served_model: str | None = None
+    # Set on a kept needs-review result when a later retry of it failed or
+    # was cancelled; a result that replaces it starts without them.
+    retry_error: str | None = None
+    retry_failed_at: str | None = None

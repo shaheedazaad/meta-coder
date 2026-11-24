@@ -38,7 +38,7 @@ There is no universal threshold. Decide in your protocol what level of agreement
 
 For each disagreement, return to the PDF and decide which value is correct. Use MetaCoder's evidence to locate the source quickly:
 
-- `evidence.csv` and the per-PDF YAML give the page and quotation for each coded value.
+- `evidence.csv` and the per-PDF YAML give the page (or, for XML sources, the section or table) and quotation for each coded value.
 - The raw response on **Results** shows the model's full answer, including notes on uncertain rows.
 - The [audit ZIP](auditing.md) records the exact request, model, and settings that produced each value.
 
@@ -59,7 +59,7 @@ Describe LLM-assisted coding in enough detail for others to understand and repea
 - The provider, the model ID, and any model version reported in the audit records.
 - The dates of the extraction runs and key settings, such as the Gemini service tier, reasoning effort or OpenRouter provider routing.
 - The coding manual used for the final run, as a supplement, and how it was developed.
-- That MetaCoder sent one request per PDF with the full PDF (or extracted text), and the MetaCoder version from the audit record.
+- That MetaCoder sent one request per PDF with the full PDF (or extracted text, or the XML source as text), and the MetaCoder version from the audit record.
 - The validation sample: how it was drawn, its size, and how human coders were blinded.
 - Agreement statistics for each field, before any disagreements were resolved.
 - How disagreements were resolved, and which fields or studies were checked by humans in full.

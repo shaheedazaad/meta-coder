@@ -45,6 +45,18 @@ var projectEdits = (function () {
   };
 })();
 
+// The message to show for a failed request: the server's `error`, then its
+// `detail`, or the fallback when neither is a non-empty string. FastAPI puts a
+// list of objects in `detail` when form validation fails (HTTP 422), which
+// would otherwise read as "[object Object]".
+function requestErrorMessage(payload, fallback) {
+  var source = payload && typeof payload === "object" ? payload : {};
+  var message = [source.error, source.detail].find(function (value) {
+    return typeof value === "string" && value.trim();
+  });
+  return message || fallback;
+}
+
 // Theme toggle (System/Light/Dark). Mirrors the inline pre-paint script in
 // base.html so the two never disagree about resolution logic; this instance
 // also wires up the dropdown's click handlers and keeps them synced when the
@@ -396,7 +408,7 @@ var projectEdits = (function () {
               payload = {};
             }
             if (!response.ok) {
-              throw new Error(payload.error || payload.detail || "The coding-manual draft failed.");
+              throw new Error(requestErrorMessage(payload, "The coding-manual draft failed."));
             }
             if (!payload || !payload.manual || typeof payload.manual !== "object" ||
                 !Array.isArray(payload.manual.effects) || typeof payload.yaml !== "string" ||
@@ -588,7 +600,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = data.processed + " / " + data.total + " PDFs processed — " + data.status;
+      summary.textContent = data.processed + " / " + data.total + " sources processed — " + data.status;
     }
     (data.pdfs || []).forEach(function (pdf) {
       var tr = rowsByPdf[pdf.source_pdf];
@@ -609,6 +621,7 @@ function initTabGroup(root, opts) {
         if (pdf.error) parts.push(pdf.error);
         if (pdf.missing_ids && pdf.missing_ids.length) parts.push("missing: " + pdf.missing_ids.join(", "));
         if (pdf.extra_ids && pdf.extra_ids.length) parts.push("unexpected: " + pdf.extra_ids.join(", "));
+        if (pdf.retry_error) parts.push("Last retry failed: " + pdf.retry_error);
         if (pdf.low_confidence) parts.push("low-confidence cells: " + pdf.low_confidence);
         detail.textContent = parts.join(" ");
       }
@@ -645,7 +658,7 @@ function initTabGroup(root, opts) {
   setTimeout(poll, 1000);
 })();
 
-// PDF match-scan progress: same polling/reload-on-terminal shape as the run
+// Source match-scan progress: same polling/reload-on-terminal shape as the run
 // progress bar above, but there's no per-row table to update — just the bar
 // and summary line — since the scan only feeds the (server-rendered) match
 // suggestions panel once it's done.
@@ -667,7 +680,7 @@ function initTabGroup(root, opts) {
       bar.setAttribute("aria-valuenow", processed);
     }
     if (summary) {
-      summary.textContent = "Scanning uploaded PDFs for matches — " + (data.processed || 0) + " / " + (data.total || 0);
+      summary.textContent = "Scanning uploaded sources for matches — " + (data.processed || 0) + " / " + (data.total || 0);
     }
   }
 
@@ -961,7 +974,7 @@ function initTabGroup(root, opts) {
         return response.text().then(function (text) {
           var payload;
           try { payload = JSON.parse(text); } catch (_) { payload = {}; }
-          if (!response.ok) throw new Error(payload.error || "The request failed. Please try again.");
+          if (!response.ok) throw new Error(requestErrorMessage(payload, "The request failed. Please try again."));
           return payload;
         });
       });

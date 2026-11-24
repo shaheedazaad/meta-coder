@@ -101,6 +101,34 @@ def test_extraction_request_carries_provider_preferences(tmp_path, monkeypatch, 
     assert sent[0].get('provider') == expected
 
 
+def test_routing_applies_to_xml_sources_and_the_parser_retry(tmp_path, monkeypatch):
+    xml = tmp_path / 'paper.xml'
+    xml.write_bytes(b'<article><body>Text</body></article>')
+    pdf = tmp_path / 'scan.pdf'
+    pdf.write_bytes(b'%PDF')
+    blank_parse = [{'type': 'file', 'file': {'content': [{'type': 'text', 'text': '## Contents\n### Page 1\n'}]}}]
+    replies = iter([
+        {'choices': [{'message': {'content': '{"effects": []}'}}]},
+        {'choices': [{'message': {'content': '{"effects": []}', 'annotations': blank_parse}}]},
+        {'choices': [{'message': {'content': '{"effects": []}'}}]},
+    ])
+    sent = []
+
+    def transport(request, **kwargs):
+        sent.append(json.loads(request.data))
+        return json.dumps(next(replies)).encode()
+
+    monkeypatch.setattr(openrouter, 'cancellable_urlopen', transport)
+    for source in (xml, pdf):
+        providers.extract_pdf_effects(
+            provider='openrouter', pdf_path=source, manual=parse_coding_manual(MANUAL),
+            rows=[CodingSheetRow('r1', source.name, 'exp')], api_key='key', model='vendor/model',
+            openrouter_provider='groq', openrouter_allow_fallbacks=False,
+        )
+    assert len(sent) == 3 and 'plugins' in sent[2]
+    assert all(body['provider'] == {'order': ['groq'], 'allow_fallbacks': False} for body in sent)
+
+
 def test_only_openrouter_receives_routing_options(tmp_path, monkeypatch):
     for name in providers.PROVIDERS:
         adapter = getattr(providers, name)

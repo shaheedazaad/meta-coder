@@ -168,6 +168,15 @@ def test_success_replaces_earlier_results_and_stale_successes_are_kept_but_not_u
     assert load_persisted_results(project)['paper.pdf'].raw_response == 'new'
 
 
+def test_canonical_result_wins_over_a_legacy_one_for_the_same_pdf(context):
+    # Both records exist; the legacy lossy-stem one sorts after the canonical
+    # one and must not replace it.
+    project, _, _ = context
+    write_raw_result(project, ok_result(context, raw_response='canonical'), provider='gemini', model='model')
+    (project.raw_dir / 'paper.json').write_text('{"source_pdf": "paper.pdf", "status": "ok", "raw_response": "legacy"}')
+    assert load_persisted_results(project)['paper.pdf'].raw_response == 'canonical'
+
+
 def test_failed_attempt_keeps_a_legacy_success_at_its_pre_hash_path(context):
     project, _, _ = context
     legacy_path = project.raw_dir / 'paper.json'
@@ -257,3 +266,82 @@ def test_progress_reports_the_attempt_even_when_a_success_is_kept(context, monke
                         lambda *, pdf_path, **_: ExtractionResult(pdf_path.name, 'needs_review', error='check'))
     state = _run(Runner(), project, manual, sheet, only_pdfs=['paper.pdf'])
     assert state.pdfs == [PdfProgress('paper.pdf', status='needs_review', error='check')]
+
+
+def review_result(context, **changes):
+    fields = {'coded_by_row_id': {'r1': {'estimate': {'value': 5}}}, 'input_fingerprint': fingerprint(context),
+              'error': 'Response was cut short', 'raw_response': 'to review'}
+    return ExtractionResult('paper.pdf', 'needs_review', **{**fields, **changes})
+
+
+@pytest.mark.parametrize('status, error, recorded', [
+    ('error', 'HTTP 503', 'HTTP 503'),
+    ('error', None, 'The retry failed without an error message.'),
+    ('cancelled', None, 'The retry was cancelled.'),
+])
+def test_failed_retry_keeps_a_needs_review_result_and_notes_the_failure(context, status, error, recorded):
+    project, _, _ = context
+    write_raw_result(project, review_result(context), provider='gemini', model='model')
+    attempt = ExtractionResult('paper.pdf', status, error=error, input_fingerprint=fingerprint(context))
+    write_raw_result(project, attempt, provider='gemini', model='model')
+    kept = load_persisted_results(project)['paper.pdf']
+    assert kept.status == 'needs_review' and kept.raw_response == 'to review'
+    assert kept.coded_by_row_id == {'r1': {'estimate': {'value': 5}}}
+    assert kept.retry_error == recorded and kept.retry_failed_at
+    assert load_latest_attempts(project)['paper.pdf'].status == status  # the failed attempt is still saved
+    # An outdated result loses the note along with its values.
+    (project.sources_dir / 'paper.pdf').write_bytes(b'%PDF-replaced')
+    assert checker(context).check({'paper.pdf': kept})['paper.pdf'].retry_error is None
+
+
+@pytest.mark.parametrize('status', ['needs_review', 'ok'])
+def test_a_new_result_replaces_a_needs_review_result_and_clears_its_failed_retry(context, status):
+    project, _, _ = context
+    write_raw_result(project, review_result(context), provider='gemini', model='model')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'error', error='HTTP 503'), provider='gemini', model='model')
+    write_raw_result(project, ExtractionResult('paper.pdf', status, raw_response='new', input_fingerprint=fingerprint(context)),
+                     provider='gemini', model='model')
+    selected = load_persisted_results(project)['paper.pdf']
+    assert selected.status == status and selected.raw_response == 'new'
+    assert selected.retry_error is None and selected.retry_failed_at is None
+
+
+def test_failed_retry_keeps_a_legacy_needs_review_result(context):
+    project, _, _ = context
+    (project.raw_dir / 'paper.json').write_text('{"source_pdf": "paper.pdf", "status": "needs_review", "error": "check"}')
+    write_raw_result(project, ExtractionResult('paper.pdf', 'error', error='HTTP 503'), provider='gemini', model='model')
+    kept = load_persisted_results(project)['paper.pdf']
+    assert kept.status == 'needs_review' and kept.error == 'check' and kept.retry_error == 'HTTP 503'
+
+
+def test_failed_retry_run_keeps_needs_review_values_and_reports_them(context, monkeypatch):
+    project, manual, sheet = context
+    outcomes = [('needs_review', 'Response was cut short'), ('error', 'HTTP 503'),
+                ('cancelled', None), ('needs_review', 'Still cut short')]
+
+    def fake_extract(*, pdf_path, **_kwargs):
+        status, error = outcomes.pop(0)
+        coded = {'r1': {'estimate': {'value': 5, 'evidence': 'p1'}}} if status == 'needs_review' else {}
+        return ExtractionResult(pdf_path.name, status, coded_by_row_id=coded, error=error, input_tokens=10)
+
+    monkeypatch.setattr(runner_module, 'extract_pdf_effects', fake_extract)
+    runner = Runner()
+    _run(runner, project, manual, sheet)
+    yaml_path = audit_yaml_path(project, 'paper.pdf')
+    first_yaml = yaml_path.read_text()
+
+    state = _run(runner, project, manual, sheet, only_pdfs=['paper.pdf'])
+    assert state.pdfs == [PdfProgress('paper.pdf', status='needs_review', error='Response was cut short',
+                                      input_tokens=10, retry_error='HTTP 503')]
+    assert state.snapshot()['pdfs'][0]['retry_error'] == 'HTTP 503'
+    assert ',5,' in (project.output_dir / 'coded_data.csv').read_text()  # still collated
+    assert yaml_path.read_text() == first_yaml
+    assert load_persisted_results(project)['paper.pdf'].retry_error == 'HTTP 503'
+
+    # A normal run recodes it again, and a cancelled attempt keeps it too.
+    state = _run(runner, project, manual, sheet)
+    assert state.pdfs[0].status == 'needs_review' and state.pdfs[0].retry_error == 'The retry was cancelled.'
+
+    state = _run(runner, project, manual, sheet, only_pdfs=['paper.pdf'])
+    assert state.pdfs[0].error == 'Still cut short' and state.pdfs[0].retry_error is None
+    assert load_persisted_results(project)['paper.pdf'].retry_error is None

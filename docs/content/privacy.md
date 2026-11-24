@@ -8,11 +8,11 @@ This page describes what MetaCoder sends and summarises provider terms as checke
 
 | Action | Sent to | Content sent |
 | --- | --- | --- |
-| Extraction with Gemini | Google's Gemini API (`generativelanguage.googleapis.com`) | The complete study PDF, plus instructions, your effect definition, coding manual fields, and the row IDs and locators for that PDF |
-| Extraction with OpenRouter | OpenRouter (`openrouter.ai`), which forwards the request to a model provider | The complete study PDF, plus the same instructions and coding details |
-| Extraction with an OpenAI-compatible endpoint | The API base URL you entered | Text extracted from the PDF on your computer, with page numbers, plus the same instructions and coding details. The PDF file itself is not sent |
+| Extraction with Gemini | Google's Gemini API (`generativelanguage.googleapis.com`) | The complete study PDF, or an XML source's full contents as text, plus instructions, your effect definition, coding manual fields, and the row IDs and locators for that source |
+| Extraction with OpenRouter | OpenRouter (`openrouter.ai`), which forwards the request to a model provider | The complete study PDF, or an XML source's full contents as text, plus the same instructions and coding details |
+| Extraction with an OpenAI-compatible endpoint | The API base URL you entered | Text extracted from the PDF on your computer, with page numbers, or an XML source's full contents as text, plus the same instructions and coding details. The PDF file itself is not sent |
 | AI manual drafting | Your drafting provider | Text extracted on your computer from the uploaded manual document |
-| Coding sheet conversion | Your drafting provider | The uploaded CSV content, your saved manual, your notes, and the names of uploaded PDFs |
+| Coding sheet conversion | Your drafting provider | The uploaded CSV content, your saved manual, your notes, and the names of uploaded sources |
 | Model checks | The selected provider | A request for model details; no documents |
 | Update checks | GitHub | A request for the latest release number; no documents or keys |
 
@@ -20,7 +20,7 @@ Your API key is sent only to the provider it belongs to, to authorise requests. 
 
 ## What is stored on your computer
 
-Projects are saved in the app's data folder (see [Data locations](projects.md#data-locations)). A project contains your manual, coding sheet, source PDFs, results, and an `audit/` folder. The [audit history](auditing.md) keeps copies of the inputs and the full request sent to the provider, including the encoded PDF or extracted text, and the provider's response.
+Projects are saved in the app's data folder (see [Data locations](projects.md#data-locations)). A project contains your manual, coding sheet, sources (PDF or XML), results, and an `audit/` folder. The [audit history](auditing.md) keeps copies of the inputs and the full request sent to the provider, including the encoded PDF, extracted text or XML text, and the provider's response.
 
 API keys are kept in your operating system's credential store, not in project files or exports. Project and audit ZIP exports do contain your documents, so share them with the same care as the PDFs themselves.
 
@@ -41,7 +41,7 @@ OpenRouter passes your request to a third-party model provider, so two sets of t
 
 - **OpenRouter itself**: its [data collection page](https://openrouter.ai/docs/guides/privacy/data-collection) states that it does not store your prompts or responses unless you opt in to logging. One opt-in lets OpenRouter use inputs and outputs in exchange for a discount; leave it off for research documents.
 - **The model provider**: policies differ by provider. In your [OpenRouter privacy settings](https://openrouter.ai/settings/privacy) you can exclude providers that may store inputs for training, and you can require [Zero Data Retention (ZDR)](https://openrouter.ai/docs/guides/features/zdr) endpoints. OpenRouter says that where it cannot establish a provider's policy it assumes the endpoint "both retains and trains on data". Unless you [route a project to one provider](settings.md#route-openrouter-requests-to-one-provider), MetaCoder sends no per-request routing preferences, so your account settings decide which providers are eligible. Choosing a provider does not override those account settings.
-- **PDF handling**: if a model accepts files directly, OpenRouter passes the PDF to it. If not, OpenRouter converts the PDF first. Its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs) names the parsing engines it uses; at the time of checking, the default for models without native file input was a third-party OCR service charged per page. MetaCoder warns when you select a model without native file input.
+- **PDF handling**: XML sources are sent as text and never go through this conversion. If a model accepts files directly, OpenRouter passes the PDF to it. If not, OpenRouter converts the PDF first. Its [PDF documentation](https://openrouter.ai/docs/guides/overview/multimodal/pdfs) names the parsing engines it uses; at the time of checking, the default for models without native file input was a third-party OCR service charged per page. MetaCoder warns when you select a model without native file input.
 
 ## OpenAI-compatible endpoints
 
@@ -51,6 +51,6 @@ Data handling depends entirely on the endpoint. A local server such as Ollama or
 
 - **Ethics approval and consent.** Most meta-analyses code published articles, but check your protocol or ethics approval if you code unpublished manuscripts, grey literature, data shared by authors, or documents containing participant information.
 - **Unpublished or confidential manuscripts.** Material shared under confidentiality, such as reviewer copies or author-supplied reports, should only go to a service whose terms you and the owner accept. Prefer paid Gemini access, OpenRouter with ZDR, or a local endpoint.
-- **Copyrighted articles.** Uploading licensed PDFs to a third-party service may be restricted by your library's licence terms. Ask your library if you are unsure.
+- **Copyrighted articles.** Uploading licensed PDFs or XML full text to a third-party service may be restricted by your library's licence terms. Ask your library if you are unsure.
 - **Avoid the unpaid Gemini tier** for anything you would not publish, unless the EEA, Swiss, or UK terms apply to you.
 - **Record your choice.** Note the provider, model, and service tier in your methods section; see [Validating the coding](validation.md#report-your-methods).
