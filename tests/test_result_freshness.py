@@ -168,6 +168,15 @@ def test_success_replaces_earlier_results_and_stale_successes_are_kept_but_not_u
     assert load_persisted_results(project)['paper.pdf'].raw_response == 'new'
 
 
+def test_canonical_result_wins_over_a_legacy_one_for_the_same_pdf(context):
+    # Both records exist; the legacy lossy-stem one sorts after the canonical
+    # one and must not replace it.
+    project, _, _ = context
+    write_raw_result(project, ok_result(context, raw_response='canonical'), provider='gemini', model='model')
+    (project.raw_dir / 'paper.json').write_text('{"source_pdf": "paper.pdf", "status": "ok", "raw_response": "legacy"}')
+    assert load_persisted_results(project)['paper.pdf'].raw_response == 'canonical'
+
+
 def test_failed_attempt_keeps_a_legacy_success_at_its_pre_hash_path(context):
     project, _, _ = context
     legacy_path = project.raw_dir / 'paper.json'

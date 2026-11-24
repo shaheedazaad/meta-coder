@@ -145,7 +145,10 @@ def extract_pdf_effects(
     response_format: str = "json_schema",
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
-    """Route to the right adapter. Each adapter keeps its own kwargs (Gemini's
+    """Code one source, PDF or XML (`pdf_path` keeps its historical name),
+    with the selected provider. Each adapter sends an XML source as text.
+
+    Route to the right adapter. Each adapter keeps its own kwargs (Gemini's
     `service_tier`, OpenRouter's `reasoning_effort`) — this function picks out
     only the subset that provider actually accepts rather than forwarding both
     blindly, since neither adapter's signature accepts the other's kwarg."""

@@ -1,6 +1,6 @@
 """Gemini provider adapter (plan.md Part A4 / Problem 2).
 
-Sends the original PDF bytes natively, batches every coding-sheet row for one PDF
+Sends the original PDF bytes natively (an XML source goes as text), batches every coding-sheet row for one PDF
 into a single request, and relies on `mechanism.validate_response` for the hard
 row_id check. Uses the plain REST API via `urllib` rather than the SDK, to keep the
 dependency footprint minimal and the request/response shape fully visible.
@@ -30,11 +30,13 @@ from .extraction import (
     parse_json_response,
     redact_secret,
     review_issues,
+    xml_article_text,
 )
 import threading
 from .manual import CodingManual
 from .mechanism import ValidationResult, build_response_schema, validate_response
 from .prompts import build_extraction_prompt
+from .sources import source_format
 
 
 API_BASE = "https://generativelanguage.googleapis.com/v1beta"
@@ -284,23 +286,41 @@ def extract_pdf_effects(
     service_tier: str = DEFAULT_SERVICE_TIER,
     cancel_event: threading.Event | None = None,
 ) -> ExtractionResult:
+    """Code one PDF or XML source. A PDF is sent natively; an XML source is sent
+    as a second text part, with no file upload."""
+
     source_pdf = pdf_path.name
     requested_ids = {row.row_id for row in rows}
     started = time.monotonic()
     response_schema = build_response_schema(manual)
-    prompt = build_extraction_prompt(manual, rows)
+    is_xml = source_format(pdf_path) == "xml"
+    prompt = build_extraction_prompt(
+        manual, rows, article="article XML in the next part" if is_xml else "attached PDF",
+        source_format="xml" if is_xml else "pdf",
+    )
 
     try:
-        raw_text, tokens = _call_gemini(
-            model=model,
-            api_key=api_key,
-            prompt=prompt,
-            pdf_bytes=pdf_path.read_bytes(),
-            response_schema=response_schema,
-            timeout_sec=timeout_sec,
-            service_tier=service_tier,
-            cancel_event=cancel_event,
-        )
+        if is_xml:
+            raw_text, tokens = _call_gemini_parts(
+                model=model,
+                api_key=api_key,
+                parts=[{"text": prompt}, {"text": xml_article_text(pdf_path)}],
+                response_schema=response_schema,
+                timeout_sec=timeout_sec,
+                service_tier=service_tier,
+                cancel_event=cancel_event,
+            )
+        else:
+            raw_text, tokens = _call_gemini(
+                model=model,
+                api_key=api_key,
+                prompt=prompt,
+                pdf_bytes=pdf_path.read_bytes(),
+                response_schema=response_schema,
+                timeout_sec=timeout_sec,
+                service_tier=service_tier,
+                cancel_event=cancel_event,
+            )
     except ProviderError as exc:
         return ExtractionResult(
             source_pdf=source_pdf,

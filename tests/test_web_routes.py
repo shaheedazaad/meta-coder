@@ -582,7 +582,7 @@ def test_project_deletion_waits_for_an_active_pdf_scan(site, monkeypatch):
     client, project, runtime = site
     monkeypatch.setattr(runtime.pdf_scanner, 'is_running', lambda _: True)
     response = client.post(url(project, '/delete'))
-    assert response.status_code == 409 and 'PDF scan' in response.json()['detail']
+    assert response.status_code == 409 and 'source scan' in response.json()['detail']
     assert project.path.exists()
 
 

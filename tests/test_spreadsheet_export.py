@@ -51,19 +51,21 @@ def test_spreadsheet_csv_drops_blank_lines_from_legacy_windows_files():
 
 
 def test_provenance_follows_coded_rows_with_blanks_for_unknown_results():
-    coded = 'row_id,source_pdf,status\r\nr1,a.pdf,ok\r\nr2,b.pdf,ok\r\nr3,legacy.pdf,ok\r\nr4,missing.pdf,not_run\r\n'
+    coded = ('row_id,source_pdf,status\r\nr1,a.pdf,ok\r\nr2,b.xml,ok\r\nr3,legacy.pdf,ok\r\n'
+             'r4,missing.pdf,not_run\r\nr5,,not_run\r\n')
     results = {
         'a.pdf': ExtractionResult('a.pdf', 'ok', provider='gemini', model='m-a', audit_operation_id='op1'),
-        'b.pdf': ExtractionResult('b.pdf', 'ok', provider='openrouter', model='m-b'),
+        'b.xml': ExtractionResult('b.xml', 'ok', provider='openrouter', model='m-b'),
         'legacy.pdf': ExtractionResult('legacy.pdf', 'ok'),
     }
     rows = list(csv.reader(io.StringIO(provenance_csv(coded, results))))
     assert rows == [
-        ['row_id', 'source_pdf', 'provider', 'model', 'audit_operation_id'],
-        ['r1', 'a.pdf', 'gemini', 'm-a', 'op1'],
-        ['r2', 'b.pdf', 'openrouter', 'm-b', ''],
-        ['r3', 'legacy.pdf', '', '', ''],
-        ['r4', 'missing.pdf', '', '', ''],
+        ['row_id', 'source_pdf', 'provider', 'model', 'audit_operation_id', 'source_format'],
+        ['r1', 'a.pdf', 'gemini', 'm-a', 'op1', 'pdf'],
+        ['r2', 'b.xml', 'openrouter', 'm-b', '', 'xml'],
+        ['r3', 'legacy.pdf', '', '', '', 'pdf'],
+        ['r4', 'missing.pdf', '', '', '', 'pdf'],
+        ['r5', '', '', '', '', ''],
     ]
 
 
@@ -109,8 +111,8 @@ def test_provenance_download_reads_persisted_provider_and_model(site):
     response = client.get(url(project, '/download/provenance'))
     assert response.status_code == 200
     assert response.headers['content-disposition'] == "attachment; filename*=utf-8''Export%20study-provenance.csv"
-    assert response.text == ('row_id,source_pdf,provider,model,audit_operation_id\r\n'
-                             'r1,a.pdf,gemini,m-a,op1\r\nr2,b.pdf,,,\r\n')
+    assert response.text == ('row_id,source_pdf,provider,model,audit_operation_id,source_format\r\n'
+                             'r1,a.pdf,gemini,m-a,op1,pdf\r\nr2,b.pdf,,,,pdf\r\n')
 
 
 def test_download_filename_with_special_characters_uses_rfc6266_encoding(site, tmp_path):

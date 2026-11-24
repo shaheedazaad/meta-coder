@@ -51,7 +51,7 @@
           <span class="project-folder-icon">{{ workflow_icon('folder') }}</span>
           <span class="row-main">
             <strong class="row-title">{{ project.name }}</strong>
-            <span class="row-meta">Created {{ project.created_at[:10] }} · {{ pdf_counts[project.project_id] }} PDF{{ '' if pdf_counts[project.project_id] == 1 else 's' }}</span>
+            <span class="row-meta">Created {{ project.created_at[:10] }} · {{ pdf_counts[project.project_id] }} source{{ '' if pdf_counts[project.project_id] == 1 else 's' }}</span>
           </span><span aria-hidden="true" class="project-row-arrow">→</span>
         </a>
         {% else %}

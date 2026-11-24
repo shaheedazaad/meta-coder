@@ -26,6 +26,7 @@ from .projects import Project
 from .prompts import PROMPT_VERSION
 from .provenance import AuditOperation, atomic_write, audited_call, json_bytes
 from .providers import DEFAULT_PROVIDER, default_model, extract_pdf_effects
+from .sources import source_format
 from .results import CONFIDENCE_CSV, collate_field_key, collate_results, low_confidence_cells, rated_fields, render_pdf_audit_yaml, rows_to_csv
 
 
@@ -78,6 +79,7 @@ def write_raw_result(project: Project, result: ExtractionResult, *, provider: st
     data = json.dumps(
         {
             "source_pdf": result.source_pdf,
+            "source_format": source_format(result.source_pdf),
             "input_fingerprint": result.input_fingerprint,
             "audit_operation_id": result.audit_operation_id,
             "provider": provider,
@@ -142,7 +144,8 @@ def load_persisted_results(project: Project) -> dict[str, ExtractionResult]:
     results: dict[str, ExtractionResult] = {}
     if not project.raw_dir.is_dir():
         return results
-    for path in project.raw_dir.glob("*.json"):
+    # Sorted so the outcome never depends on the filesystem's listing order.
+    for path in sorted(project.raw_dir.glob("*.json")):
         result = _result_from_raw_json(path)
         if result is not None and path != attempt_json_path(project, result.source_pdf):
             # Prefer the canonical collision-resistant record when both it and
@@ -428,6 +431,7 @@ class Runner:
                     project, "extraction", extract_pdf_effects,
                     audit_inputs={"run_coding_sheet.json": json_bytes(coding_sheet)},
                     audit_settings={"prompt_version": PROMPT_VERSION,
+                                    "source_format": source_format(progress.source_pdf),
                                     "parallel_requests": parallel_requests, "request_delay_sec": request_delay_sec,
                                     "run_id": state.audit_run.id if state.audit_run else None},
                     provider=provider,
