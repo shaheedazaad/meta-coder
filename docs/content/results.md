@@ -12,6 +12,17 @@ The results table reports each PDF's status and available usage information. Out
 
 Check that each `row_id` corresponds to the intended experiment or condition, that categories follow your manual, and that cited pages and quotations support the values. For a systematic check against human coding, see [Validating the coding](validation.md). The token columns help you [estimate cost](costs.md#estimate-before-a-full-run).
 
+## Work with several PDFs at once
+
+Use the **Show** menu above the table to list only the PDFs with one status, such as Failed or Needs review. Each option shows how many PDFs have that status. Tick the box beside a PDF to select it. The box in the table header selects every PDF that matches the current filter, on every page. Your selection is kept while you change pages or filters in the same browser tab.
+
+With PDFs selected, a bar above the table offers:
+
+- **Retry selected** codes exactly the selected PDFs again with the current Run settings, whatever their status. You can use it to recode PDFs that finished **ok** after you notice a problem. If a new attempt fails, a PDF that was coded successfully keeps its earlier result. The table then shows the failed attempt and notes that the earlier successful result is still used.
+- **Delete output** deletes the selected PDFs' saved output: their raw responses and per-PDF YAML. `coded_data.csv`, `evidence.csv` and `confidence.csv` are rebuilt from the PDFs that remain, so the deleted PDFs' rows are left blank, marked `not_run`. The source PDFs and coding sheet are kept, and the next run codes them again. The [audit history](auditing.md) records the deletion and keeps a copy of each deleted file.
+
+Both actions ask you to confirm first. Neither is available while a run is active.
+
 ## Confidence ratings
 
 If the manual [asks for confidence ratings](manual.md#confidence-ratings), **Results** offers `confidence.csv`. It has the same rows and columns as `coded_data.csv`, with each coded cell replaced by `high`, `medium` or `low`. For a value that is not reported, the rating says how sure the model is that the article really does not report it. The `notes` column is blank, as are rows that have not been coded. Each field's rating also appears in the per-PDF YAML.
@@ -23,7 +34,7 @@ The Detail column of the results table counts each PDF's **low-confidence cells*
 | Export | Purpose |
 | --- | --- |
 | `coded_data.csv` | Coded values arranged by effect row |
-| `evidence.csv` | Supporting page and quote information for the coded cells |
+| `evidence.csv` | Same rows and columns as `coded_data.csv`, with the supporting page and quote for each coded cell |
 | `confidence.csv` | The model's confidence in each coded cell, when the manual asks for it |
 | `provenance.csv` | Provider, model and audit operation behind each row of `coded_data.csv`; blank for results saved by earlier versions |
 | Spreadsheet copies | `coded_data.csv`, `evidence.csv` and (when present) `confidence.csv` for opening in Excel or LibreOffice: text that could run as a formula (starting with `=`, `+`, `-` or `@`) begins with `'`, and accented characters display correctly. The `'` is part of the file, so some apps keep it visible at the start of the cell. Use the plain files for analysis |

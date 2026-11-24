@@ -9,7 +9,7 @@ Choose **Download audit ZIP** on Results, or **Download project and audit** in P
 | Application | App version, a copy of the application code, and details of the software environment used |
 | Run | Selected PDFs, provider/model, pacing and parallelism, settings (including the maximum output setting and the limit actually sent, or why a lookup failed), final statuses, coded-data and evidence CSV snapshots |
 | Inputs | Saved manual and coding sheet plus effective inputs passed to the action, original study PDFs or XML files, or uploaded draft documents, conversion notes |
-| Each request | Start and finish times, provider address, exact instructions and requested output format, selected model, and settings sent to the provider |
+| Each request | Start and finish times (UTC), provider address, exact instructions and requested output format, selected model, and settings sent to the provider |
 | Each response | Original response and any model version, request identifier, or usage details supplied by the provider |
 | Outcomes | Validated result, any response-format repairs, errors, retries, and links between results and the actions that produced them |
 | Export | Export timestamp, project identity, current run settings, and SHA-256 checksums for every other file in the ZIP |
@@ -30,7 +30,7 @@ An unfinished action may appear in an export taken while it is still running. Th
 
 ## Retention and credentials
 
-Changing a manual or clearing generated output removes the working results but preserves `audit/`, including historical copies of inputs and outputs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.
+Changing a manual or clearing generated output removes the working results but preserves `audit/`, including historical copies of inputs and outputs. Deleting selected PDFs' output on Results is recorded as a `delete_output` action that keeps a copy of each deleted file and of the rebuilt CSVs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.
 
 API authentication headers and keys are excluded. If a known API key is echoed in a response, it is replaced with `[REDACTED]` in the audit record. Exports still contain your research documents, prompts, conversion notes, endpoint addresses, and model output.
 

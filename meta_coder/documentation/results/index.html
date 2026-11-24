@@ -40,6 +40,14 @@
 <h2 id="review-each-study">Review each study<a class="headerlink" href="#review-each-study" title="Permanent link">&para;</a></h2>
 <p>The results table reports each PDF's status and available usage information. Output token counts include any thinking or reasoning tokens the provider bills as output. An <strong>outdated</strong> status means the inputs changed after the PDF was coded; the CSV files keep the last run's values until you <a href="../run/#cancel-and-retry">run extraction</a> again. Open the raw response (<strong>view raw output (YAML)</strong> in the Detail column) when you need to understand a provider error or a response that needs review. If a needs-review PDF's retry failed, its row still shows the needs-review result, followed by <strong>Last retry failed:</strong> and the error; its values stay in the CSV files. A response cut off with <code>finish reason: length</code> ran out of output tokens; see <a href="../run/#maximum-output">Maximum output</a> for how to give the model more room. Readable per-PDF YAML records make it easier to inspect coded effects and supporting quotations: open one with <strong>view coded effects (YAML)</strong> in the same column. The link appears once the PDF has been processed, and the file is also saved in the project's <code>output/coded/</code> folder.</p>
 <p>Check that each <code>row_id</code> corresponds to the intended experiment or condition, that categories follow your manual, and that cited pages and quotations support the values. For a systematic check against human coding, see <a href="../validation/">Validating the coding</a>. The token columns help you <a href="../costs/#estimate-before-a-full-run">estimate cost</a>.</p>
+<h2 id="work-with-several-pdfs-at-once">Work with several PDFs at once<a class="headerlink" href="#work-with-several-pdfs-at-once" title="Permanent link">&para;</a></h2>
+<p>Use the <strong>Show</strong> menu above the table to list only the PDFs with one status, such as Failed or Needs review. Each option shows how many PDFs have that status. Tick the box beside a PDF to select it. The box in the table header selects every PDF that matches the current filter, on every page. Your selection is kept while you change pages or filters in the same browser tab.</p>
+<p>With PDFs selected, a bar above the table offers:</p>
+<ul>
+<li><strong>Retry selected</strong> codes exactly the selected PDFs again with the current Run settings, whatever their status. You can use it to recode PDFs that finished <strong>ok</strong> after you notice a problem. If a new attempt fails, a PDF that was coded successfully keeps its earlier result. The table then shows the failed attempt and notes that the earlier successful result is still used.</li>
+<li><strong>Delete output</strong> deletes the selected PDFs' saved output: their raw responses and per-PDF YAML. <code>coded_data.csv</code>, <code>evidence.csv</code> and <code>confidence.csv</code> are rebuilt from the PDFs that remain, so the deleted PDFs' rows are left blank, marked <code>not_run</code>. The source PDFs and coding sheet are kept, and the next run codes them again. The <a href="../auditing/">audit history</a> records the deletion and keeps a copy of each deleted file.</li>
+</ul>
+<p>Both actions ask you to confirm first. Neither is available while a run is active.</p>
 <h2 id="confidence-ratings">Confidence ratings<a class="headerlink" href="#confidence-ratings" title="Permanent link">&para;</a></h2>
 <p>If the manual <a href="../manual/#confidence-ratings">asks for confidence ratings</a>, <strong>Results</strong> offers <code>confidence.csv</code>. It has the same rows and columns as <code>coded_data.csv</code>, with each coded cell replaced by <code>high</code>, <code>medium</code> or <code>low</code>. For a value that is not reported, the rating says how sure the model is that the article really does not report it. The <code>notes</code> column is blank, as are rows that have not been coded. Each field's rating also appears in the per-PDF YAML.</p>
 <p>The Detail column of the results table counts each PDF's <strong>low-confidence cells</strong>. Start your checks there. A low rating does not change a PDF's status or cause it to be recoded.</p>
@@ -58,7 +66,7 @@
 </tr>
 <tr>
 <td><code>evidence.csv</code></td>
-<td>Supporting page and quote information for the coded cells</td>
+<td>Same rows and columns as <code>coded_data.csv</code>, with the supporting page and quote for each coded cell</td>
 </tr>
 <tr>
 <td><code>confidence.csv</code></td>
@@ -91,7 +99,7 @@
         <a href="../auditing/"><small>Next</small>Audit and reproducibility →</a>
       </nav>
     </main>
-    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#review-each-study">Review each study</a><a href="#confidence-ratings">Confidence ratings</a><a href="#download-the-data">Download the data</a><a href="#preserve-a-run">Preserve a run</a></nav></aside>
+    <aside class="docs-toc"><nav aria-label="On this page"><p>On this page</p><a href="#review-each-study">Review each study</a><a href="#work-with-several-pdfs-at-once">Work with several PDFs at once</a><a href="#confidence-ratings">Confidence ratings</a><a href="#download-the-data">Download the data</a><a href="#preserve-a-run">Preserve a run</a></nav></aside>
   </div>
 </body>
 </html>

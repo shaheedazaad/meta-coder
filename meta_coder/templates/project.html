@@ -104,7 +104,7 @@
   <div class="project-content">
 
   {% macro page_url(tab, run_page, id_issues_page, id_matches_page, id_saved_page, id_orphans_page, sources_page, sheet_page=sheet_page) -%}
-  /{{ token }}/projects/{{ project.project_id }}?tab={{ tab }}&run_sort={{ run_sort }}&run_dir={{ run_dir }}&run_page={{ run_page }}&id_issues_page={{ id_issues_page }}&id_matches_page={{ id_matches_page }}&id_saved_page={{ id_saved_page }}&id_orphans_page={{ id_orphans_page }}&sources_page={{ sources_page }}&sheet_page={{ sheet_page }}
+  /{{ token }}/projects/{{ project.project_id }}?tab={{ tab }}&run_sort={{ run_sort }}&run_dir={{ run_dir }}&run_page={{ run_page }}{% if run_status %}&run_status={{ run_status }}{% endif %}&id_issues_page={{ id_issues_page }}&id_matches_page={{ id_matches_page }}&id_saved_page={{ id_saved_page }}&id_orphans_page={{ id_orphans_page }}&sources_page={{ sources_page }}&sheet_page={{ sheet_page }}
   {%- endmacro %}
 
   {% macro pager(page, total_pages, count, noun, previous_url, next_url) %}
@@ -1012,17 +1012,56 @@
     </div>
     {% endif %}
     {% if run_row_count %}
+    {% set run_filter_query = '&run_status=' ~ (run_status | urlencode) if run_status else '' %}
     {% macro result_sort_link(col, label) %}
     {% set next_dir = 'desc' if run_sort == col and run_dir == 'asc' else 'asc' %}
-    <a href="/{{ token }}/projects/{{ project.project_id }}?tab=results&run_sort={{ col }}&run_dir={{ next_dir }}" style="color:inherit; text-decoration:none">
+    <a href="/{{ token }}/projects/{{ project.project_id }}?tab=results&run_sort={{ col }}&run_dir={{ next_dir }}{{ run_filter_query | safe }}" style="color:inherit; text-decoration:none">
       {{ label }}{% if run_sort == col %}<span class="u-xs">{{ ' ▲' if run_dir == 'asc' else ' ▼' }}</span>{% endif %}
     </a>
     {% endmacro %}
-    <div class="panel" style="margin-bottom:var(--sp-4)">
+    <div class="panel" style="margin-bottom:var(--sp-4)" data-result-selection data-project-id="{{ project.project_id }}">
+      <script type="application/json" data-result-selection-pdfs>{{ {'all': run_all_pdfs, 'filtered': run_filtered_pdfs} | tojson }}</script>
+      <div class="results-toolbar">
+        <form method="get" action="/{{ token }}/projects/{{ project.project_id }}" class="cluster" data-result-filter>
+          <input type="hidden" name="tab" value="results">
+          <input type="hidden" name="run_sort" value="{{ run_sort }}">
+          <input type="hidden" name="run_dir" value="{{ run_dir }}">
+          <label class="u-sm" for="run-status-filter">Show</label>
+          <select class="select" id="run-status-filter" name="run_status">
+            <option value="">All statuses ({{ run_row_count }})</option>
+            {% for status, label, count in run_status_options %}
+            <option value="{{ status }}" {% if status == run_status %}selected{% endif %}>{{ label }} ({{ count }})</option>
+            {% endfor %}
+          </select>
+          <noscript><button type="submit" class="btn" data-variant="outline" data-size="sm">Apply</button></noscript>
+        </form>
+        <form method="post" class="selection-bar" data-selection-bar hidden
+              action="/{{ token }}/projects/{{ project.project_id }}/run/retry">
+          <input type="hidden" name="source_pdfs" value="[]" data-selection-input>
+          <span class="u-sm" data-selection-count aria-live="polite">0 PDFs selected</span>
+          <div class="cluster">
+            <button type="submit" class="btn" data-size="sm" data-selection-retry data-requires-saved-manual
+                    title="Code the selected PDFs again, whatever their status"
+                    {% if not can_retry_selected %}disabled{% endif %}>Retry selected</button>
+            <button type="submit" class="btn" data-variant="outline" data-size="sm" data-selection-delete
+                    formaction="/{{ token }}/projects/{{ project.project_id }}/results/delete"
+                    {% if is_running %}disabled{% endif %}>Delete output</button>
+            <button type="button" class="btn" data-variant="ghost" data-size="sm" data-selection-clear>Clear selection</button>
+          </div>
+        </form>
+      </div>
+      {% if is_running %}
+      <p class="u-xs u-muted results-toolbar-note">Retry and delete are available once the active run finishes.</p>
+      {% elif not can_retry_selected %}
+      <p class="u-xs u-muted results-toolbar-note">To retry PDFs, set up the provider on Run and fix any manual or coding-sheet problems.</p>
+      {% endif %}
       <div class="table-container" tabindex="0" role="region" aria-label="Scrollable data table">
         <table class="table">
           <thead>
             <tr>
+              <th class="select-cell"><input type="checkbox" class="input" data-select-all
+                  aria-label="Select all {{ run_filtered_count }} PDF{{ 's' if run_filtered_count != 1 else '' }} {{ 'shown by this filter' if run_status else 'in the table' }}, on every page"
+                  {% if not run_filtered_count %}disabled{% endif %}></th>
               <th>{{ result_sort_link('source_pdf', 'Article') }}</th>
               <th>{{ result_sort_link('authors', 'Authors') }}</th>
               <th>{{ result_sort_link('year', 'Year') }}</th>
@@ -1035,6 +1074,7 @@
           <tbody>
             {% for pdf in run_rows %}
             <tr data-run-row="{{ pdf.source_pdf }}">
+              <td class="select-cell"><input type="checkbox" class="input" data-select-pdf value="{{ pdf.source_pdf }}" aria-label="Select {{ pdf.source_pdf }}"></td>
               <td>{{ pdf.source_pdf }}</td>
               <td>{{ pdf.authors }}</td>
               <td>{{ pdf.year }}</td>
@@ -1076,15 +1116,17 @@
                 </div>
               </td>
             </tr>
+            {% else %}
+            <tr><td colspan="8" class="u-sm u-muted">No PDFs have this status.</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
       {% if run_total_pages > 1 %}
       <div class="panel-foot">
-        <span class="u-xs u-muted" style="margin-right:auto">Page {{ run_page }} of {{ run_total_pages }} ({{ run_row_count }} article{{ 's' if run_row_count != 1 else '' }})</span>
-        <a class="btn" data-variant="outline" data-size="sm" {% if run_page <= 1 %}aria-disabled="true" tabindex="-1" style="pointer-events:none; opacity:.5"{% endif %} href="/{{ token }}/projects/{{ project.project_id }}?tab=results&run_sort={{ run_sort }}&run_dir={{ run_dir }}&run_page={{ run_page - 1 }}">Previous</a>
-        <a class="btn" data-variant="outline" data-size="sm" {% if run_page >= run_total_pages %}aria-disabled="true" tabindex="-1" style="pointer-events:none; opacity:.5"{% endif %} href="/{{ token }}/projects/{{ project.project_id }}?tab=results&run_sort={{ run_sort }}&run_dir={{ run_dir }}&run_page={{ run_page + 1 }}">Next</a>
+        <span class="u-xs u-muted" style="margin-right:auto">Page {{ run_page }} of {{ run_total_pages }} ({{ run_filtered_count }} article{{ 's' if run_filtered_count != 1 else '' }})</span>
+        <a class="btn" data-variant="outline" data-size="sm" {% if run_page <= 1 %}aria-disabled="true" tabindex="-1" style="pointer-events:none; opacity:.5"{% endif %} href="/{{ token }}/projects/{{ project.project_id }}?tab=results&run_sort={{ run_sort }}&run_dir={{ run_dir }}{{ run_filter_query | safe }}&run_page={{ run_page - 1 }}">Previous</a>
+        <a class="btn" data-variant="outline" data-size="sm" {% if run_page >= run_total_pages %}aria-disabled="true" tabindex="-1" style="pointer-events:none; opacity:.5"{% endif %} href="/{{ token }}/projects/{{ project.project_id }}?tab=results&run_sort={{ run_sort }}&run_dir={{ run_dir }}{{ run_filter_query | safe }}&run_page={{ run_page + 1 }}">Next</a>
       </div>
       {% endif %}
     </div>

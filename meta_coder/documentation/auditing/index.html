@@ -58,7 +58,7 @@
 </tr>
 <tr>
 <td>Each request</td>
-<td>Start and finish times, provider address, exact instructions and requested output format, selected model, and settings sent to the provider</td>
+<td>Start and finish times (UTC), provider address, exact instructions and requested output format, selected model, and settings sent to the provider</td>
 </tr>
 <tr>
 <td>Each response</td>
@@ -82,7 +82,7 @@
 <p>The file named <code>export_manifest.json</code> lists the exported files and their checksums. A checksum is a value calculated from a file's contents; a reviewer can use it to check whether that file has changed. It is not a digital signature or independent proof of when the work was performed.</p>
 <p>An unfinished action may appear in an export taken while it is still running. That record does not establish that the provider completed the request. Export after actions finish for a complete record.</p>
 <h2 id="retention-and-credentials">Retention and credentials<a class="headerlink" href="#retention-and-credentials" title="Permanent link">&para;</a></h2>
-<p>Changing a manual or clearing generated output removes the working results but preserves <code>audit/</code>, including historical copies of inputs and outputs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.</p>
+<p>Changing a manual or clearing generated output removes the working results but preserves <code>audit/</code>, including historical copies of inputs and outputs. Deleting selected PDFs' output on Results is recorded as a <code>delete_output</code> action that keeps a copy of each deleted file and of the rebuilt CSVs. Removing a source file also leaves any previously recorded input snapshot in the audit history. Deleting the whole project removes its audit history too. Keep exported ZIPs if you need an independent backup.</p>
 <p>API authentication headers and keys are excluded. If a known API key is echoed in a response, it is replaced with <code>[REDACTED]</code> in the audit record. Exports still contain your research documents, prompts, conversion notes, endpoint addresses, and model output.</p>
 <h2 id="limits-of-reproducibility">Limits of reproducibility<a class="headerlink" href="#limits-of-reproducibility" title="Permanent link">&para;</a></h2>
 <p>Older runs cannot acquire missing timestamps, exact prompts, or full response envelopes retrospectively. Their surviving result files are still exported; absent audit records mean provenance is incomplete.</p>
