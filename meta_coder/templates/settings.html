@@ -83,7 +83,7 @@
             <option value="{{ value }}" {% if app_settings.openai_response_format == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
-          <p class="u-xs u-muted">Use a mode supported by your endpoint. All responses are validated. PDF text is extracted on your computer and sent with page numbers; figures and scanned pages need OCR or a provider with native PDF support.</p>
+          <p class="u-xs u-muted">Use a mode supported by your endpoint. All responses are validated. PDF text is extracted on your computer and sent with page numbers; figures and scanned pages need OCR or a provider with native PDF support. XML sources are sent as they are.</p>
         </div>
           {% endif %}
           <div>
@@ -144,7 +144,7 @@
           <input type="text" id="grobid-url" name="grobid_url" value="{{ app_settings.grobid_url }}"
                  placeholder="http://localhost:8070" class="input u-mono">
           <p class="u-xs u-muted" style="margin:0">
-            Optional — used only to improve PDF-matching suggestions on the Coding sheet tab.
+            Optional — used only to improve source-matching suggestions for PDFs on the Coding sheet tab.
             Leave blank to use the built-in filename/text heuristic.
           </p>
         </div>

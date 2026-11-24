@@ -6,8 +6,8 @@ import pytest
 from meta_coder.projects import ProjectError
 from meta_coder import uploads
 from meta_coder.uploads import (
-    DuplicateUpload, UploadTooLarge, list_uploaded_pdfs, safe_pdf_name, save_pdf_upload,
-    save_pdf_uploads, source_hashes, unique_destination, upload_summary,
+    DuplicateUpload, UploadTooLarge, list_uploaded_sources, safe_source_name, save_source_upload,
+    save_source_uploads, source_hashes, unique_destination, upload_summary,
 )
 
 
@@ -19,18 +19,18 @@ from meta_coder.uploads import (
     ('x' * 200 + '.pdf', 'x' * 160 + '.pdf'),
 ])
 def test_filename_normalization(name, expected):
-    assert safe_pdf_name(name) == expected
+    assert safe_source_name(name) == expected
 
 
 @pytest.mark.parametrize('name', ['', '.', '..', '...', 'paper.txt', 'paper'])
 def test_invalid_names_are_rejected(name):
     with pytest.raises(ProjectError):
-        safe_pdf_name(name)
+        safe_source_name(name)
 
 
 def test_duplicate_uploads_preserve_all_existing_files(tmp_path):
-    original = save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-first'))
-    second = save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-second'))
+    original = save_source_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-first'))
+    second = save_source_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-second'))
     third = unique_destination(tmp_path, 'paper.pdf')
     assert original.read_bytes() == b'%PDF-first'
     assert second.name == 'paper (2).pdf'
@@ -42,14 +42,14 @@ def test_duplicate_uploads_preserve_all_existing_files(tmp_path):
 @pytest.mark.parametrize('data', [b'', b'%PD', b'not a pdf'])
 def test_invalid_content_leaves_no_partial_file(tmp_path, data):
     with pytest.raises(ProjectError, match='valid PDF'):
-        save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(data))
+        save_source_upload(tmp_path, 'paper.pdf', io.BytesIO(data))
     assert list(tmp_path.iterdir()) == []
 
 
 def test_size_limit_is_inclusive_and_cleans_up_failure(tmp_path):
-    assert save_pdf_upload(tmp_path, 'ok.pdf', io.BytesIO(b'%PDF'), max_bytes=4).read_bytes() == b'%PDF'
+    assert save_source_upload(tmp_path, 'ok.pdf', io.BytesIO(b'%PDF'), max_bytes=4).read_bytes() == b'%PDF'
     with pytest.raises(UploadTooLarge):
-        save_pdf_upload(tmp_path, 'big.pdf', io.BytesIO(b'%PDF!'), max_bytes=4)
+        save_source_upload(tmp_path, 'big.pdf', io.BytesIO(b'%PDF!'), max_bytes=4)
     assert [p.name for p in tmp_path.iterdir()] == ['ok.pdf']
 
 
@@ -59,27 +59,27 @@ def test_stream_failure_cleans_up_partial_output(tmp_path):
             raise OSError('stream disconnected')
 
     with pytest.raises(OSError, match='disconnected'):
-        save_pdf_upload(tmp_path, 'paper.pdf', BrokenStream())
+        save_source_upload(tmp_path, 'paper.pdf', BrokenStream())
     assert list(tmp_path.iterdir()) == []
 
 
 def test_large_upload_reads_multiple_chunks(tmp_path):
     data = b'%PDF' + b'x' * (1024 * 1024 + 3)
-    assert save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(data)).read_bytes() == data
+    assert save_source_upload(tmp_path, 'paper.pdf', io.BytesIO(data)).read_bytes() == data
 
 
 def test_listing_only_returns_pdf_files_in_order(tmp_path):
     for name in ['z.PDF', 'a.pdf', 'notes.txt', 'partial.pdf.uploading']:
         (tmp_path / name).write_bytes(b'')
     (tmp_path / 'directory.pdf').mkdir()
-    assert [p.name for p in list_uploaded_pdfs(tmp_path)] == ['a.pdf', 'z.PDF']
+    assert [p.name for p in list_uploaded_sources(tmp_path)] == ['a.pdf', 'z.PDF']
 
 
 def test_existing_partial_upload_is_not_deleted_by_a_competing_upload(tmp_path):
     partial = tmp_path / 'paper.pdf.uploading'
     partial.write_bytes(b'another upload owns this file')
     with pytest.raises(FileExistsError):
-        save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-new'))
+        save_source_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-new'))
     assert partial.read_bytes() == b'another upload owns this file'
     assert not (tmp_path / 'paper.pdf').exists()
 
@@ -95,18 +95,18 @@ def test_existing_partial_upload_is_not_deleted_by_a_competing_upload(tmp_path):
     ('control\x01.pdf', 'control_.pdf'),
 ])
 def test_unicode_and_portable_names(name, expected):
-    assert safe_pdf_name(name) == expected
+    assert safe_source_name(name) == expected
 
 
 def test_multibyte_filename_fits_portable_byte_limit(tmp_path):
-    name = safe_pdf_name('研' * 170 + '.pdf')
+    name = safe_source_name('研' * 170 + '.pdf')
     assert len(name.encode('utf-8')) <= 180
-    assert save_pdf_upload(tmp_path, name, io.BytesIO(b'%PDF')).name == name
+    assert save_source_upload(tmp_path, name, io.BytesIO(b'%PDF')).name == name
 
 
 def test_uploads_with_content_already_in_the_project_are_skipped(tmp_path):
-    save_pdf_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-one'))
-    result = save_pdf_uploads(tmp_path, [
+    save_source_upload(tmp_path, 'paper.pdf', io.BytesIO(b'%PDF-one'))
+    result = save_source_uploads(tmp_path, [
         ('renamed copy.pdf', io.BytesIO(b'%PDF-one')),
         ('new.pdf', io.BytesIO(b'%PDF-new')),
         ('new again.pdf', io.BytesIO(b'%PDF-new')),
@@ -122,13 +122,13 @@ def test_uploads_with_content_already_in_the_project_are_skipped(tmp_path):
         'Added 2 files. Skipped 2 already in this project: renamed copy.pdf, new again.pdf.'
     )
     with pytest.raises(DuplicateUpload, match='already in this project as paper.pdf'):
-        save_pdf_upload(tmp_path, 'third.pdf', io.BytesIO(b'%PDF-one'))
+        save_source_upload(tmp_path, 'third.pdf', io.BytesIO(b'%PDF-one'))
     assert sorted(p.name for p in tmp_path.iterdir()) == ['new.pdf', 'paper (2).pdf', 'paper.pdf']
 
 
 def test_upload_summary_uses_singular_for_one_file(tmp_path):
-    save_pdf_upload(tmp_path, 'a.pdf', io.BytesIO(b'%PDF-a'))
-    result = save_pdf_uploads(tmp_path, [('b.pdf', io.BytesIO(b'%PDF-b')), ('c.pdf', io.BytesIO(b'%PDF-a'))])
+    save_source_upload(tmp_path, 'a.pdf', io.BytesIO(b'%PDF-a'))
+    result = save_source_uploads(tmp_path, [('b.pdf', io.BytesIO(b'%PDF-b')), ('c.pdf', io.BytesIO(b'%PDF-a'))])
     assert upload_summary(result) == 'Added 1 file. Skipped 1 already in this project: c.pdf.'
 
 
@@ -136,3 +136,11 @@ def test_unreadable_sources_are_left_out_of_the_hashes(tmp_path, monkeypatch):
     (tmp_path / 'a.pdf').write_bytes(b'%PDF-a')
     monkeypatch.setattr(uploads, 'pdf_digest', lambda path: None)
     assert source_hashes(tmp_path) == {}
+
+
+def test_xml_sources_with_content_already_in_the_project_are_skipped(tmp_path):
+    xml = b'<article><front/></article>'
+    save_source_upload(tmp_path, 'study.xml', io.BytesIO(xml))
+    result = save_source_uploads(tmp_path, [('renamed.xml', io.BytesIO(xml))])
+    assert result.saved == []
+    assert [(s.name, s.existing) for s in result.skipped] == [('renamed.xml', 'study.xml')]

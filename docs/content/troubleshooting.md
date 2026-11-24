@@ -4,13 +4,13 @@ Start with the message shown next to the affected action. Most setup problems ca
 
 ## Run is blocked
 
-Check that the effect definition is filled in, the coding manual is valid, and the coding sheet has no structural errors. Save or discard outstanding manual drafts. At least one row must be matched to an uploaded PDF.
+Check that the effect definition is filled in, the coding manual is valid, and the coding sheet has no structural errors. Save or discard outstanding manual drafts. At least one row must be matched to an uploaded source.
 
-See [Define your analysis](analysis.md), [Coding sheet](coding-sheet.md), and [PDF matching](matching.md).
+See [Define your analysis](analysis.md), [Coding sheet](coding-sheet.md), and [Source matching](matching.md).
 
 ## Missing studies in the output
 
-Unmatched sheet rows and PDFs with no rows are skipped. Check **Needs PDF** and **Orphans** in PDF matching, then review the results table for failures. A normal run retains already successful PDFs.
+Unmatched sheet rows and sources with no rows are skipped. Check **Needs a source** and **Orphaned sources** in Source matching, then review the results table for failures. A normal run retains already successful PDFs.
 
 ## Provider errors or timeouts
 
@@ -24,7 +24,15 @@ A response may be rejected when its row IDs do not match the coding sheet or it 
 
 ## Text is missing from a PDF
 
-Image-only pages may contain no extractable text. OpenAI-compatible extraction sends extracted text rather than page images. Try a searchable or OCR-processed PDF, or a provider with native PDF support.
+Image-only pages may contain no extractable text. OpenAI-compatible extraction sends extracted text rather than page images. Try a searchable or OCR-processed PDF, the article's XML full text, or a provider with native PDF support.
+
+## An XML upload is rejected
+
+MetaCoder accepts XML that is UTF-8 text starting with `<`. Re-download the article's XML (not its HTML page or a ZIP), or save it as UTF-8. See [Sources](sources.md#xml-jats-full-text).
+
+## An XML source fails with a context-length error
+
+The whole XML file is sent, markup included, and is never shortened. Choose a model with a larger context window, or upload that article as a PDF instead.
 
 ## Unsaved edits or an unfinished draft
 
